@@ -1,0 +1,31 @@
+arch: x86_64
+repos:
+  - core
+  - extra
+  - community
+
+svn2git:
+  upstream-core-extra: "https://github.com/archlinux/svntogit-packages.git"
+  upstream-community: "https://github.com/archlinux/svntogit-community.git"
+
+basedir:
+  repo: /var/lib/alhp/repo/
+  chroot: /var/lib/alhp/chroot/
+  makepkg: /var/lib/alhp/makepkg/
+  upstream: /var/lib/alhp/upstream/
+
+march:
+  - x86-64-v3
+
+blacklist:
+  - pacman
+  - tensorflow
+  - tensorflow-cuda
+  - gcc
+
+build:
+  worker: 4
+  makej: 8
+
+logging:
+  level: DEBUG
