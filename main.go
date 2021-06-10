@@ -471,7 +471,9 @@ func (b *BuildManager) repoWorker() {
 			cmd := backgroundCmd("repo-add", args...)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
-			check(err)
+			if err != nil {
+				log.Panicf("%s while repo-add: %s", err, string(res))
+			}
 
 			cmd = backgroundCmd("paccache",
 				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
