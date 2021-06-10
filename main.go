@@ -424,10 +424,10 @@ func isPkgFailed(pkg *BuildPackage) bool {
 				failed = false
 			} else {
 				failed = true
-				newContent = append(newContent, scanner.Text())
+				newContent = append(newContent, scanner.Text()+"\n")
 			}
 		} else {
-			newContent = append(newContent, scanner.Text())
+			newContent = append(newContent, scanner.Text()+"\n")
 		}
 	}
 
