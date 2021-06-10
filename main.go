@@ -516,9 +516,10 @@ func (b *BuildManager) repoWorker() {
 func backgroundCmd(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Foreground: false,
-		Setsid:     true,
+		Setpgid: true,
+		Pgid:    0,
 	}
+
 	return cmd
 }
 
