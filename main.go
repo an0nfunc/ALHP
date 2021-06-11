@@ -239,6 +239,12 @@ func (b *BuildManager) buildWorker(id int) {
 					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", pkg.March)))
 			res, err := cmd.CombinedOutput()
 			if err != nil {
+				if b.exit {
+					gitClean(pkg)
+					b.wg.Done()
+					continue
+				}
+
 				log.Warningf("[%s/%s] Build failed, exit code %d", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
 
 				b.failedMutex.Lock()
