@@ -1,0 +1,16 @@
+[Unit]
+Description=Go based Archlinux instructionset enabled repo build manager.
+After=network.target
+
+[Service]
+User=alhp
+Group=alhp
+WorkingDirectory=/home/alhp/ALHP.GO
+ExecStart=/home/alhp/ALHP.GO/ALHP.go
+KillMode=mixed
+TimeoutStopSec=5min
+MemoryHigh=30G
+CPUQuota=700%
+
+[Install]
+WantedBy=multi-user.target
