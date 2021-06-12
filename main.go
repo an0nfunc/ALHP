@@ -7,6 +7,7 @@ import (
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
 	log "github.com/sirupsen/logrus"
+	"github.com/wercker/journalhook"
 	"github.com/yargevad/filepathx"
 	"gopkg.in/yaml.v2"
 	"io"
@@ -112,13 +113,17 @@ func copyFile(src, dst string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer source.Close()
+	defer func(source *os.File) {
+		check(source.Close())
+	}(source)
 
 	destination, err := os.Create(dst)
 	if err != nil {
 		return 0, err
 	}
-	defer destination.Close()
+	defer func(destination *os.File) {
+		check(destination.Close())
+	}(destination)
 	nBytes, err := io.Copy(destination, source)
 	return nBytes, err
 }
@@ -195,7 +200,9 @@ func importKeys(pkg *BuildPackage) {
 func increasePkgRel(pkg *BuildPackage) {
 	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, os.ModePerm)
 	check(err)
-	defer f.Close()
+	defer func(f *os.File) {
+		check(f.Close())
+	}(f)
 
 	fStr, err := io.ReadAll(f)
 	check(err)
@@ -258,7 +265,7 @@ func (b *BuildManager) buildWorker(id int) {
 					_, err := f.WriteString(fmt.Sprintf("%s==%s-%s\n", pkg.Pkgbase, pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel))
 					check(err)
 				}
-				f.Close()
+				check(f.Close())
 				b.failedMutex.Unlock()
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), os.ModePerm))
@@ -410,7 +417,9 @@ func isPkgFailed(pkg *BuildPackage) bool {
 
 	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE, os.ModePerm)
 	check(err)
-	defer file.Close()
+	defer func(file *os.File) {
+		check(file.Close())
+	}(file)
 
 	failed := false
 	var newContent []string
@@ -609,6 +618,7 @@ func main() {
 	lvl, err := log.ParseLevel(conf.Logging.Level)
 	check(err)
 	log.SetLevel(lvl)
+	journalhook.Enable()
 
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
