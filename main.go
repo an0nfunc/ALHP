@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
@@ -51,13 +52,15 @@ type BuildPackage struct {
 }
 
 type BuildManager struct {
-	toBuild     chan *BuildPackage
-	toParse     chan *BuildPackage
-	toPurge     chan *BuildPackage
-	toRepoAdd   chan *BuildPackage
-	exit        bool
-	wg          sync.WaitGroup
-	failedMutex sync.RWMutex
+	toBuild        chan *BuildPackage
+	toParse        chan *BuildPackage
+	toPurge        chan *BuildPackage
+	toRepoAdd      chan *BuildPackage
+	exit           bool
+	wg             sync.WaitGroup
+	failedMutex    sync.RWMutex
+	buildProcesses []*os.Process
+	buildProcMutex sync.RWMutex
 }
 
 type Conf struct {
@@ -229,7 +232,8 @@ func (b *BuildManager) buildWorker(id int) {
 		select {
 		case pkg := <-b.toBuild:
 			if b.exit {
-				continue
+				log.Infof("Worker %d exited...", id)
+				return
 			} else {
 				b.wg.Add(1)
 			}
@@ -245,7 +249,27 @@ func (b *BuildManager) buildWorker(id int) {
 			cmd := backgroundCmd("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
 					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", pkg.March)))
-			res, err := cmd.CombinedOutput()
+			var out bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = &out
+
+			check(cmd.Start())
+
+			b.buildProcMutex.Lock()
+			b.buildProcesses = append(b.buildProcesses, cmd.Process)
+			b.buildProcMutex.Unlock()
+
+			err := cmd.Wait()
+
+			b.buildProcMutex.Lock()
+			for i := range b.buildProcesses {
+				if b.buildProcesses[i].Pid == cmd.Process.Pid {
+					b.buildProcesses = append(b.buildProcesses[:i], b.buildProcesses[i+1:]...)
+					break
+				}
+			}
+			b.buildProcMutex.Unlock()
+
 			if err != nil {
 				if b.exit {
 					gitClean(pkg)
@@ -270,7 +294,7 @@ func (b *BuildManager) buildWorker(id int) {
 				b.failedMutex.Unlock()
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), os.ModePerm))
-				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), res, os.ModePerm))
+				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), os.ModePerm))
 
 				gitClean(pkg)
 				b.wg.Done()
@@ -337,13 +361,13 @@ func (b *BuildManager) parseWorker() {
 			cmd := backgroundCmd("sh", "-c", "cd "+filepath.Dir(pkg.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
 			res, err := cmd.Output()
 			if err != nil {
-				log.Warningf("Failed generate SRCINFO for %s: %s", pkg.Pkgbase, err)
+				log.Warningf("Failed generate SRCINFO for %s: %v", pkg.Pkgbase, err)
 				continue
 			}
 
 			info, err := srcinfo.Parse(string(res))
 			if err != nil {
-				log.Warningf("Failed to parse SRCINFO for %s: %s", pkg.Pkgbase, err)
+				log.Warningf("Failed to parse SRCINFO for %s: %v", pkg.Pkgbase, err)
 				continue
 			}
 			pkg.Srcinfo = info
@@ -489,7 +513,7 @@ func (b *BuildManager) repoWorker() {
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
-				log.Panicf("%s while repo-add: %s", err, string(res))
+				log.Panicf("%v while repo-add: %s", err, string(res))
 			}
 
 			cmd = backgroundCmd("paccache",
@@ -649,5 +673,10 @@ func main() {
 	<-killSignals
 
 	buildManager.exit = true
+
+	for _, p := range buildManager.buildProcesses {
+		check(p.Signal(syscall.SIGTERM))
+	}
+
 	buildManager.wg.Wait()
 }
