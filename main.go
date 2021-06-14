@@ -59,7 +59,7 @@ type BuildManager struct {
 	exit           bool
 	wg             sync.WaitGroup
 	failedMutex    sync.RWMutex
-	buildProcesses []*syscall.SysProcAttr
+	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
 }
 
@@ -256,14 +256,14 @@ func (b *BuildManager) buildWorker(id int) {
 			check(cmd.Start())
 
 			b.buildProcMutex.Lock()
-			b.buildProcesses = append(b.buildProcesses, cmd.SysProcAttr)
+			b.buildProcesses = append(b.buildProcesses, cmd.Process)
 			b.buildProcMutex.Unlock()
 
 			err := cmd.Wait()
 
 			b.buildProcMutex.Lock()
 			for i := range b.buildProcesses {
-				if b.buildProcesses[i].Pgid == cmd.SysProcAttr.Pgid {
+				if b.buildProcesses[i].Pid == cmd.Process.Pid {
 					b.buildProcesses = append(b.buildProcesses[:i], b.buildProcesses[i+1:]...)
 					break
 				}
@@ -675,7 +675,10 @@ func main() {
 	buildManager.exit = true
 	buildManager.buildProcMutex.RLock()
 	for _, p := range buildManager.buildProcesses {
-		check(syscall.Kill(p.Pgid*-1, syscall.SIGTERM))
+		pgid, err := syscall.Getpgid(p.Pid)
+		check(err)
+
+		check(syscall.Kill(-pgid, syscall.SIGTERM))
 	}
 	buildManager.buildProcMutex.RUnlock()
 
