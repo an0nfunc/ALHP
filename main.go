@@ -586,7 +586,7 @@ func (b *BuildManager) syncWorker() {
 			sPkgbuild := strings.Split(pkgbuild, "/")
 			repo := sPkgbuild[len(sPkgbuild)-2]
 
-			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || strings.Contains(repo, "i686") {
+			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || strings.Contains(repo, "i686") || strings.Contains(repo, "testing") {
 				continue
 			}
 
@@ -619,6 +619,8 @@ func main() {
 	check(err)
 	log.SetLevel(lvl)
 	journalhook.Enable()
+
+	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 19))
 
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
