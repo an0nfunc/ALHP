@@ -226,6 +226,8 @@ func gitClean(pkg *BuildPackage) {
 }
 
 func (b *BuildManager) buildWorker(id int) {
+	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 18))
+
 	for {
 		select {
 		case pkg := <-b.toBuild:
@@ -647,7 +649,7 @@ func main() {
 	log.SetLevel(lvl)
 	journalhook.Enable()
 
-	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 19))
+	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5))
 
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
