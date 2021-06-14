@@ -673,10 +673,11 @@ func main() {
 	<-killSignals
 
 	buildManager.exit = true
-
+	buildManager.buildProcMutex.RLock()
 	for _, p := range buildManager.buildProcesses {
 		check(p.Signal(syscall.SIGTERM))
 	}
+	buildManager.buildProcMutex.RUnlock()
 
 	buildManager.wg.Wait()
 }
