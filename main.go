@@ -586,7 +586,7 @@ func (b *BuildManager) syncWorker() {
 			sPkgbuild := strings.Split(pkgbuild, "/")
 			repo := sPkgbuild[len(sPkgbuild)-2]
 
-			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || strings.Contains(repo, "i686") || strings.Contains(repo, "testing") {
+			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || strings.Contains(repo, "i686") || strings.Contains(repo, "testing") || strings.Contains(repo, "staging") {
 				continue
 			}
 
