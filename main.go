@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
@@ -136,19 +135,17 @@ func copyFile(src, dst string) (int64, error) {
 func setupMakepkg(march string) {
 	lMakepkg := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", march))
 
-	if _, err := os.Stat(lMakepkg); errors.Is(err, os.ErrNotExist) {
-		check(os.MkdirAll(conf.Basedir.Makepkg, os.ModePerm))
-		t, err := os.ReadFile(makepkgConf)
-		check(err)
-		makepkgStr := string(t)
+	check(os.MkdirAll(conf.Basedir.Makepkg, os.ModePerm))
+	t, err := os.ReadFile(makepkgConf)
+	check(err)
+	makepkgStr := string(t)
 
-		makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-		makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
-		makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
-		makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
+	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 
-		check(os.WriteFile(lMakepkg, []byte(makepkgStr), os.ModePerm))
-	}
+	check(os.WriteFile(lMakepkg, []byte(makepkgStr), os.ModePerm))
 }
 
 func syncMarchs() {
