@@ -142,6 +142,7 @@ func setupMakepkg(march string) {
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
+	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 
