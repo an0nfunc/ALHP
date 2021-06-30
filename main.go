@@ -231,7 +231,10 @@ func gitClean(pkg *BuildPackage) {
 }
 
 func (b *BuildManager) buildWorker(id int) {
-	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 18))
+	err := syscall.Setpriority(syscall.PRIO_PROCESS, 0, 18)
+	if err != nil {
+		log.Warningf("[worker-%d] Failed to drop priority: %v", id, err)
+	}
 
 	for {
 		select {
@@ -655,7 +658,10 @@ func main() {
 	log.SetLevel(lvl)
 	journalhook.Enable()
 
-	check(syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5))
+	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
+	if err != nil {
+		log.Warningf("Failed to drop priority: %v", err)
+	}
 
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
