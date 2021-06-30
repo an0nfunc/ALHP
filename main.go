@@ -219,7 +219,7 @@ func increasePkgRel(pkg *BuildPackage) {
 }
 
 func gitClean(pkg *BuildPackage) {
-	cmd := backgroundCmd("sudo", "git_clean.sh "+filepath.Dir(pkg.Pkgbuild))
+	cmd := backgroundCmd("sudo", "git_clean.sh", filepath.Dir(pkg.Pkgbuild))
 	res, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Warningf("git clean failed with %v:\n%s", err, res)
@@ -587,7 +587,7 @@ func (b *BuildManager) syncWorker() {
 				log.Debug(string(res))
 				check(err)
 			} else if err == nil {
-				cmd := backgroundCmd("sudo", "git_clean.sh "+gitPath)
+				cmd := backgroundCmd("sudo", "git_clean.sh", gitPath)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				check(err)
