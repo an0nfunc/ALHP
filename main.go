@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -477,6 +478,7 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	}
 
 	check(scanner.Err())
+	sort.Strings(newContent)
 
 	_, err = file.Seek(0, 0)
 	check(err)
