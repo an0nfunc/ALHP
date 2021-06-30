@@ -564,7 +564,7 @@ func backgroundCmd(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
-		Pgid:    0,
+		// Pgid:    0,
 	}
 
 	return cmd
@@ -687,6 +687,5 @@ func main() {
 		check(syscall.Kill(-pgid, syscall.SIGTERM))
 	}
 	buildManager.buildProcMutex.RUnlock()
-
 	buildManager.wg.Wait()
 }
