@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -591,6 +592,9 @@ func (b *BuildManager) syncWorker() {
 
 	for i := 0; i < conf.Build.Worker; i++ {
 		go b.buildWorker(i)
+	}
+
+	for i := 0; i < runtime.NumCPU(); i++ {
 		go b.parseWorker()
 	}
 
