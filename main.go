@@ -658,7 +658,7 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		b.parseWG.Wait()
-		log.Infof("Processed source-repos. %d packages elegible to be build, %d already fully build. Covering %f of offical-repo (buildable) packages.", b.stats.eligible, b.stats.fullyBuild, b.stats.fullyBuild/b.stats.eligible)
+		log.Infof("Processed source-repos. %d packages elegible to be build, %d already fully build. Covering %f of offical-repo (buildable) packages.", b.stats.eligible, b.stats.fullyBuild, float32(b.stats.fullyBuild)/float32(b.stats.eligible)*100.0)
 		b.stats.fullyBuild = 0
 		b.stats.eligible = 0
 		time.Sleep(5 * time.Minute)
