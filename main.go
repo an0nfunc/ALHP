@@ -57,10 +57,15 @@ type BuildManager struct {
 	toPurge        chan *BuildPackage
 	toRepoAdd      chan *BuildPackage
 	exit           bool
-	wg             sync.WaitGroup
+	buildWG        sync.WaitGroup
+	parseWG        sync.WaitGroup
 	failedMutex    sync.RWMutex
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
+	stats          struct {
+		fullyBuild int
+		eligible   int
+	}
 }
 
 type Conf struct {
@@ -243,7 +248,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Infof("Worker %d exited...", id)
 				return
 			} else {
-				b.wg.Add(1)
+				b.buildWG.Add(1)
 			}
 
 			start := time.Now()
@@ -281,7 +286,7 @@ func (b *BuildManager) buildWorker(id int) {
 			if err != nil {
 				if b.exit {
 					gitClean(pkg)
-					b.wg.Done()
+					b.buildWG.Done()
 					continue
 				}
 
@@ -305,7 +310,7 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), os.ModePerm))
 
 				gitClean(pkg)
-				b.wg.Done()
+				b.buildWG.Done()
 				continue
 			}
 
@@ -317,7 +322,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Warningf("No packages found after building %s. Abort build.", pkg.Pkgbase)
 
 				gitClean(pkg)
-				b.wg.Done()
+				b.buildWG.Done()
 				continue
 			}
 
@@ -327,7 +332,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Debug(string(res))
 				if err != nil {
 					log.Warningf("Failed to sign %s: %s", pkg.Pkgbase, err)
-					b.wg.Done()
+					b.buildWG.Done()
 					continue
 				}
 			}
@@ -339,7 +344,7 @@ func (b *BuildManager) buildWorker(id int) {
 				_, err = copyFile(file, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, filepath.Base(file)))
 				if err != nil {
 					check(err)
-					b.wg.Done()
+					b.buildWG.Done()
 					continue
 				}
 
@@ -370,12 +375,14 @@ func (b *BuildManager) parseWorker() {
 			res, err := cmd.Output()
 			if err != nil {
 				log.Warningf("Failed generate SRCINFO for %s: %v", pkg.Pkgbase, err)
+				b.parseWG.Done()
 				continue
 			}
 
 			info, err := srcinfo.Parse(string(res))
 			if err != nil {
 				log.Warningf("Failed to parse SRCINFO for %s: %v", pkg.Pkgbase, err)
+				b.parseWG.Done()
 				continue
 			}
 			pkg.Srcinfo = info
@@ -383,12 +390,14 @@ func (b *BuildManager) parseWorker() {
 			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) {
 				log.Infof("Skipped %s: blacklisted or any-Package", info.Pkgbase)
 				b.toPurge <- pkg
+				b.parseWG.Done()
 				continue
 			}
 
 			if isPkgFailed(pkg) {
 				log.Infof("Skipped %s: failed build", info.Pkgbase)
 				b.toPurge <- pkg
+				b.parseWG.Done()
 				continue
 			}
 
@@ -402,9 +411,13 @@ func (b *BuildManager) parseWorker() {
 			repoVer := getVersionFromRepo(pkg)
 			if repoVer != "" && alpm.VerCmp(repoVer, pkgVer) > 0 {
 				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkgVer, repoVer)
+				b.stats.fullyBuild++
+				b.parseWG.Done()
 				continue
 			}
 
+			b.stats.eligible++
+			b.parseWG.Done()
 			b.toBuild <- pkg
 		}
 	}
@@ -531,7 +544,7 @@ func (b *BuildManager) repoWorker() {
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
 			check(err)
-			b.wg.Done()
+			b.buildWG.Done()
 		case pkg := <-b.toPurge:
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
 				continue
@@ -582,7 +595,7 @@ func (b *BuildManager) syncWorker() {
 	}
 
 	for {
-		b.wg.Wait()
+		b.buildWG.Wait()
 		for gitDir, gitURL := range conf.Svn2git {
 			gitPath := filepath.Join(conf.Basedir.Upstream, gitDir)
 
@@ -629,6 +642,7 @@ func (b *BuildManager) syncWorker() {
 			}
 
 			for _, march := range conf.March {
+				b.parseWG.Add(1)
 				b.toParse <- &BuildPackage{
 					Pkgbuild: pkgbuild,
 					Pkgbase:  sPkgbuild[len(sPkgbuild)-4],
@@ -639,6 +653,10 @@ func (b *BuildManager) syncWorker() {
 			}
 		}
 
+		b.parseWG.Wait()
+		log.Infof("Processed source-repos. %d packages elegible to be build, %d already fully build. Covering %f of offical-repo (buildable) packages.", b.stats.eligible, b.stats.fullyBuild, b.stats.fullyBuild/b.stats.eligible)
+		b.stats.fullyBuild = 0
+		b.stats.eligible = 0
 		time.Sleep(5 * time.Minute)
 	}
 }
@@ -667,12 +685,12 @@ func main() {
 	check(err)
 
 	buildManager = BuildManager{
-		toBuild:     make(chan *BuildPackage),
-		toParse:     make(chan *BuildPackage, conf.Build.Worker),
-		toPurge:     make(chan *BuildPackage),
+		toBuild:     make(chan *BuildPackage, 10000),
+		toParse:     make(chan *BuildPackage, 10000),
+		toPurge:     make(chan *BuildPackage, conf.Build.Worker),
 		toRepoAdd:   make(chan *BuildPackage, conf.Build.Worker),
 		exit:        false,
-		wg:          sync.WaitGroup{},
+		buildWG:     sync.WaitGroup{},
 		failedMutex: sync.RWMutex{},
 	}
 
@@ -693,5 +711,5 @@ func main() {
 		check(syscall.Kill(-pgid, syscall.SIGTERM))
 	}
 	buildManager.buildProcMutex.RUnlock()
-	buildManager.wg.Wait()
+	buildManager.buildWG.Wait()
 }

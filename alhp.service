@@ -11,6 +11,7 @@ KillMode=mixed
 TimeoutStopSec=5min
 MemoryHigh=30G
 CPUQuota=700%
+Nice=15
 
 [Install]
 WantedBy=multi-user.target
