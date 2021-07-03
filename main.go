@@ -150,6 +150,7 @@ func setupMakepkg(march string) {
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
+	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 
@@ -483,6 +484,7 @@ func isPkgFailed(pkg *BuildPackage) bool {
 				pkgVer = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
 			}
 
+			// try to build new versions of previously failed packages
 			if alpm.VerCmp(splitPkg[1], pkgVer) < 0 {
 				failed = false
 			} else {
