@@ -462,7 +462,7 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	buildManager.failedMutex.Lock()
 	defer buildManager.failedMutex.Unlock()
 
-	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE|os.O_SYNC, os.ModePerm)
 	check(err)
 	defer func(file *os.File) {
 		check(file.Close())
@@ -625,6 +625,9 @@ func (b *BuildManager) syncWorker() {
 				check(err)
 			}
 		}
+
+		// fetch updates between sync runs
+		setupChroot()
 
 		pkgBuilds, err := filepathx.Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
