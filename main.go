@@ -413,6 +413,7 @@ func (b *BuildManager) parseWorker() {
 			repoVer := getVersionFromRepo(pkg)
 			if repoVer != "" && alpm.VerCmp(repoVer, pkgVer) > 0 {
 				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkgVer, repoVer)
+				b.stats.eligible++
 				b.stats.fullyBuild++
 				b.parseWG.Done()
 				continue
