@@ -68,7 +68,7 @@ Following command reinstalls all packages found in the repo **extra-x86-64-v3** 
 Replace `extra-x86-64-v3` with whatever repo you want to install.
 
 ```shell script
-pacman -S $(pacman -Sl x86-64-v3 | grep installed | cut -f 2 -d " " | perl -pe 's/\R/ /g;')
+pacman -S $(pacman -Sl extra-x86-64-v3 | grep installed | cut -f 2 -d " " | perl -pe 's/\R/ /g;')
 ```
 
 This is only needed once, new updates are coming from this new repo then, as usual.
