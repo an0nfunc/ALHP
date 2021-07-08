@@ -1,11 +1,13 @@
 # alhp
 
-Build script for archlinux instructionset enabled repos.
-All packages are build with -march=<cpu-set> and -O3. Some packages will not build with -O3, they will just be provided from the official repos as usual.
+Build script for archlinux instructionset enabled repos. All packages are build with `-march=<cpu-set> -O3`. Some
+packages will fail to build, they will just be provided from the official repos as usual.
 
 ## Check your system for support
 
-**Important**: Before you enable any of these repos, check if your system supports x86-64-v3. You can do that with `/lib/ld-linux-x86-64.so.2 --help`. If you don't check beforehand you might be unable to boot your system anymore and need to downgrade any package that you may have upgraded.
+**Important**: Before you enable any of these repos, check if your system supports x86-64-v3. You can do that
+with `/lib/ld-linux-x86-64.so.2 --help`. If you don't check beforehand you might be unable to boot your system anymore
+and need to downgrade any package that you may have upgraded.
 
 Example output snippet for a system supporting up to `x86-64-v3`:
 
@@ -15,6 +17,40 @@ Subdirectories of glibc-hwcaps directories, in priority order:
   x86-64-v3 (supported, searched)
   x86-64-v2 (supported, searched)
 ```
+
+## Package eligibility
+
+Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
+from building:
+
+- all 'any' architecture
+- pacman
+- tensorflow
+- tensorflow-cuda
+- gcc
+- linux
+- linux-docs
+- linux-headers
+- linux-zen
+- linux-zen-docs
+- linux-zen-headers
+- linux-lts
+- linux-lts-docs
+- linux-lts-headers
+- linux-hardened
+- linux-hardened-docs
+- linux-hardened-headers
+- texi2html
+- gradle
+- re2
+- basket
+- w3m
+- ctags
+- libedit
+- jre-openjdk-headless
+- jre-openjdk
+- qca
+- skia-sharp58
 
 ## Enable Repos
 
@@ -54,11 +90,23 @@ pacman-key --keyserver keyserver.ubuntu.com --recv-keys 0D4D2FDAF45468F3DDF59BED
 ```
 
 Local sign:
+
 ```
 pacman-key --lsign-key 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298
 ```
 
 Update package database and upgrade:
+
 ```
 pacman -Suy
+```
+
+## Remove Repos
+
+To disable ALHP remove all *-x86-64-v3 entries in `/etc/pacman.conf`.
+
+After that you can refresh pacmans databases and downgrade all packages like:
+
+```
+pacman -Suuy
 ```
