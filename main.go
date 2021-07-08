@@ -197,7 +197,7 @@ func importKeys(pkg *BuildPackage) {
 	if pkg.Srcinfo.ValidPGPKeys != nil {
 		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
 		args = append(args, pkg.Srcinfo.ValidPGPKeys...)
-		cmd := backgroundCmd("gpg", args...)
+		cmd := exec.Command("gpg", args...)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 
@@ -227,7 +227,7 @@ func increasePkgRel(pkg *BuildPackage) {
 }
 
 func gitClean(pkg *BuildPackage) {
-	cmd := backgroundCmd("sudo", "git_clean.sh", filepath.Dir(pkg.Pkgbuild))
+	cmd := exec.Command("sudo", "git_clean.sh", filepath.Dir(pkg.Pkgbuild))
 	res, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Warningf("git clean failed with %v:\n%s", err, res)
@@ -261,7 +261,7 @@ func (b *BuildManager) buildWorker(id int) {
 			increasePkgRel(pkg)
 			pkg.PkgFiles = []string{}
 
-			cmd := backgroundCmd("sh", "-c",
+			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
 					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", pkg.March)))
 			var out bytes.Buffer
@@ -329,7 +329,7 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 
 			for _, file := range pkgFiles {
-				cmd = backgroundCmd("gpg", "--batch", "--detach-sign", file)
+				cmd = exec.Command("gpg", "--batch", "--detach-sign", file)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				if err != nil {
@@ -373,7 +373,7 @@ func (b *BuildManager) parseWorker() {
 		}
 		select {
 		case pkg := <-b.toParse:
-			cmd := backgroundCmd("sh", "-c", "cd "+filepath.Dir(pkg.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
+			cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(pkg.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
 			res, err := cmd.Output()
 			if err != nil {
 				log.Warningf("Failed generate SRCINFO for %s: %v", pkg.Pkgbase, err)
@@ -512,7 +512,7 @@ func isPkgFailed(pkg *BuildPackage) bool {
 func setupChroot() {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, orgChrootName)); err == nil {
 		//goland:noinspection SpellCheckingInspection
-		cmd := backgroundCmd("arch-nspawn", filepath.Join(conf.Basedir.Chroot, orgChrootName), "pacman", "-Syuu", "--noconfirm")
+		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, orgChrootName), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		check(err)
@@ -520,7 +520,7 @@ func setupChroot() {
 		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
 		check(err)
 
-		cmd := backgroundCmd("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, orgChrootName), "base-devel")
+		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, orgChrootName), "base-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		check(err)
@@ -535,14 +535,14 @@ func (b *BuildManager) repoWorker() {
 		case pkg := <-b.toRepoAdd:
 			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
 			args = append(args, pkg.PkgFiles...)
-			cmd := backgroundCmd("repo-add", args...)
+			cmd := exec.Command("repo-add", args...)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
 				log.Panicf("%v while repo-add: %s", err, string(res))
 			}
 
-			cmd = backgroundCmd("paccache",
+			cmd = exec.Command("paccache",
 				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
 				"-k", "1")
 			res, err = cmd.CombinedOutput()
@@ -564,7 +564,7 @@ func (b *BuildManager) repoWorker() {
 
 			args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
 			args = append(args, realPkgs...)
-			cmd := backgroundCmd("repo-remove", args...)
+			cmd := exec.Command("repo-remove", args...)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil && cmd.ProcessState.ExitCode() == 1 {
@@ -578,16 +578,6 @@ func (b *BuildManager) repoWorker() {
 			}
 		}
 	}
-}
-
-func backgroundCmd(name string, arg ...string) *exec.Cmd {
-	cmd := exec.Command(name, arg...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-		// Pgid:    0,
-	}
-
-	return cmd
 }
 
 func (b *BuildManager) syncWorker() {
@@ -607,24 +597,24 @@ func (b *BuildManager) syncWorker() {
 			gitPath := filepath.Join(conf.Basedir.Upstream, gitDir)
 
 			if _, err := os.Stat(gitPath); os.IsNotExist(err) {
-				cmd := backgroundCmd("git", "clone", "--depth=1", gitURL, gitPath)
+				cmd := exec.Command("git", "clone", "--depth=1", gitURL, gitPath)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				check(err)
 			} else if err == nil {
-				cmd := backgroundCmd("sudo", "git_clean.sh", gitPath)
+				cmd := exec.Command("sudo", "git_clean.sh", gitPath)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				if err != nil {
 					log.Warningf("Failed to execute %s: %v", cmd.String(), err)
 				}
 
-				cmd = backgroundCmd("sh", "-c", "cd "+gitPath+" && git reset --hard")
+				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git reset --hard")
 				res, err = cmd.CombinedOutput()
 				log.Debug(string(res))
 				check(err)
 
-				cmd = backgroundCmd("sh", "-c", "cd "+gitPath+" && git pull")
+				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git pull")
 				res, err = cmd.CombinedOutput()
 				log.Debug(string(res))
 				check(err)
