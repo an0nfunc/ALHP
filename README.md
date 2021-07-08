@@ -18,40 +18,6 @@ Subdirectories of glibc-hwcaps directories, in priority order:
   x86-64-v2 (supported, searched)
 ```
 
-## Package eligibility
-
-Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
-from building:
-
-- all 'any' architecture
-- pacman
-- tensorflow
-- tensorflow-cuda
-- gcc
-- linux
-- linux-docs
-- linux-headers
-- linux-zen
-- linux-zen-docs
-- linux-zen-headers
-- linux-lts
-- linux-lts-docs
-- linux-lts-headers
-- linux-hardened
-- linux-hardened-docs
-- linux-hardened-headers
-- texi2html
-- gradle
-- re2
-- basket
-- w3m
-- ctags
-- libedit
-- jre-openjdk-headless
-- jre-openjdk
-- qca
-- skia-sharp58
-
 ## Enable Repos
 
 To enable these complement repos you need to add them above the regular repos in `/etc/pacman.conf`
@@ -110,3 +76,38 @@ After that you can refresh pacmans databases and downgrade all packages like:
 ```
 pacman -Suuy
 ```
+
+## Package eligibility
+
+Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
+from building:
+
+- all 'any' architecture
+- pacman
+- tensorflow
+- tensorflow-cuda
+- gcc
+- linux
+- linux-docs
+- linux-headers
+- linux-zen
+- linux-zen-docs
+- linux-zen-headers
+- linux-lts
+- linux-lts-docs
+- linux-lts-headers
+- linux-hardened
+- linux-hardened-docs
+- linux-hardened-headers
+- texi2html
+- gradle
+- re2
+- basket
+- w3m
+- ctags
+- libedit
+- jre-openjdk-headless
+- jre-openjdk
+- qca
+- skia-sharp58
+
