@@ -58,17 +58,7 @@ Local sign:
 pacman-key --lsign-key 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298
 ```
 
-Update package database:
+Update package database and upgrade:
 ```
-pacman -Sy
+pacman -Suy
 ```
-
-## Replace packages
-Following command reinstalls all packages found in the repo **extra-x86-64-v3** that are already installed.
-Replace `extra-x86-64-v3` with whatever repo you want to install.
-
-```shell script
-pacman -S $(pacman -Sl extra-x86-64-v3 | grep installed | cut -f 2 -d " " | perl -pe 's/\R/ /g;')
-```
-
-This is only needed once, new updates are coming from this new repo then, as usual.
