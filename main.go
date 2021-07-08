@@ -615,7 +615,9 @@ func (b *BuildManager) syncWorker() {
 				cmd := backgroundCmd("sudo", "git_clean.sh", gitPath)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
-				check(err)
+				if err != nil {
+					log.Warningf("Failed to execute %s: %v", cmd.String(), err)
+				}
 
 				cmd = backgroundCmd("sh", "-c", "cd "+gitPath+" && git reset --hard")
 				res, err = cmd.CombinedOutput()
