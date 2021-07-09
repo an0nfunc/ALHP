@@ -595,6 +595,7 @@ func (b *BuildManager) repoWorker() {
 			log.Debug(string(res))
 			if err != nil && cmd.ProcessState.ExitCode() == 1 {
 				log.Debugf("Deleteing package %s failed: Package not found in database", pkg.Pkgbase)
+				b.repoWG.Done()
 				continue
 			}
 
