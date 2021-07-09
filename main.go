@@ -189,7 +189,7 @@ func syncMarchs() {
 			tRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, tRepo)
 			buildManager.repoAdd[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
-			buildManager.repoPurge[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
+			buildManager.repoPurge[tRepo] = make(chan *BuildPackage, 10000)
 			go buildManager.repoWorker(tRepo)
 
 			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))); os.IsNotExist(err) {
