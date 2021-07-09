@@ -92,9 +92,23 @@ func check(e error) {
 	}
 }
 
-func contains(s []string, str string) bool {
-	if i := find(s, str); i != -1 {
-		return true
+func contains(s interface{}, str string) bool {
+	switch v := s.(type) {
+	case []string:
+		if i := find(v, str); i != -1 {
+			return true
+		}
+	case []srcinfo.ArchString:
+		var n []string
+		for _, as := range v {
+			n = append(n, as.Value)
+		}
+
+		if i := find(n, str); i != -1 {
+			return true
+		}
+	default:
+		return false
 	}
 
 	return false
@@ -390,8 +404,18 @@ func (b *BuildManager) parseWorker() {
 			}
 			pkg.Srcinfo = info
 
-			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) {
+			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) || contains(info.MakeDepends, "ghc") {
 				log.Infof("Skipped %s: blacklisted or any-Package", info.Pkgbase)
+				b.toPurge <- pkg
+				b.parseWG.Done()
+				continue
+			}
+
+			// Skip Haskell packages for now, as we are facing linking problems with them,
+			// most likely caused by not having a dependency tree implemented yet and building at random.
+			// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
+			if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
+				log.Infof("Skipped %s: haskell package", info.Pkgbase)
 				b.toPurge <- pkg
 				b.parseWG.Done()
 				continue
