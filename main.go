@@ -404,7 +404,7 @@ func (b *BuildManager) parseWorker() {
 			}
 			pkg.Srcinfo = info
 
-			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) || contains(info.MakeDepends, "ghc") {
+			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) {
 				log.Infof("Skipped %s: blacklisted or any-Package", info.Pkgbase)
 				b.toPurge <- pkg
 				b.parseWG.Done()
