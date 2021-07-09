@@ -53,10 +53,10 @@ type BuildPackage struct {
 }
 
 type BuildManager struct {
-	toBuild        chan *BuildPackage
-	toParse        chan *BuildPackage
-	toPurge        chan *BuildPackage
-	toRepoAdd      chan *BuildPackage
+	build          chan *BuildPackage
+	parse          chan *BuildPackage
+	repoPurge      map[string]chan *BuildPackage
+	repoAdd        map[string]chan *BuildPackage
 	exit           bool
 	buildWG        sync.WaitGroup
 	parseWG        sync.WaitGroup
@@ -188,6 +188,9 @@ func syncMarchs() {
 		for _, repo := range conf.Repos {
 			tRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, tRepo)
+			buildManager.repoAdd[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
+			buildManager.repoPurge[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
+			go buildManager.repoWorker(tRepo)
 
 			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))); os.IsNotExist(err) {
 				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))
@@ -260,7 +263,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 	for {
 		select {
-		case pkg := <-b.toBuild:
+		case pkg := <-b.build:
 			if b.exit {
 				log.Infof("Worker %d exited...", id)
 				return
@@ -369,7 +372,7 @@ func (b *BuildManager) buildWorker(id int) {
 					pkg.PkgFiles = append(pkg.PkgFiles, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, filepath.Base(file)))
 				}
 			}
-			b.toRepoAdd <- pkg
+			b.repoAdd[pkg.FullRepo] <- pkg
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")); err == nil {
 				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
@@ -387,7 +390,7 @@ func (b *BuildManager) parseWorker() {
 			return
 		}
 		select {
-		case pkg := <-b.toParse:
+		case pkg := <-b.parse:
 			cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(pkg.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
 			res, err := cmd.Output()
 			if err != nil {
@@ -406,7 +409,7 @@ func (b *BuildManager) parseWorker() {
 
 			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) {
 				log.Infof("Skipped %s: blacklisted or any-Package", info.Pkgbase)
-				b.toPurge <- pkg
+				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
@@ -416,14 +419,14 @@ func (b *BuildManager) parseWorker() {
 			// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 			if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
 				log.Infof("Skipped %s: haskell package", info.Pkgbase)
-				b.toPurge <- pkg
+				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
 
 			if isPkgFailed(pkg) {
 				log.Infof("Skipped %s: failed build", info.Pkgbase)
-				b.toPurge <- pkg
+				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
@@ -446,7 +449,7 @@ func (b *BuildManager) parseWorker() {
 
 			b.stats.eligible++
 			b.parseWG.Done()
-			b.toBuild <- pkg
+			b.build <- pkg
 		}
 	}
 }
@@ -554,10 +557,10 @@ func setupChroot() {
 	}
 }
 
-func (b *BuildManager) repoWorker() {
+func (b *BuildManager) repoWorker(repo string) {
 	for {
 		select {
-		case pkg := <-b.toRepoAdd:
+		case pkg := <-b.repoAdd[repo]:
 			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
 			args = append(args, pkg.PkgFiles...)
 			cmd := exec.Command("repo-add", args...)
@@ -574,7 +577,7 @@ func (b *BuildManager) repoWorker() {
 			log.Debug(string(res))
 			check(err)
 			b.buildWG.Done()
-		case pkg := <-b.toPurge:
+		case pkg := <-b.repoPurge[repo]:
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
 				continue
 			}
@@ -673,7 +676,7 @@ func (b *BuildManager) syncWorker() {
 
 			for _, march := range conf.March {
 				b.parseWG.Add(1)
-				b.toParse <- &BuildPackage{
+				b.parse <- &BuildPackage{
 					Pkgbuild: pkgbuild,
 					Pkgbase:  sPkgbuild[len(sPkgbuild)-4],
 					Repo:     strings.Split(repo, "-")[0],
@@ -717,17 +720,14 @@ func main() {
 	check(err)
 
 	buildManager = BuildManager{
-		toBuild:   make(chan *BuildPackage, 10000),
-		toParse:   make(chan *BuildPackage, 10000),
-		toPurge:   make(chan *BuildPackage, conf.Build.Worker),
-		toRepoAdd: make(chan *BuildPackage, conf.Build.Worker),
-		exit:      false,
+		build: make(chan *BuildPackage, 10000),
+		parse: make(chan *BuildPackage, 10000),
+		exit:  false,
 	}
 
 	setupChroot()
 	syncMarchs()
 
-	go buildManager.repoWorker()
 	go buildManager.syncWorker()
 
 	<-killSignals
