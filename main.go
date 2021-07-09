@@ -60,6 +60,7 @@ type BuildManager struct {
 	exit           bool
 	buildWG        sync.WaitGroup
 	parseWG        sync.WaitGroup
+	repoWG         sync.WaitGroup
 	failedMutex    sync.RWMutex
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
@@ -295,7 +296,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Warningf("[%s/%s] Build failed, exit code %d", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
 
 				b.failedMutex.Lock()
-				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.ModePerm)
+				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm)
 				check(err)
 
 				if pkg.Srcinfo.Epoch != "" {
@@ -538,8 +539,8 @@ func (b *BuildManager) repoWorker() {
 			cmd := exec.Command("repo-add", args...)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
-			if err != nil {
-				log.Panicf("%v while repo-add: %s", err, string(res))
+			if err != nil && cmd.ProcessState.ExitCode() != 1 {
+				log.Panicf("%s while repo-add: %v", string(res), err)
 			}
 
 			cmd = exec.Command("paccache",
@@ -562,6 +563,7 @@ func (b *BuildManager) repoWorker() {
 				realPkgs = append(realPkgs, realPkg.Pkgname)
 			}
 
+			b.repoWG.Add(1)
 			args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
 			args = append(args, realPkgs...)
 			cmd := exec.Command("repo-remove", args...)
@@ -576,6 +578,7 @@ func (b *BuildManager) repoWorker() {
 				check(os.Remove(file))
 				check(os.Remove(file + ".sig"))
 			}
+			b.repoWG.Done()
 		}
 	}
 }
@@ -689,17 +692,11 @@ func main() {
 	check(err)
 
 	buildManager = BuildManager{
-		toBuild:     make(chan *BuildPackage, 10000),
-		toParse:     make(chan *BuildPackage, 10000),
-		toPurge:     make(chan *BuildPackage, conf.Build.Worker),
-		toRepoAdd:   make(chan *BuildPackage, conf.Build.Worker),
-		exit:        false,
-		buildWG:     sync.WaitGroup{},
-		failedMutex: sync.RWMutex{},
-		stats: struct {
-			fullyBuild int
-			eligible   int
-		}{fullyBuild: 0, eligible: 0},
+		toBuild:   make(chan *BuildPackage, 10000),
+		toParse:   make(chan *BuildPackage, 10000),
+		toPurge:   make(chan *BuildPackage, conf.Build.Worker),
+		toRepoAdd: make(chan *BuildPackage, conf.Build.Worker),
+		exit:      false,
 	}
 
 	setupChroot()
@@ -720,4 +717,5 @@ func main() {
 	}
 	buildManager.buildProcMutex.RUnlock()
 	buildManager.buildWG.Wait()
+	buildManager.repoWG.Wait()
 }
