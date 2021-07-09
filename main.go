@@ -720,9 +720,11 @@ func main() {
 	check(err)
 
 	buildManager = BuildManager{
-		build: make(chan *BuildPackage, 10000),
-		parse: make(chan *BuildPackage, 10000),
-		exit:  false,
+		build:     make(chan *BuildPackage, 10000),
+		parse:     make(chan *BuildPackage, 10000),
+		repoPurge: make(map[string]chan *BuildPackage),
+		repoAdd:   make(map[string]chan *BuildPackage),
+		exit:      false,
 	}
 
 	setupChroot()
