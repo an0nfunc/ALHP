@@ -66,6 +66,7 @@ type BuildPackage struct {
 	Repo     string
 	March    string
 	FullRepo string
+	Version  string
 }
 
 type BuildManager struct {
@@ -263,6 +264,8 @@ func increasePkgRel(pkg *BuildPackage) {
 
 	_, err = f.WriteString(nStr)
 	check(err)
+
+	pkg.Version = pkg.Version + ".1"
 }
 
 func gitClean(pkg *BuildPackage) {
@@ -454,16 +457,15 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 			pkg.Srcinfo = info
-			var pkgVer string
 			if pkg.Srcinfo.Epoch == "" {
-				pkgVer = pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
+				pkg.Version = pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
 			} else {
-				pkgVer = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
+				pkg.Version = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
 			}
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkgVer).SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
 			dbLock.Unlock()
 
 			skipping := false
@@ -506,8 +508,8 @@ func (b *BuildManager) parseWorker() {
 			dbLock.Lock()
 			dbPkg = dbPkg.Update().SetRepoVersion(repoVer).SaveX(context.Background())
 			dbLock.Unlock()
-			if repoVer != "" && alpm.VerCmp(repoVer, pkgVer) > 0 {
-				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkgVer, repoVer)
+			if repoVer != "" && alpm.VerCmp(repoVer, pkg.Version) > 0 {
+				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkg.Version, repoVer)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SaveX(context.Background())
 				dbLock.Unlock()
@@ -750,7 +752,7 @@ func (b *BuildManager) repoWorker(repo string) {
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(getVersionFromRepo(pkg)).SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(pkg.Version).SaveX(context.Background())
 			dbLock.Unlock()
 
 			cmd = exec.Command("paccache",
