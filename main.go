@@ -768,6 +768,9 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 			if len(pkg.PkgFiles) == 0 {
 				findPkgFiles(pkg)
+				if len(pkg.PkgFiles) == 0 {
+					continue
+				}
 			}
 
 			var realPkgs []string
