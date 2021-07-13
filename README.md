@@ -3,6 +3,8 @@
 Build script for archlinux instructionset enabled repos. All packages are build with `-march=<cpu-set> -O3`. Some
 packages will fail to build, they will just be provided from the official repos as usual.
 
+[Package status page](https://alhp.anonfunc.dev/status.html)
+
 ## Check your system for support
 
 **Important**: Before you enable any of these repos, check if your system supports x86-64-v3. You can do that
@@ -80,4 +82,5 @@ pacman -Suuy
 ## Package eligibility
 
 Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
-from building besides all 'any' architecture packages are listed in issue #16.
+from building (besides all 'any' architecture packages) are being listed in issue #16.
+Also [package status page](https://alhp.anonfunc.dev/status.html).
