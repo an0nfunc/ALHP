@@ -692,11 +692,11 @@ func (b *BuildManager) htmlWorker() {
 					}
 
 					if !pkg.BuildTime.IsZero() {
-						addPkg.BuildDate = pkg.BuildTime.Format(time.RFC3339)
+						addPkg.BuildDate = pkg.BuildTime.UTC().Format(time.RFC3339)
 					}
 
 					if !pkg.Updated.IsZero() {
-						addPkg.Checked = pkg.Updated.Format(time.RFC3339)
+						addPkg.Checked = pkg.Updated.UTC().Format(time.RFC3339)
 					}
 
 					addRepo.Packages = append(addRepo.Packages, addPkg)
