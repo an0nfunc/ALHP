@@ -1,15 +1,20 @@
 package main
 
 import (
+	"ALHP.go/ent"
+	"ALHP.go/ent/dbpackage"
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
+	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
 	"github.com/yargevad/filepathx"
 	"gopkg.in/yaml.v2"
+	"html/template"
 	"io"
 	"math/rand"
 	"os"
@@ -33,6 +38,15 @@ const (
 	orgChrootName = "root"
 )
 
+const (
+	SKIPPED  = iota
+	FAILED   = iota
+	BUILD    = iota
+	QUEUED   = iota
+	BUILDING = iota
+	LATEST   = iota
+)
+
 var (
 	conf         = Conf{}
 	repos        []string
@@ -40,6 +54,8 @@ var (
 	rePkgRel     = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgFile    = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	buildManager BuildManager
+	db           *ent.Client
+	dbLock       sync.RWMutex
 )
 
 type BuildPackage struct {
@@ -64,10 +80,6 @@ type BuildManager struct {
 	failedMutex    sync.RWMutex
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
-	stats          struct {
-		fullyBuild int
-		eligible   int
-	}
 }
 
 type Conf struct {
@@ -75,7 +87,7 @@ type Conf struct {
 	Repos, March, Blacklist []string
 	Svn2git                 map[string]string
 	Basedir                 struct {
-		Repo, Chroot, Makepkg, Upstream string
+		Repo, Chroot, Makepkg, Upstream, Db string
 	}
 	Build struct {
 		Worker int
@@ -225,6 +237,15 @@ func importKeys(pkg *BuildPackage) {
 	}
 }
 
+func packages2string(pkgs []srcinfo.Package) []string {
+	var sPkgs []string
+	for _, p := range pkgs {
+		sPkgs = append(sPkgs, p.Pkgname)
+	}
+
+	return sPkgs
+}
+
 func increasePkgRel(pkg *BuildPackage) {
 	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, os.ModePerm)
 	check(err)
@@ -275,6 +296,11 @@ func (b *BuildManager) buildWorker(id int) {
 
 			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
 
+			dbPkg := getDbPackage(pkg)
+			dbLock.Lock()
+			dbPkg.Update().SetStatus(BUILDING).SaveX(context.Background())
+			dbLock.Unlock()
+
 			importKeys(pkg)
 			increasePkgRel(pkg)
 			pkg.PkgFiles = []string{}
@@ -292,7 +318,7 @@ func (b *BuildManager) buildWorker(id int) {
 			b.buildProcesses = append(b.buildProcesses, cmd.Process)
 			b.buildProcMutex.Unlock()
 
-			err := cmd.Wait()
+			err = cmd.Wait()
 
 			b.buildProcMutex.Lock()
 			for i := range b.buildProcesses {
@@ -328,6 +354,11 @@ func (b *BuildManager) buildWorker(id int) {
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), os.ModePerm))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), os.ModePerm))
+
+				dbPkg := getDbPackage(pkg)
+				dbLock.Lock()
+				dbPkg.Update().SetStatus(FAILED).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
+				dbLock.Unlock()
 
 				gitClean(pkg)
 				b.buildWG.Done()
@@ -372,16 +403,33 @@ func (b *BuildManager) buildWorker(id int) {
 					pkg.PkgFiles = append(pkg.PkgFiles, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, filepath.Base(file)))
 				}
 			}
-			b.repoAdd[pkg.FullRepo] <- pkg
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")); err == nil {
 				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
 			}
 
-			gitClean(pkg)
+			dbPkg = getDbPackage(pkg)
+			dbLock.Lock()
+			dbPkg.Update().SetStatus(BUILD).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
+			dbLock.Unlock()
+
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
+			b.repoAdd[pkg.FullRepo] <- pkg
+
+			gitClean(pkg)
 		}
 	}
+}
+
+func getDbPackage(pkg *BuildPackage) *ent.DbPackage {
+	dbLock.Lock()
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkg.Pkgbase)).Only(context.Background())
+	if err != nil {
+		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2string(pkg.Srcinfo.Packages)).SetRepository(pkg.Repo).SaveX(context.Background())
+	}
+	dbLock.Unlock()
+
+	return dbPkg
 }
 
 func (b *BuildManager) parseWorker() {
@@ -406,31 +454,6 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 			pkg.Srcinfo = info
-
-			if contains(info.Arch, "any") || contains(conf.Blacklist, info.Pkgbase) {
-				log.Infof("Skipped %s: blacklisted or any-Package", info.Pkgbase)
-				b.repoPurge[pkg.FullRepo] <- pkg
-				b.parseWG.Done()
-				continue
-			}
-
-			// Skip Haskell packages for now, as we are facing linking problems with them,
-			// most likely caused by not having a dependency tree implemented yet and building at random.
-			// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
-			if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
-				log.Infof("Skipped %s: haskell package", info.Pkgbase)
-				b.repoPurge[pkg.FullRepo] <- pkg
-				b.parseWG.Done()
-				continue
-			}
-
-			if isPkgFailed(pkg) {
-				log.Infof("Skipped %s: failed build", info.Pkgbase)
-				b.repoPurge[pkg.FullRepo] <- pkg
-				b.parseWG.Done()
-				continue
-			}
-
 			var pkgVer string
 			if pkg.Srcinfo.Epoch == "" {
 				pkgVer = pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
@@ -438,16 +461,64 @@ func (b *BuildManager) parseWorker() {
 				pkgVer = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
 			}
 
-			repoVer := getVersionFromRepo(pkg)
-			if repoVer != "" && alpm.VerCmp(repoVer, pkgVer) > 0 {
-				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkgVer, repoVer)
-				b.stats.eligible++
-				b.stats.fullyBuild++
+			dbPkg := getDbPackage(pkg)
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkgVer).SaveX(context.Background())
+			dbLock.Unlock()
+
+			skipping := false
+			if contains(info.Arch, "any") {
+				log.Infof("Skipped %s: any-Package", info.Pkgbase)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SaveX(context.Background())
+				dbLock.Unlock()
+				skipping = true
+			} else if contains(conf.Blacklist, info.Pkgbase) {
+				log.Infof("Skipped %s: blacklisted package", info.Pkgbase)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SaveX(context.Background())
+				dbLock.Unlock()
+				skipping = true
+			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
+				// Skip Haskell packages for now, as we are facing linking problems with them,
+				// most likely caused by not having a dependency tree implemented yet and building at random.
+				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
+				log.Infof("Skipped %s: haskell package", info.Pkgbase)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted (haskell)").SaveX(context.Background())
+				dbLock.Unlock()
+				skipping = true
+			} else if isPkgFailed(pkg) {
+				log.Infof("Skipped %s: failed build", info.Pkgbase)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetStatus(FAILED).SetSkipReason("").SaveX(context.Background())
+				dbLock.Unlock()
+				skipping = true
+			}
+
+			if skipping {
+				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
 
-			b.stats.eligible++
+			repoVer := getVersionFromRepo(pkg)
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetRepoVersion(repoVer).SaveX(context.Background())
+			dbLock.Unlock()
+			if repoVer != "" && alpm.VerCmp(repoVer, pkgVer) > 0 {
+				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkgVer, repoVer)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SaveX(context.Background())
+				dbLock.Unlock()
+				b.parseWG.Done()
+				continue
+			}
+
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetStatus(QUEUED).SaveX(context.Background())
+			dbLock.Unlock()
+
 			b.parseWG.Done()
 			b.build <- pkg
 		}
@@ -537,6 +608,113 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	return failed
 }
 
+func statusId2string(status int) (string, string) {
+	switch status {
+	case SKIPPED:
+		return "SKIPPED", "table-secondary"
+	case QUEUED:
+		return "QUEUED", "table-warning"
+	case LATEST:
+		return "LATEST", "table-primary"
+	case FAILED:
+		return "FAILED", "table-danger"
+	case BUILD:
+		return "SIGNING", "table-success"
+	case BUILDING:
+		return "BUILDING", "table-info"
+	default:
+		return "UNKNOWN", "table-dark"
+	}
+}
+
+func (b *BuildManager) htmlWorker() {
+	type Pkg struct {
+		Pkgbase        string
+		Status         string
+		Class          string
+		Skip           string
+		Version        string
+		Svn2GitVersion string
+		BuildDate      string
+		BuildDuration  time.Duration
+		Checked        string
+	}
+
+	type Repo struct {
+		Name     string
+		Packages []Pkg
+	}
+
+	type March struct {
+		Name  string
+		Repos []Repo
+	}
+
+	type tpl struct {
+		March []March
+	}
+
+	for {
+		gen := &tpl{}
+
+		for _, march := range conf.March {
+			addMarch := March{
+				Name: march,
+			}
+
+			for _, repo := range conf.Repos {
+				addRepo := Repo{
+					Name: repo,
+				}
+
+				dbLock.RLock()
+				pkgs := db.DbPackage.Query().Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(repo)).AllX(context.Background())
+				dbLock.RUnlock()
+
+				for _, pkg := range pkgs {
+					status, class := statusId2string(pkg.Status)
+
+					addPkg := Pkg{
+						Pkgbase:        pkg.Pkgbase,
+						Status:         status,
+						Class:          class,
+						Skip:           pkg.SkipReason,
+						Version:        pkg.RepoVersion,
+						Svn2GitVersion: pkg.Version,
+					}
+
+					if pkg.BuildDuration > 0 {
+						duration, err := time.ParseDuration(strconv.Itoa(int(pkg.BuildDuration)) + "ms")
+						check(err)
+						addPkg.BuildDuration = duration
+					}
+
+					if !pkg.BuildTime.IsZero() {
+						addPkg.BuildDate = pkg.BuildTime.Format(time.RFC3339)
+					}
+
+					if !pkg.Updated.IsZero() {
+						addPkg.Checked = pkg.Updated.Format(time.RFC3339)
+					}
+
+					addRepo.Packages = append(addRepo.Packages, addPkg)
+				}
+				addMarch.Repos = append(addMarch.Repos, addRepo)
+			}
+			gen.March = append(gen.March, addMarch)
+		}
+
+		statusTpl, err := template.ParseFiles("tpl/status.html")
+		check(err)
+
+		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "status.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		check(statusTpl.Execute(f, gen))
+		check(f.Close())
+
+		time.Sleep(time.Minute)
+	}
+}
+
 func setupChroot() {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, orgChrootName)); err == nil {
 		//goland:noinspection SpellCheckingInspection
@@ -569,6 +747,11 @@ func (b *BuildManager) repoWorker(repo string) {
 			if err != nil && cmd.ProcessState.ExitCode() != 1 {
 				log.Panicf("%s while repo-add: %v", string(res), err)
 			}
+
+			dbPkg := getDbPackage(pkg)
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(getVersionFromRepo(pkg)).SaveX(context.Background())
+			dbLock.Unlock()
 
 			cmd = exec.Command("paccache",
 				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
@@ -687,11 +870,6 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		b.parseWG.Wait()
-		if b.stats.eligible != 0 {
-			log.Infof("Processed source-repos. %d packages elegible to be build, %d already fully build. Covering %f%% of offical-repo (buildable) packages.", b.stats.eligible, b.stats.fullyBuild, float32(b.stats.fullyBuild)/float32(b.stats.eligible)*100.0)
-		}
-		b.stats.fullyBuild = 0
-		b.stats.eligible = 0
 		time.Sleep(5 * time.Minute)
 	}
 }
@@ -716,6 +894,18 @@ func main() {
 		log.Warningf("Failed to drop priority: %v", err)
 	}
 
+	db, err = ent.Open("sqlite3", "file:"+conf.Basedir.Db+"?_fk=1&cache=shared")
+	if err != nil {
+		log.Panicf("Failed to open database %s: %v", conf.Basedir.Db, err)
+	}
+	defer func(dbSQLite *ent.Client) {
+		check(dbSQLite.Close())
+	}(db)
+
+	if err := db.Schema.Create(context.Background()); err != nil {
+		log.Panicf("Automigrate failed: %v", err)
+	}
+
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
 
@@ -731,6 +921,7 @@ func main() {
 	syncMarchs()
 
 	go buildManager.syncWorker()
+	go buildManager.htmlWorker()
 
 	<-killSignals
 
