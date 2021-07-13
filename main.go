@@ -670,7 +670,7 @@ func (b *BuildManager) htmlWorker() {
 				}
 
 				dbLock.RLock()
-				pkgs := db.DbPackage.Query().Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(repo)).AllX(context.Background())
+				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(repo)).AllX(context.Background())
 				dbLock.RUnlock()
 
 				for _, pkg := range pkgs {
