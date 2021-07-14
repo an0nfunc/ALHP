@@ -7,6 +7,7 @@
     <!-- Bootstrap CSS -->
     <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet">
 
     <title>ALHP Status</title>
 </head>
@@ -35,10 +36,8 @@
                             <th scope="col">Status</th>
                             <th scope="col">Skipped</th>
                             <th scope="col">SVN2GIT Version</th>
-                            <th scope="col">Version</th>
-                            <th scope="col">Build Date</th>
-                            <th scope="col">Build Duration</th>
-                            <th scope="col">Check date</th>
+                            <th scope="col">{{$repo.Name}}-{{$march.Name}} Version</th>
+                            <th scope="col">Info</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -49,9 +48,9 @@
                             <td>{{$pkg.Skip}}</td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
-                            <td>{{$pkg.BuildDate}}</td>
-                            <td>{{if $pkg.BuildDuration}}{{$pkg.BuildDuration}}{{end}}</td>
-                            <td>{{$pkg.Checked}}</td>
+                            <td><a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip" href="#"
+                                   title="{{if $pkg.BuildDate}}Build Date: {{$pkg.BuildDate}}<br>{{end}}{{if $pkg.BuildDuration}}Build Duration: {{$pkg.BuildDuration}}<br>{{end}}Check date: {{$pkg.Checked}}">
+                                <i class="bi bi-info-circle-fill"></i></a></td>
                         </tr>
                         {{end}}
                         </tbody>
