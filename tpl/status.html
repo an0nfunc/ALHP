@@ -13,6 +13,12 @@
 </head>
 <body>
 
+<nav class="navbar navbar-light bg-info mb-3">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">ALHP Status</span>
+    </div>
+</nav>
+
 <div class="container">
     {{range $march := .March}}<h3>{{$march.Name}}</h3>
     <div class="accordion" id="accordion-{{$march.Name}}">
@@ -26,7 +32,8 @@
                     {{$repo.Name}}-{{$march.Name}}
                 </button>
             </h2>
-            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}" class="accordion-collapse collapse show"
+            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}"
+                 class="accordion-collapse collapse show"
                  data-bs-parent="#accordion-{{$march.Name}}" id="collapse-{{$march.Name}}-{{$repo.Name}}">
                 <div class="accordion-body">
                     <table class="table">
@@ -48,9 +55,11 @@
                             <td>{{$pkg.Skip}}</td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
-                            <td><a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip" href="#"
+                            <td class="text-center">
+                                {{with $pkg.Log}}<a href="{{.}}"><i class="bi bi-file-text-fill"></i></a>{{end}}
+                                <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip" href="#"
                                    title="{{if $pkg.BuildDate}}Build Date: {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build Duration: {{$pkg.BuildDuration}}&#10;{{end}}Check date: {{$pkg.Checked}}">
-                                <i class="bi bi-info-circle-fill"></i></a></td>
+                                    <i class="bi bi-info-circle-fill"></i></a></td>
                         </tr>
                         {{end}}
                         </tbody>
@@ -62,6 +71,12 @@
     </div>
     {{end}}
 </div>
+
+<footer class="text-center text-lg-start bg-dark text-muted mt-3">
+    <div class="text-center p-4" style="background-color: rgba(0, 0, 0, 0.05);">
+        Generated: {{.Generated}}
+    </div>
+</footer>
 
 <script crossorigin="anonymous"
         integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"

@@ -640,6 +640,7 @@ func (b *BuildManager) htmlWorker() {
 		BuildDate      string
 		BuildDuration  time.Duration
 		Checked        string
+		Log            string
 	}
 
 	type Repo struct {
@@ -653,7 +654,8 @@ func (b *BuildManager) htmlWorker() {
 	}
 
 	type tpl struct {
-		March []March
+		March     []March
+		Generated time.Time
 	}
 
 	for {
@@ -699,12 +701,18 @@ func (b *BuildManager) htmlWorker() {
 						addPkg.Checked = pkg.Updated.UTC().Format(time.RFC3339)
 					}
 
+					if pkg.Status == FAILED {
+						addPkg.Log = fmt.Sprintf("logs/%s.log", pkg.Pkgbase)
+					}
+
 					addRepo.Packages = append(addRepo.Packages, addPkg)
 				}
 				addMarch.Repos = append(addMarch.Repos, addRepo)
 			}
 			gen.March = append(gen.March, addMarch)
 		}
+
+		gen.Generated = time.Now().UTC()
 
 		statusTpl, err := template.ParseFiles("tpl/status.html")
 		check(err)
@@ -899,6 +907,9 @@ func main() {
 		log.Warningf("Failed to drop priority: %v", err)
 	}
 
+	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
+	check(err)
+
 	db, err = ent.Open("sqlite3", "file:"+conf.Basedir.Db+"?_fk=1&cache=shared")
 	if err != nil {
 		log.Panicf("Failed to open database %s: %v", conf.Basedir.Db, err)
@@ -910,9 +921,6 @@ func main() {
 	if err := db.Schema.Create(context.Background()); err != nil {
 		log.Panicf("Automigrate failed: %v", err)
 	}
-
-	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
-	check(err)
 
 	buildManager = BuildManager{
 		build:     make(chan *BuildPackage, 10000),
