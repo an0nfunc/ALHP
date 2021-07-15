@@ -49,7 +49,7 @@
                         </thead>
                         <tbody>
                         {{range $pkg := $repo.Packages}}
-                        <tr class="{{$pkg.Class}}">
+                        <tr class="{{$pkg.Class}}" id="{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}">
                             <td>{{$pkg.Pkgbase}}</td>
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
@@ -57,7 +57,8 @@
                             <td>{{$pkg.Version}}</td>
                             <td class="text-center">
                                 {{with $pkg.Log}}<a href="{{.}}"><i class="bi bi-file-text-fill"></i></a>{{end}}
-                                <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip" href="#"
+                                <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
+                                   href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
                                    title="{{if $pkg.BuildDate}}Build Date: {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build Duration: {{$pkg.BuildDuration}}&#10;{{end}}Check date: {{$pkg.Checked}}">
                                     <i class="bi bi-info-circle-fill"></i></a></td>
                         </tr>
