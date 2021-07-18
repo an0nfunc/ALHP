@@ -798,6 +798,11 @@ func (b *BuildManager) repoWorker(repo string) {
 				continue
 			}
 
+			dbPkg := getDbPackage(pkg)
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetRepoVersion("").SaveX(context.Background())
+			dbLock.Unlock()
+
 			for _, file := range pkg.PkgFiles {
 				check(os.Remove(file))
 				check(os.Remove(file + ".sig"))
