@@ -28,5 +28,15 @@ build:
   worker: 4
   makej: 8
 
+status:
+  class:
+    skipped: "secondary"
+    queued: "warning"
+    latest: "primary"
+    failed: "danger"
+    signing: "success"
+    building: "info"
+    unknown: "dark"
+
 logging:
   level: DEBUG

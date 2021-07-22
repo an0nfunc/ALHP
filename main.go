@@ -97,6 +97,11 @@ type Conf struct {
 	Logging struct {
 		Level string
 	}
+	Status struct {
+		Class struct {
+			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
+		}
+	}
 }
 
 func check(e error) {
@@ -612,19 +617,19 @@ func isPkgFailed(pkg *BuildPackage) bool {
 func statusId2string(status int) (string, string) {
 	switch status {
 	case SKIPPED:
-		return "SKIPPED", "table-secondary"
+		return "SKIPPED", "table-" + conf.Status.Class.Skipped
 	case QUEUED:
-		return "QUEUED", "table-warning"
+		return "QUEUED", "table-" + conf.Status.Class.Queued
 	case LATEST:
-		return "LATEST", "table-primary"
+		return "LATEST", "table-" + conf.Status.Class.Latest
 	case FAILED:
-		return "FAILED", "table-danger"
+		return "FAILED", "table-" + conf.Status.Class.Failed
 	case BUILD:
-		return "SIGNING", "table-success"
+		return "SIGNING", "table-" + conf.Status.Class.Signing
 	case BUILDING:
-		return "BUILDING", "table-info"
+		return "BUILDING", "table-" + conf.Status.Class.Building
 	default:
-		return "UNKNOWN", "table-dark"
+		return "UNKNOWN", "table-" + conf.Status.Class.Unknown
 	}
 }
 
@@ -713,10 +718,10 @@ func (b *BuildManager) htmlWorker() {
 
 		gen.Generated = time.Now().UTC()
 
-		statusTpl, err := template.ParseFiles("tpl/status.html")
+		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		check(err)
 
-		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "status.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 		check(statusTpl.Execute(f, gen))
 		check(f.Close())
 
