@@ -276,7 +276,6 @@ func gitClean(pkg *BuildPackage) {
 	} else {
 		log.Debug(string(res))
 	}
-	check(err)
 }
 
 func (b *BuildManager) buildWorker(id int) {
