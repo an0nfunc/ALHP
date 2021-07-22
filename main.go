@@ -474,13 +474,13 @@ func (b *BuildManager) parseWorker() {
 
 			skipping := false
 			if contains(info.Arch, "any") {
-				log.Infof("Skipped %s: any-Package", info.Pkgbase)
+				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			} else if contains(conf.Blacklist, info.Pkgbase) {
-				log.Infof("Skipped %s: blacklisted package", info.Pkgbase)
+				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SaveX(context.Background())
 				dbLock.Unlock()
@@ -489,13 +489,13 @@ func (b *BuildManager) parseWorker() {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
 				// most likely caused by not having a dependency tree implemented yet and building at random.
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
-				log.Infof("Skipped %s: haskell package", info.Pkgbase)
+				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted (haskell)").SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			} else if isPkgFailed(pkg) {
-				log.Infof("Skipped %s: failed build", info.Pkgbase)
+				log.Debugf("Skipped %s: failed build", info.Pkgbase)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(FAILED).SetSkipReason("").SaveX(context.Background())
 				dbLock.Unlock()
