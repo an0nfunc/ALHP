@@ -19,6 +19,8 @@ func init() {
 	dbpackage.PkgbaseValidator = dbpackageDescPkgbase.Validators[0].(func(string) error)
 	// dbpackageDescStatus is the schema descriptor for status field.
 	dbpackageDescStatus := dbpackageFields[2].Descriptor()
+	// dbpackage.DefaultStatus holds the default value on creation for the status field.
+	dbpackage.DefaultStatus = dbpackageDescStatus.Default.(int)
 	// dbpackage.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	dbpackage.StatusValidator = dbpackageDescStatus.Validators[0].(func(int) error)
 	// dbpackageDescRepository is the schema descriptor for repository field.

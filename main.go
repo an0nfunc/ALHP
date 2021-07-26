@@ -3,6 +3,7 @@ package main
 import (
 	"ALHP.go/ent"
 	"ALHP.go/ent/dbpackage"
+	"ALHP.go/ent/migrate"
 	"bufio"
 	"bytes"
 	"context"
@@ -45,6 +46,7 @@ const (
 	QUEUED   = iota
 	BUILDING = iota
 	LATEST   = iota
+	UNKNOWN  = iota
 )
 
 var (
@@ -829,6 +831,18 @@ func (b *BuildManager) syncWorker() {
 
 	for {
 		b.buildWG.Wait()
+
+		/* TODO: Use `v` to print rudimentary stats
+		var v []struct {
+			Status int `json:"status"`
+			Count  int `json:"count"`
+		}
+
+		dbLock.RLock()
+		db.DbPackage.Query().GroupBy(dbpackage.FieldStatus).Aggregate(ent.Count()).ScanX(context.Background(), &v)
+		dbLock.RUnlock()
+		*/
+
 		for gitDir, gitURL := range conf.Svn2git {
 			gitPath := filepath.Join(conf.Basedir.Upstream, gitDir)
 
@@ -927,7 +941,7 @@ func main() {
 		check(dbSQLite.Close())
 	}(db)
 
-	if err := db.Schema.Create(context.Background()); err != nil {
+	if err := db.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
 		log.Panicf("Automigrate failed: %v", err)
 	}
 

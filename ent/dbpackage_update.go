@@ -60,12 +60,6 @@ func (dpu *DbPackageUpdate) AddStatus(i int) *DbPackageUpdate {
 	return dpu
 }
 
-// ClearStatus clears the value of the "status" field.
-func (dpu *DbPackageUpdate) ClearStatus() *DbPackageUpdate {
-	dpu.mutation.ClearStatus()
-	return dpu
-}
-
 // SetSkipReason sets the "skip_reason" field.
 func (dpu *DbPackageUpdate) SetSkipReason(s string) *DbPackageUpdate {
 	dpu.mutation.SetSkipReason(s)
@@ -337,12 +331,6 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldStatus,
 		})
 	}
-	if dpu.mutation.StatusCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
-			Column: dbpackage.FieldStatus,
-		})
-	}
 	if value, ok := dpu.mutation.SkipReason(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -491,12 +479,6 @@ func (dpuo *DbPackageUpdateOne) SetNillableStatus(i *int) *DbPackageUpdateOne {
 // AddStatus adds i to the "status" field.
 func (dpuo *DbPackageUpdateOne) AddStatus(i int) *DbPackageUpdateOne {
 	dpuo.mutation.AddStatus(i)
-	return dpuo
-}
-
-// ClearStatus clears the value of the "status" field.
-func (dpuo *DbPackageUpdateOne) ClearStatus() *DbPackageUpdateOne {
-	dpuo.mutation.ClearStatus()
 	return dpuo
 }
 
@@ -792,12 +774,6 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
 			Type:   field.TypeInt,
 			Value:  value,
-			Column: dbpackage.FieldStatus,
-		})
-	}
-	if dpuo.mutation.StatusCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
 			Column: dbpackage.FieldStatus,
 		})
 	}

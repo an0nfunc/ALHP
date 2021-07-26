@@ -15,7 +15,7 @@ func (DbPackage) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("pkgbase").NotEmpty().Immutable().Unique(),
 		field.Strings("packages").Optional(),
-		field.Int("status").Optional().Min(0),
+		field.Int("status").Min(0).Default(6),
 		field.String("skip_reason").Optional(),
 		field.String("repository").NotEmpty(),
 		field.String("march").NotEmpty(),

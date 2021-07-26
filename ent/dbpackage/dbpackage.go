@@ -62,6 +62,8 @@ func ValidColumn(column string) bool {
 var (
 	// PkgbaseValidator is a validator for the "pkgbase" field. It is called by the builders before save.
 	PkgbaseValidator func(string) error
+	// DefaultStatus holds the default value on creation for the "status" field.
+	DefaultStatus int
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(int) error
 	// RepositoryValidator is a validator for the "repository" field. It is called by the builders before save.

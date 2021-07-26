@@ -265,24 +265,10 @@ func (m *DbPackageMutation) AddedStatus() (r int, exists bool) {
 	return *v, true
 }
 
-// ClearStatus clears the value of the "status" field.
-func (m *DbPackageMutation) ClearStatus() {
-	m.status = nil
-	m.addstatus = nil
-	m.clearedFields[dbpackage.FieldStatus] = struct{}{}
-}
-
-// StatusCleared returns if the "status" field was cleared in this mutation.
-func (m *DbPackageMutation) StatusCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldStatus]
-	return ok
-}
-
 // ResetStatus resets all changes to the "status" field.
 func (m *DbPackageMutation) ResetStatus() {
 	m.status = nil
 	m.addstatus = nil
-	delete(m.clearedFields, dbpackage.FieldStatus)
 }
 
 // SetSkipReason sets the "skip_reason" field.
@@ -927,9 +913,6 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldPackages) {
 		fields = append(fields, dbpackage.FieldPackages)
 	}
-	if m.FieldCleared(dbpackage.FieldStatus) {
-		fields = append(fields, dbpackage.FieldStatus)
-	}
 	if m.FieldCleared(dbpackage.FieldSkipReason) {
 		fields = append(fields, dbpackage.FieldSkipReason)
 	}
@@ -964,9 +947,6 @@ func (m *DbPackageMutation) ClearField(name string) error {
 	switch name {
 	case dbpackage.FieldPackages:
 		m.ClearPackages()
-		return nil
-	case dbpackage.FieldStatus:
-		m.ClearStatus()
 		return nil
 	case dbpackage.FieldSkipReason:
 		m.ClearSkipReason()

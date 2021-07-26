@@ -363,20 +363,6 @@ func StatusLTE(v int) predicate.DbPackage {
 	})
 }
 
-// StatusIsNil applies the IsNil predicate on the "status" field.
-func StatusIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldStatus)))
-	})
-}
-
-// StatusNotNil applies the NotNil predicate on the "status" field.
-func StatusNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldStatus)))
-	})
-}
-
 // SkipReasonEQ applies the EQ predicate on the "skip_reason" field.
 func SkipReasonEQ(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {

@@ -13,7 +13,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "pkgbase", Type: field.TypeString, Unique: true},
 		{Name: "packages", Type: field.TypeJSON, Nullable: true},
-		{Name: "status", Type: field.TypeInt, Nullable: true},
+		{Name: "status", Type: field.TypeInt, Default: 6},
 		{Name: "skip_reason", Type: field.TypeString, Nullable: true},
 		{Name: "repository", Type: field.TypeString},
 		{Name: "march", Type: field.TypeString},

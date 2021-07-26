@@ -153,6 +153,7 @@ func (dpc *DbPackageCreate) Save(ctx context.Context) (*DbPackage, error) {
 		err  error
 		node *DbPackage
 	)
+	dpc.defaults()
 	if len(dpc.hooks) == 0 {
 		if err = dpc.check(); err != nil {
 			return nil, err
@@ -191,6 +192,14 @@ func (dpc *DbPackageCreate) SaveX(ctx context.Context) *DbPackage {
 	return v
 }
 
+// defaults sets the default values of the builder before save.
+func (dpc *DbPackageCreate) defaults() {
+	if _, ok := dpc.mutation.Status(); !ok {
+		v := dbpackage.DefaultStatus
+		dpc.mutation.SetStatus(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (dpc *DbPackageCreate) check() error {
 	if _, ok := dpc.mutation.Pkgbase(); !ok {
@@ -200,6 +209,9 @@ func (dpc *DbPackageCreate) check() error {
 		if err := dbpackage.PkgbaseValidator(v); err != nil {
 			return &ValidationError{Name: "pkgbase", err: fmt.Errorf("ent: validator failed for field \"pkgbase\": %w", err)}
 		}
+	}
+	if _, ok := dpc.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New("ent: missing required field \"status\"")}
 	}
 	if v, ok := dpc.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
@@ -359,6 +371,7 @@ func (dpcb *DbPackageCreateBulk) Save(ctx context.Context) ([]*DbPackage, error)
 	for i := range dpcb.builders {
 		func(i int, root context.Context) {
 			builder := dpcb.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*DbPackageMutation)
 				if !ok {
