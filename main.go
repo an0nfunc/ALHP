@@ -39,7 +39,6 @@ var (
 	conf         = Conf{}
 	repos        []string
 	alpmHandle   *alpm.Handle
-	alpmLock     sync.RWMutex
 	reMarch      = regexp.MustCompile(`(-march=)(.+?) `)
 	rePkgRel     = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgFile    = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
@@ -241,7 +240,7 @@ func (b *BuildManager) parseWorker() {
 				skipping = true
 			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
-				// most likely caused by not having a dependency tree implemented yet and building at random.
+				// most likely caused by not having a dependency check implemented yet and building at random.
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
 				dbLock.Lock()
@@ -595,10 +594,8 @@ func main() {
 	setupChroot()
 	syncMarchs()
 
-	alpmLock.Lock()
 	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, "root"), filepath.Join(conf.Basedir.Chroot, "/root/var/lib/pacman"))
 	check(err)
-	alpmLock.Unlock()
 
 	go buildManager.syncWorker()
 	go buildManager.htmlWorker()

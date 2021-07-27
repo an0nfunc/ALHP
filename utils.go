@@ -455,7 +455,6 @@ func setupMakepkg(march string) {
 }
 
 func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, error) {
-	alpmLock.Lock()
 	dbs, err := h.SyncDBs()
 	if err != nil {
 		return false, err
@@ -481,7 +480,6 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, error) {
 			return false, nil
 		}
 	}
-	alpmLock.Unlock()
 
 	return true, nil
 }
