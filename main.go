@@ -274,12 +274,14 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 
+			isLatest, err := isMirrorLatest(alpmHandle, pkg)
+			if err != nil {
+				log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
+			}
+
 			dbLock.Lock()
 			dbPkg = dbPkg.Update().SetStatus(QUEUED).SaveX(context.Background())
 			dbLock.Unlock()
-
-			isLatest, err := isMirrorLatest(alpmHandle, pkg)
-			check(err)
 
 			if !isLatest {
 				log.Infof("Delayed %s: not all dependencies are up to date", info.Pkgbase)
