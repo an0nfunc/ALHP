@@ -69,7 +69,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg.Update().SetStatus(BUILDING).SaveX(context.Background())
+			dbPkg.Update().SetStatus(BUILDING).SetSkipReason("").SaveX(context.Background())
 			dbLock.Unlock()
 
 			err := importKeys(pkg)
@@ -283,6 +283,9 @@ func (b *BuildManager) parseWorker() {
 
 			if !isLatest {
 				log.Infof("Delayed %s: not all dependencies are up to date", info.Pkgbase)
+				dbLock.Lock()
+				dbPkg = dbPkg.Update().SetSkipReason("waiting for mirror").SaveX(context.Background())
+				dbLock.Unlock()
 				b.parseWG.Done()
 				continue
 			}
