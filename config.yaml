@@ -19,10 +19,16 @@ march:
   - x86-64-v3
 
 blacklist:
-  - pacman
-  - tensorflow
-  - tensorflow-cuda
-  - gcc
+  packages:
+    - pacman
+    - tensorflow
+    - tensorflow-cuda
+    - gcc
+  repo:
+    - testing
+    - i686
+    - staging
+    - unstable
 
 build:
   worker: 4
@@ -39,4 +45,4 @@ status:
     unknown: "dark"
 
 logging:
-  level: DEBUG
+  level: INFO

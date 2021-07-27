@@ -4,7 +4,6 @@ import (
 	"ALHP.go/ent"
 	"ALHP.go/ent/dbpackage"
 	"ALHP.go/ent/migrate"
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -13,10 +12,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
-	"github.com/yargevad/filepathx"
 	"gopkg.in/yaml.v2"
 	"html/template"
-	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -24,7 +21,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,19 +35,11 @@ const (
 	orgChrootName = "root"
 )
 
-const (
-	SKIPPED  = iota
-	FAILED   = iota
-	BUILD    = iota
-	QUEUED   = iota
-	BUILDING = iota
-	LATEST   = iota
-	UNKNOWN  = iota
-)
-
 var (
 	conf         = Conf{}
 	repos        []string
+	alpmHandle   *alpm.Handle
+	alpmLock     sync.RWMutex
 	reMarch      = regexp.MustCompile(`(-march=)(.+?) `)
 	rePkgRel     = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgFile    = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
@@ -59,231 +47,6 @@ var (
 	db           *ent.Client
 	dbLock       sync.RWMutex
 )
-
-type BuildPackage struct {
-	Pkgbase  string
-	Pkgbuild string
-	Srcinfo  *srcinfo.Srcinfo
-	PkgFiles []string
-	Repo     string
-	March    string
-	FullRepo string
-	Version  string
-}
-
-type BuildManager struct {
-	build          chan *BuildPackage
-	parse          chan *BuildPackage
-	repoPurge      map[string]chan *BuildPackage
-	repoAdd        map[string]chan *BuildPackage
-	exit           bool
-	buildWG        sync.WaitGroup
-	parseWG        sync.WaitGroup
-	repoWG         sync.WaitGroup
-	failedMutex    sync.RWMutex
-	buildProcesses []*os.Process
-	buildProcMutex sync.RWMutex
-}
-
-type Conf struct {
-	Arch                    string
-	Repos, March, Blacklist []string
-	Svn2git                 map[string]string
-	Basedir                 struct {
-		Repo, Chroot, Makepkg, Upstream, Db string
-	}
-	Build struct {
-		Worker int
-		Makej  int
-	}
-	Logging struct {
-		Level string
-	}
-	Status struct {
-		Class struct {
-			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
-		}
-	}
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func contains(s interface{}, str string) bool {
-	switch v := s.(type) {
-	case []string:
-		if i := find(v, str); i != -1 {
-			return true
-		}
-	case []srcinfo.ArchString:
-		var n []string
-		for _, as := range v {
-			n = append(n, as.Value)
-		}
-
-		if i := find(n, str); i != -1 {
-			return true
-		}
-	default:
-		return false
-	}
-
-	return false
-}
-
-func find(s []string, str string) int {
-	for i, v := range s {
-		if v == str {
-			return i
-		}
-	}
-
-	return -1
-}
-
-func copyFile(src, dst string) (int64, error) {
-	sourceFileStat, err := os.Stat(src)
-	if err != nil {
-		return 0, err
-	}
-
-	if !sourceFileStat.Mode().IsRegular() {
-		return 0, fmt.Errorf("%s is not a regular file", src)
-	}
-
-	source, err := os.Open(src)
-	if err != nil {
-		return 0, err
-	}
-	defer func(source *os.File) {
-		check(source.Close())
-	}(source)
-
-	destination, err := os.Create(dst)
-	if err != nil {
-		return 0, err
-	}
-	defer func(destination *os.File) {
-		check(destination.Close())
-	}(destination)
-	nBytes, err := io.Copy(destination, source)
-	return nBytes, err
-}
-
-//goland:noinspection SpellCheckingInspection
-func setupMakepkg(march string) {
-	lMakepkg := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", march))
-
-	check(os.MkdirAll(conf.Basedir.Makepkg, os.ModePerm))
-	t, err := os.ReadFile(makepkgConf)
-	check(err)
-	makepkgStr := string(t)
-
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
-	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
-	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
-	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
-
-	check(os.WriteFile(lMakepkg, []byte(makepkgStr), os.ModePerm))
-}
-
-func syncMarchs() {
-	files, err := os.ReadDir(conf.Basedir.Repo)
-	check(err)
-
-	var eRepos []string
-	for _, file := range files {
-		if file.Name() != "." && file.Name() != logDir && file.IsDir() {
-			eRepos = append(eRepos, file.Name())
-		}
-	}
-
-	for _, march := range conf.March {
-		setupMakepkg(march)
-		for _, repo := range conf.Repos {
-			tRepo := fmt.Sprintf("%s-%s", repo, march)
-			repos = append(repos, tRepo)
-			buildManager.repoAdd[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
-			buildManager.repoPurge[tRepo] = make(chan *BuildPackage, 10000)
-			go buildManager.repoWorker(tRepo)
-
-			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))); os.IsNotExist(err) {
-				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch), os.ModePerm))
-			}
-
-			if i := find(eRepos, tRepo); i != -1 {
-				eRepos = append(eRepos[:i], eRepos[i+1:]...)
-			}
-		}
-	}
-
-	log.Infof("Repos: %s", repos)
-
-	for _, repo := range eRepos {
-		log.Infof("Removing old repo %s", repo)
-		check(os.RemoveAll(filepath.Join(conf.Basedir.Repo, repo)))
-	}
-}
-
-func importKeys(pkg *BuildPackage) {
-	if pkg.Srcinfo.ValidPGPKeys != nil {
-		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
-		args = append(args, pkg.Srcinfo.ValidPGPKeys...)
-		cmd := exec.Command("gpg", args...)
-		res, err := cmd.CombinedOutput()
-		log.Debug(string(res))
-
-		if err != nil {
-			log.Warningf("Unable to import keys: %s", string(res))
-		}
-	}
-}
-
-func packages2string(pkgs []srcinfo.Package) []string {
-	var sPkgs []string
-	for _, p := range pkgs {
-		sPkgs = append(sPkgs, p.Pkgname)
-	}
-
-	return sPkgs
-}
-
-func increasePkgRel(pkg *BuildPackage) {
-	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, os.ModePerm)
-	check(err)
-	defer func(f *os.File) {
-		check(f.Close())
-	}(f)
-
-	fStr, err := io.ReadAll(f)
-	check(err)
-
-	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+pkg.Srcinfo.Pkgrel+".1")
-	_, err = f.Seek(0, 0)
-	check(err)
-	check(f.Truncate(0))
-
-	_, err = f.WriteString(nStr)
-	check(err)
-
-	pkg.Version = pkg.Version + ".1"
-}
-
-func gitClean(pkg *BuildPackage) {
-	cmd := exec.Command("sudo", "git_clean.sh", filepath.Dir(pkg.Pkgbuild))
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Warningf("git clean failed with %v:\n%s", err, res)
-	} else {
-		log.Debug(string(res))
-	}
-}
 
 func (b *BuildManager) buildWorker(id int) {
 	err := syscall.Setpriority(syscall.PRIO_PROCESS, 0, 18)
@@ -310,8 +73,17 @@ func (b *BuildManager) buildWorker(id int) {
 			dbPkg.Update().SetStatus(BUILDING).SaveX(context.Background())
 			dbLock.Unlock()
 
-			importKeys(pkg)
-			increasePkgRel(pkg)
+			err := importKeys(pkg)
+			if err != nil {
+				log.Warningf("[%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, err)
+			}
+
+			err = increasePkgRel(pkg)
+			if err != nil {
+				log.Errorf("[%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
+				b.buildWG.Done()
+				continue
+			}
 			pkg.PkgFiles = []string{}
 
 			cmd := exec.Command("sh", "-c",
@@ -351,13 +123,8 @@ func (b *BuildManager) buildWorker(id int) {
 				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm)
 				check(err)
 
-				if pkg.Srcinfo.Epoch != "" {
-					_, err := f.WriteString(fmt.Sprintf("%s==%s:%s-%s\n", pkg.Pkgbase, pkg.Srcinfo.Epoch, pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel))
-					check(err)
-				} else {
-					_, err := f.WriteString(fmt.Sprintf("%s==%s-%s\n", pkg.Pkgbase, pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel))
-					check(err)
-				}
+				_, err = f.WriteString(fmt.Sprintf("%s==%s\n", pkg.Pkgbase, constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)))
+				check(err)
 				check(f.Close())
 				b.failedMutex.Unlock()
 
@@ -430,17 +197,6 @@ func (b *BuildManager) buildWorker(id int) {
 	}
 }
 
-func getDbPackage(pkg *BuildPackage) *ent.DbPackage {
-	dbLock.Lock()
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkg.Pkgbase)).Only(context.Background())
-	if err != nil {
-		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2string(pkg.Srcinfo.Packages)).SetRepository(pkg.Repo).SaveX(context.Background())
-	}
-	dbLock.Unlock()
-
-	return dbPkg
-}
-
 func (b *BuildManager) parseWorker() {
 	for {
 		if b.exit {
@@ -463,11 +219,7 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 			pkg.Srcinfo = info
-			if pkg.Srcinfo.Epoch == "" {
-				pkg.Version = pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
-			} else {
-				pkg.Version = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
-			}
+			pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
@@ -481,7 +233,7 @@ func (b *BuildManager) parseWorker() {
 				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
-			} else if contains(conf.Blacklist, info.Pkgbase) {
+			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
 				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
 				dbLock.Lock()
 				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SaveX(context.Background())
@@ -527,111 +279,18 @@ func (b *BuildManager) parseWorker() {
 			dbPkg = dbPkg.Update().SetStatus(QUEUED).SaveX(context.Background())
 			dbLock.Unlock()
 
+			isLatest, err := isMirrorLatest(alpmHandle, pkg)
+			check(err)
+
+			if !isLatest {
+				log.Infof("Delayed %s: not all dependencies are up to date", info.Pkgbase)
+				b.parseWG.Done()
+				continue
+			}
+
 			b.parseWG.Done()
 			b.build <- pkg
 		}
-	}
-}
-
-func findPkgFiles(pkg *BuildPackage) {
-	pkgs, err := os.ReadDir(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch))
-	check(err)
-
-	var fPkg []string
-	for _, file := range pkgs {
-		if !file.IsDir() && !strings.HasSuffix(file.Name(), ".sig") {
-			matches := rePkgFile.FindStringSubmatch(file.Name())
-
-			var realPkgs []string
-			for _, realPkg := range pkg.Srcinfo.Packages {
-				realPkgs = append(realPkgs, realPkg.Pkgname)
-			}
-
-			if len(matches) > 1 && contains(realPkgs, matches[1]) {
-				fPkg = append(fPkg, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, file.Name()))
-			}
-		}
-	}
-
-	pkg.PkgFiles = fPkg
-}
-
-func getVersionFromRepo(pkg *BuildPackage) string {
-	findPkgFiles(pkg)
-
-	if len(pkg.PkgFiles) == 0 {
-		return ""
-	}
-
-	fNameSplit := strings.Split(pkg.PkgFiles[0], "-")
-	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2]
-}
-
-func isPkgFailed(pkg *BuildPackage) bool {
-	buildManager.failedMutex.Lock()
-	defer buildManager.failedMutex.Unlock()
-
-	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE|os.O_SYNC, os.ModePerm)
-	check(err)
-	defer func(file *os.File) {
-		check(file.Close())
-	}(file)
-
-	failed := false
-	var newContent []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		splitPkg := strings.Split(line, "==")
-
-		if splitPkg[0] == pkg.Pkgbase {
-			var pkgVer string
-			if pkg.Srcinfo.Epoch == "" {
-				pkgVer = pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
-			} else {
-				pkgVer = pkg.Srcinfo.Epoch + ":" + pkg.Srcinfo.Pkgver + "-" + pkg.Srcinfo.Pkgrel
-			}
-
-			// try to build new versions of previously failed packages
-			if alpm.VerCmp(splitPkg[1], pkgVer) < 0 {
-				failed = false
-			} else {
-				failed = true
-				newContent = append(newContent, line+"\n")
-			}
-		} else {
-			newContent = append(newContent, line+"\n")
-		}
-	}
-
-	check(scanner.Err())
-	sort.Strings(newContent)
-
-	_, err = file.Seek(0, 0)
-	check(err)
-	check(file.Truncate(0))
-	_, err = file.WriteString(strings.Join(newContent, ""))
-	check(err)
-
-	return failed
-}
-
-func statusId2string(status int) (string, string) {
-	switch status {
-	case SKIPPED:
-		return "SKIPPED", "table-" + conf.Status.Class.Skipped
-	case QUEUED:
-		return "QUEUED", "table-" + conf.Status.Class.Queued
-	case LATEST:
-		return "LATEST", "table-" + conf.Status.Class.Latest
-	case FAILED:
-		return "FAILED", "table-" + conf.Status.Class.Failed
-	case BUILD:
-		return "SIGNING", "table-" + conf.Status.Class.Signing
-	case BUILDING:
-		return "BUILDING", "table-" + conf.Status.Class.Building
-	default:
-		return "UNKNOWN", "table-" + conf.Status.Class.Unknown
 	}
 }
 
@@ -728,26 +387,6 @@ func (b *BuildManager) htmlWorker() {
 		check(f.Close())
 
 		time.Sleep(time.Minute)
-	}
-}
-
-func setupChroot() {
-	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, orgChrootName)); err == nil {
-		//goland:noinspection SpellCheckingInspection
-		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, orgChrootName), "pacman", "-Syuu", "--noconfirm")
-		res, err := cmd.CombinedOutput()
-		log.Debug(string(res))
-		check(err)
-	} else if os.IsNotExist(err) {
-		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
-		check(err)
-
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, orgChrootName), "base-devel")
-		res, err := cmd.CombinedOutput()
-		log.Debug(string(res))
-		check(err)
-	} else {
-		check(err)
 	}
 }
 
@@ -874,7 +513,7 @@ func (b *BuildManager) syncWorker() {
 		// fetch updates between sync runs
 		setupChroot()
 
-		pkgBuilds, err := filepathx.Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
+		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
 
 		// Shuffle pkgbuilds to spread out long-running builds, otherwise pkgBuilds is alphabetically-sorted
@@ -889,7 +528,7 @@ func (b *BuildManager) syncWorker() {
 			sPkgbuild := strings.Split(pkgbuild, "/")
 			repo := sPkgbuild[len(sPkgbuild)-2]
 
-			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || strings.Contains(repo, "i686") || strings.Contains(repo, "testing") || strings.Contains(repo, "staging") {
+			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || containsSubStr(repo, conf.Blacklist.Repo) {
 				continue
 			}
 
@@ -956,6 +595,11 @@ func main() {
 	setupChroot()
 	syncMarchs()
 
+	alpmLock.Lock()
+	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, "root"), filepath.Join(conf.Basedir.Chroot, "/root/var/lib/pacman"))
+	check(err)
+	alpmLock.Unlock()
+
 	go buildManager.syncWorker()
 	go buildManager.htmlWorker()
 
@@ -972,4 +616,5 @@ func main() {
 	buildManager.buildProcMutex.RUnlock()
 	buildManager.buildWG.Wait()
 	buildManager.repoWG.Wait()
+	check(alpmHandle.Release())
 }
