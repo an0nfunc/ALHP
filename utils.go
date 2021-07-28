@@ -22,13 +22,17 @@ import (
 )
 
 const (
-	SKIPPED  = iota
-	FAILED   = iota
-	BUILD    = iota
-	QUEUED   = iota
-	BUILDING = iota
-	LATEST   = iota
-	UNKNOWN  = iota
+	SKIPPED        = iota
+	FAILED         = iota
+	BUILD          = iota
+	QUEUED         = iota
+	BUILDING       = iota
+	LATEST         = iota
+	UNKNOWN        = iota
+	pacmanConf     = "/usr/share/devtools/pacman-extra.conf"
+	makepkgConf    = "/usr/share/devtools/makepkg-x86_64.conf"
+	logDir         = "logs"
+	pristineChroot = "root"
 )
 
 type BuildPackage struct {
@@ -343,9 +347,9 @@ func isPkgFailed(pkg *BuildPackage) bool {
 }
 
 func setupChroot() {
-	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, orgChrootName)); err == nil {
+	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, pristineChroot)); err == nil {
 		//goland:noinspection SpellCheckingInspection
-		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, orgChrootName), "pacman", "-Syuu", "--noconfirm")
+		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, pristineChroot), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		check(err)
@@ -353,7 +357,7 @@ func setupChroot() {
 		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
 		check(err)
 
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, orgChrootName), "base-devel")
+		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, pristineChroot), "base-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		check(err)

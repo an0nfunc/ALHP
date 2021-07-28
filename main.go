@@ -28,13 +28,6 @@ import (
 	"time"
 )
 
-const (
-	pacmanConf    = "/usr/share/devtools/pacman-extra.conf"
-	makepkgConf   = "/usr/share/devtools/makepkg-x86_64.conf"
-	logDir        = "logs"
-	orgChrootName = "root"
-)
-
 var (
 	conf         = Conf{}
 	repos        []string
@@ -603,7 +596,7 @@ func main() {
 	setupChroot()
 	syncMarchs()
 
-	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, "root"), filepath.Join(conf.Basedir.Chroot, "/root/var/lib/pacman"))
+	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
 	check(err)
 
 	go buildManager.syncWorker()
