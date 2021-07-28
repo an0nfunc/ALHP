@@ -513,6 +513,9 @@ func (b *BuildManager) syncWorker() {
 
 		// fetch updates between sync runs
 		setupChroot()
+		var err error
+		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
+		check(err)
 
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
