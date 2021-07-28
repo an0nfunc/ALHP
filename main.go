@@ -512,6 +512,7 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		// fetch updates between sync runs
+		check(alpmHandle.Release())
 		setupChroot()
 		var err error
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
