@@ -458,10 +458,10 @@ func setupMakepkg(march string) {
 	check(os.WriteFile(lMakepkg, []byte(makepkgStr), os.ModePerm))
 }
 
-func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage, error) {
+func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage, string, error) {
 	dbs, err := h.SyncDBs()
 	if err != nil {
-		return false, nil, err
+		return false, nil, "", err
 	}
 
 	allDepends := buildPkg.Srcinfo.Depends
@@ -470,22 +470,22 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 	for _, dep := range allDepends {
 		pkg, err := dbs.FindSatisfier(dep.Value)
 		if err != nil {
-			return false, nil, err
+			return false, nil, "", err
 		}
 
 		svn2gitVer, err := getSVN2GITVersion(&BuildPackage{
 			Pkgbase: pkg.Base(),
 		})
 		if err != nil {
-			return false, nil, err
+			return false, nil, "", err
 		}
 
 		if svn2gitVer != "" && alpm.VerCmp(svn2gitVer, pkg.Version()) != 0 {
-			return false, pkg, nil
+			return false, pkg, svn2gitVer, nil
 		}
 	}
 
-	return true, nil, nil
+	return true, nil, "", nil
 }
 
 func contains(s interface{}, str string) bool {

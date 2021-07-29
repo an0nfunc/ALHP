@@ -267,7 +267,7 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 
-			isLatest, dep, err := isMirrorLatest(alpmHandle, pkg)
+			isLatest, local, syncVersion, err := isMirrorLatest(alpmHandle, pkg)
 			if err != nil {
 				log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
 			}
@@ -277,13 +277,13 @@ func (b *BuildManager) parseWorker() {
 			dbLock.Unlock()
 
 			if !isLatest {
-				if dep != nil {
-					log.Infof("Delayed %s: not all dependencies are up to date (from local: %s==%s)", info.Pkgbase, dep.Name(), dep.Version())
+				if local != nil {
+					log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", info.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
 				} else {
 					log.Infof("Delayed %s: not all dependencies are up to date", info.Pkgbase)
 				}
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetSkipReason("waiting for mirror").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).SaveX(context.Background())
 				dbLock.Unlock()
 				b.parseWG.Done()
 				continue
