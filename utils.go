@@ -480,7 +480,7 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 			return false, nil, "", err
 		}
 
-		if svn2gitVer != "" && alpm.VerCmp(svn2gitVer, pkg.Version()) >= 0 {
+		if svn2gitVer != "" && alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
 			return false, pkg, svn2gitVer, nil
 		}
 	}
