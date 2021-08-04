@@ -62,7 +62,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg.Update().SetStatus(BUILDING).SetSkipReason("").SaveX(context.Background())
+			dbPkg.Update().SetStatus(BUILDING).SetBuildTime(time.Now().UTC()).SetSkipReason("").SaveX(context.Background())
 			dbLock.Unlock()
 
 			err := importKeys(pkg)
@@ -178,7 +178,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 			dbPkg = getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg.Update().SetStatus(BUILD).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
+			dbPkg.Update().SetStatus(BUILD).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
 			dbLock.Unlock()
 
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
