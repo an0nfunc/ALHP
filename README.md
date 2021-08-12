@@ -84,3 +84,40 @@ pacman -Suuy
 Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
 from building (besides all 'any' architecture packages) are being listed in issue #16.
 Also [package status page](https://alhp.anonfunc.dev/packages.html).
+
+## FAQ
+
+### error: *-x86-64-v3: signature from "Archlinux CIE Repos (Build 2020/2021) <cie@harting.dev>" is unknown trust
+
+You get this because the new, extended key has unknown trust value attached to it.
+To fix it, first import the key again to be sure you got the extended one:
+`pacman-key --keyserver keyserver.ubuntu.com --recv-keys 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298`
+
+After that you just have to set the trust on this key with (as root, for `pacman-key`):
+
+```
+pacman-key --edit-key 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298
+
+pub  rsa4096/E3D0D2CD3952E298
+     created: 2020-08-12  expires: 2022-07-09  usage: SC  
+     trust: unknown       validity: unknown
+[ unknown] (1). Archlinux CIE Repos (Build 2020/2021) <cie@harting.dev>
+
+gpg> trust
+pub  rsa4096/E3D0D2CD3952E298
+     created: 2020-08-12  expires: 2022-07-09  usage: SC  
+     trust: unknown       validity: unknown
+[ unknown] (1). Archlinux CIE Repos (Build 2020/2021) <cie@harting.dev>
+
+Please decide how far you trust this user to correctly verify other users' keys
+(by looking at passports, checking fingerprints from different sources, etc.)
+
+  1 = I don't know or won't say
+  2 = I do NOT trust
+  3 = I trust marginally
+  4 = I trust fully
+  5 = I trust ultimately
+  m = back to the main menu
+
+Your decision? 4
+````
