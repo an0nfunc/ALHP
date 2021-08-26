@@ -90,6 +90,9 @@ type Globs []string
 type MultiplePKGBUILDError struct {
 	error
 }
+type UnableToSatisfyError struct {
+	error
+}
 
 func check(e error) {
 	if e != nil {
@@ -474,7 +477,7 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 	for _, dep := range allDepends {
 		pkg, err := dbs.FindSatisfier(dep.Value)
 		if err != nil {
-			return false, nil, "", err
+			return false, nil, "", UnableToSatisfyError{err}
 		}
 
 		svn2gitVer, err := getSVN2GITVersion(&BuildPackage{

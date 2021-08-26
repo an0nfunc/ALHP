@@ -280,6 +280,14 @@ func (b *BuildManager) parseWorker() {
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
 					continue
+				case UnableToSatisfyError:
+					log.Debugf("Skipped %s: unable to resolve dependencies: %v", info.Pkgbase, err)
+					dbLock.Lock()
+					dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
+					dbLock.Unlock()
+					b.repoPurge[pkg.FullRepo] <- pkg
+					b.parseWG.Done()
+					continue
 				}
 			}
 
