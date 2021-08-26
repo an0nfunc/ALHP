@@ -87,6 +87,10 @@ type Conf struct {
 
 type Globs []string
 
+type MultiplePKGBUILDError struct {
+	error
+}
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -283,7 +287,7 @@ func getSVN2GITVersion(pkg *BuildPackage) (string, error) {
 	}
 
 	if len(fPkgbuilds) > 1 {
-		return "", fmt.Errorf("%s: multiple PKGBUILD found: %s", pkg.Pkgbase, fPkgbuilds)
+		return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", pkg.Pkgbase, fPkgbuilds)}
 	} else if len(fPkgbuilds) == 0 {
 		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", pkg.Pkgbase, filepath.Join(conf.Basedir.Upstream, "**/"+pkg.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}

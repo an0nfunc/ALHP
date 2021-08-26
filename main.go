@@ -269,7 +269,18 @@ func (b *BuildManager) parseWorker() {
 
 			isLatest, local, syncVersion, err := isMirrorLatest(alpmHandle, pkg)
 			if err != nil {
-				log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
+				switch err.(type) {
+				default:
+					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
+				case MultiplePKGBUILDError:
+					log.Debugf("Skipped %s: Multiple PKGBUILDs for dependency found: %v", info.Pkgbase, err)
+					dbLock.Lock()
+					dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
+					dbLock.Unlock()
+					b.repoPurge[pkg.FullRepo] <- pkg
+					b.parseWG.Done()
+					continue
+				}
 			}
 
 			dbLock.Lock()
