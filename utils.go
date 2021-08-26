@@ -322,11 +322,13 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	failed := false
 	var newContent []string
 	scanner := bufio.NewScanner(file)
+	found := false
 	for scanner.Scan() {
 		line := scanner.Text()
 		splitPkg := strings.Split(line, "==")
 
 		if splitPkg[0] == pkg.Pkgbase {
+			found = true
 			pkgVer := constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
 			// try to build new versions of previously failed packages
@@ -340,15 +342,17 @@ func isPkgFailed(pkg *BuildPackage) bool {
 			newContent = append(newContent, line+"\n")
 		}
 	}
-
 	check(scanner.Err())
-	sort.Strings(newContent)
 
-	_, err = file.Seek(0, 0)
-	check(err)
-	check(file.Truncate(0))
-	_, err = file.WriteString(strings.Join(newContent, ""))
-	check(err)
+	if found {
+		sort.Strings(newContent)
+
+		_, err = file.Seek(0, 0)
+		check(err)
+		check(file.Truncate(0))
+		_, err = file.WriteString(strings.Join(newContent, ""))
+		check(err)
+	}
 
 	return failed
 }
