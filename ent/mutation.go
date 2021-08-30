@@ -45,6 +45,7 @@ type DbPackageMutation struct {
 	build_duration    *uint64
 	addbuild_duration *uint64
 	updated           *time.Time
+	hash              *string
 	clearedFields     map[string]struct{}
 	done              bool
 	oldValue          func(context.Context) (*DbPackage, error)
@@ -658,6 +659,55 @@ func (m *DbPackageMutation) ResetUpdated() {
 	delete(m.clearedFields, dbpackage.FieldUpdated)
 }
 
+// SetHash sets the "hash" field.
+func (m *DbPackageMutation) SetHash(s string) {
+	m.hash = &s
+}
+
+// Hash returns the value of the "hash" field in the mutation.
+func (m *DbPackageMutation) Hash() (r string, exists bool) {
+	v := m.hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHash returns the old "hash" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, fmt.Errorf("OldHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, fmt.Errorf("OldHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHash: %w", err)
+	}
+	return oldValue.Hash, nil
+}
+
+// ClearHash clears the value of the "hash" field.
+func (m *DbPackageMutation) ClearHash() {
+	m.hash = nil
+	m.clearedFields[dbpackage.FieldHash] = struct{}{}
+}
+
+// HashCleared returns if the "hash" field was cleared in this mutation.
+func (m *DbPackageMutation) HashCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldHash]
+	return ok
+}
+
+// ResetHash resets all changes to the "hash" field.
+func (m *DbPackageMutation) ResetHash() {
+	m.hash = nil
+	delete(m.clearedFields, dbpackage.FieldHash)
+}
+
 // Op returns the operation name.
 func (m *DbPackageMutation) Op() Op {
 	return m.op
@@ -672,7 +722,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -706,6 +756,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.updated != nil {
 		fields = append(fields, dbpackage.FieldUpdated)
 	}
+	if m.hash != nil {
+		fields = append(fields, dbpackage.FieldHash)
+	}
 	return fields
 }
 
@@ -736,6 +789,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.BuildDuration()
 	case dbpackage.FieldUpdated:
 		return m.Updated()
+	case dbpackage.FieldHash:
+		return m.Hash()
 	}
 	return nil, false
 }
@@ -767,6 +822,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldBuildDuration(ctx)
 	case dbpackage.FieldUpdated:
 		return m.OldUpdated(ctx)
+	case dbpackage.FieldHash:
+		return m.OldHash(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -853,6 +910,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdated(v)
 		return nil
+	case dbpackage.FieldHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHash(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -931,6 +995,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldUpdated) {
 		fields = append(fields, dbpackage.FieldUpdated)
 	}
+	if m.FieldCleared(dbpackage.FieldHash) {
+		fields = append(fields, dbpackage.FieldHash)
+	}
 	return fields
 }
 
@@ -965,6 +1032,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldUpdated:
 		m.ClearUpdated()
+		return nil
+	case dbpackage.FieldHash:
+		m.ClearHash()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1006,6 +1076,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldUpdated:
 		m.ResetUpdated()
+		return nil
+	case dbpackage.FieldHash:
+		m.ResetHash()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

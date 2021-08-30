@@ -142,6 +142,20 @@ func (dpc *DbPackageCreate) SetNillableUpdated(t *time.Time) *DbPackageCreate {
 	return dpc
 }
 
+// SetHash sets the "hash" field.
+func (dpc *DbPackageCreate) SetHash(s string) *DbPackageCreate {
+	dpc.mutation.SetHash(s)
+	return dpc
+}
+
+// SetNillableHash sets the "hash" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableHash(s *string) *DbPackageCreate {
+	if s != nil {
+		dpc.SetHash(*s)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -353,6 +367,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldUpdated,
 		})
 		_node.Updated = value
+	}
+	if value, ok := dpc.mutation.Hash(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldHash,
+		})
+		_node.Hash = value
 	}
 	return _node, _spec
 }

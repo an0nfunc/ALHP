@@ -199,6 +199,26 @@ func (dpu *DbPackageUpdate) ClearUpdated() *DbPackageUpdate {
 	return dpu
 }
 
+// SetHash sets the "hash" field.
+func (dpu *DbPackageUpdate) SetHash(s string) *DbPackageUpdate {
+	dpu.mutation.SetHash(s)
+	return dpu
+}
+
+// SetNillableHash sets the "hash" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableHash(s *string) *DbPackageUpdate {
+	if s != nil {
+		dpu.SetHash(*s)
+	}
+	return dpu
+}
+
+// ClearHash clears the value of the "hash" field.
+func (dpu *DbPackageUpdate) ClearHash() *DbPackageUpdate {
+	dpu.mutation.ClearHash()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -430,6 +450,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldUpdated,
 		})
 	}
+	if value, ok := dpu.mutation.Hash(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldHash,
+		})
+	}
+	if dpu.mutation.HashCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldHash,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dbpackage.Label}
@@ -618,6 +651,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableUpdated(t *time.Time) *DbPackageUpdat
 // ClearUpdated clears the value of the "updated" field.
 func (dpuo *DbPackageUpdateOne) ClearUpdated() *DbPackageUpdateOne {
 	dpuo.mutation.ClearUpdated()
+	return dpuo
+}
+
+// SetHash sets the "hash" field.
+func (dpuo *DbPackageUpdateOne) SetHash(s string) *DbPackageUpdateOne {
+	dpuo.mutation.SetHash(s)
+	return dpuo
+}
+
+// SetNillableHash sets the "hash" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableHash(s *string) *DbPackageUpdateOne {
+	if s != nil {
+		dpuo.SetHash(*s)
+	}
+	return dpuo
+}
+
+// ClearHash clears the value of the "hash" field.
+func (dpuo *DbPackageUpdateOne) ClearHash() *DbPackageUpdateOne {
+	dpuo.mutation.ClearHash()
 	return dpuo
 }
 
@@ -874,6 +927,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Column: dbpackage.FieldUpdated,
+		})
+	}
+	if value, ok := dpuo.mutation.Hash(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldHash,
+		})
+	}
+	if dpuo.mutation.HashCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldHash,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}

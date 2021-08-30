@@ -24,6 +24,7 @@ func (DbPackage) Fields() []ent.Field {
 		field.Time("build_time").Optional(),
 		field.Uint64("build_duration").Positive().Optional(),
 		field.Time("updated").Optional(),
+		field.String("hash").Optional(),
 	}
 }
 

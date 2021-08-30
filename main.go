@@ -11,10 +11,8 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
-	"github.com/wercker/journalhook"
 	"gopkg.in/yaml.v2"
 	"html/template"
-	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -222,13 +220,13 @@ func (b *BuildManager) parseWorker() {
 			if contains(info.Arch, "any") {
 				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
 				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
@@ -237,13 +235,13 @@ func (b *BuildManager) parseWorker() {
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted (haskell)").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted (haskell)").SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			} else if isPkgFailed(pkg) {
 				log.Debugf("Skipped %s: failed build", info.Pkgbase)
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(FAILED).SetSkipReason("").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(FAILED).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 				skipping = true
 			}
@@ -261,7 +259,7 @@ func (b *BuildManager) parseWorker() {
 			if repoVer != "" && alpm.VerCmp(repoVer, pkg.Version) > 0 {
 				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkg.Version, repoVer)
 				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 				b.parseWG.Done()
 				continue
@@ -429,7 +427,7 @@ func (b *BuildManager) repoWorker(repo string) {
 
 			dbPkg := getDbPackage(pkg)
 			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(pkg.Version).SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
 			dbLock.Unlock()
 
 			cmd = exec.Command("paccache",
@@ -495,17 +493,6 @@ func (b *BuildManager) syncWorker() {
 	for {
 		b.buildWG.Wait()
 
-		/* TODO: Use `v` to print rudimentary stats
-		var v []struct {
-			Status int `json:"status"`
-			Count  int `json:"count"`
-		}
-
-		dbLock.RLock()
-		db.DbPackage.Query().GroupBy(dbpackage.FieldStatus).Aggregate(ent.Count()).ScanX(context.Background(), &v)
-		dbLock.RUnlock()
-		*/
-
 		for gitDir, gitURL := range conf.Svn2git {
 			gitPath := filepath.Join(conf.Basedir.Upstream, gitDir)
 
@@ -544,10 +531,6 @@ func (b *BuildManager) syncWorker() {
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
 
-		// Shuffle pkgbuilds to spread out long-running builds, otherwise pkgBuilds is alphabetically-sorted
-		rand.Seed(time.Now().UnixNano())
-		rand.Shuffle(len(pkgBuilds), func(i, j int) { pkgBuilds[i], pkgBuilds[j] = pkgBuilds[j], pkgBuilds[i] })
-
 		for _, pkgbuild := range pkgBuilds {
 			if b.exit {
 				return
@@ -560,6 +543,31 @@ func (b *BuildManager) syncWorker() {
 				continue
 			}
 
+			// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
+			// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
+			dbLock.RLock()
+			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]), dbpackage.Repository(repo))).Only(context.Background())
+			dbLock.RUnlock()
+
+			if dbErr != nil {
+				switch dbErr.(type) {
+				case *ent.NotFoundError:
+					log.Debugf("[%s/%s] Package not found in database", repo, sPkgbuild[len(sPkgbuild)-4])
+					break
+				default:
+					log.Errorf("[%s/%s] Problem querying db for package: %v", repo, sPkgbuild[len(sPkgbuild)-4], dbErr)
+				}
+			}
+
+			b3s, err := b3sum(pkgbuild)
+			check(err)
+
+			if dbPkg != nil && b3s == dbPkg.Hash {
+				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", repo, sPkgbuild[len(sPkgbuild)-4], b3s)
+				continue
+			}
+
+			// send to parse
 			for _, march := range conf.March {
 				b.parseWG.Add(1)
 				b.parse <- &BuildPackage{
@@ -568,6 +576,7 @@ func (b *BuildManager) syncWorker() {
 					Repo:     strings.Split(repo, "-")[0],
 					March:    march,
 					FullRepo: strings.Split(repo, "-")[0] + "-" + march,
+					Hash:     b3s,
 				}
 			}
 		}
@@ -590,7 +599,7 @@ func main() {
 	lvl, err := log.ParseLevel(conf.Logging.Level)
 	check(err)
 	log.SetLevel(lvl)
-	journalhook.Enable()
+	// journalhook.Enable()
 
 	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
 	if err != nil {

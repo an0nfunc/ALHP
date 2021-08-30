@@ -5,6 +5,7 @@ import (
 	"ALHP.go/ent/dbpackage"
 	"bufio"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -12,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/fs"
+	"lukechampine.com/blake3"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,6 +46,7 @@ type BuildPackage struct {
 	March    string
 	FullRepo string
 	Version  string
+	Hash     string
 }
 
 type BuildManager struct {
@@ -98,6 +101,22 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func b3sum(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer func(file *os.File) {
+		check(file.Close())
+	}(file)
+
+	hash := blake3.New(32, nil)
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func containsSubStr(str string, subList []string) bool {

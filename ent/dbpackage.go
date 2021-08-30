@@ -39,6 +39,8 @@ type DbPackage struct {
 	BuildDuration uint64 `json:"build_duration,omitempty"`
 	// Updated holds the value of the "updated" field.
 	Updated time.Time `json:"updated,omitempty"`
+	// Hash holds the value of the "hash" field.
+	Hash string `json:"hash,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -50,7 +52,7 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new([]byte)
 		case dbpackage.FieldID, dbpackage.FieldStatus, dbpackage.FieldBuildDuration:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion:
+		case dbpackage.FieldPkgbase, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTime, dbpackage.FieldUpdated:
 			values[i] = new(sql.NullTime)
@@ -144,6 +146,12 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.Updated = value.Time
 			}
+		case dbpackage.FieldHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field hash", values[i])
+			} else if value.Valid {
+				dp.Hash = value.String
+			}
 		}
 	}
 	return nil
@@ -194,6 +202,8 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(fmt.Sprintf("%v", dp.BuildDuration))
 	builder.WriteString(", updated=")
 	builder.WriteString(dp.Updated.Format(time.ANSIC))
+	builder.WriteString(", hash=")
+	builder.WriteString(dp.Hash)
 	builder.WriteByte(')')
 	return builder.String()
 }

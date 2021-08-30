@@ -22,6 +22,7 @@ var (
 		{Name: "build_time", Type: field.TypeTime, Nullable: true},
 		{Name: "build_duration", Type: field.TypeUint64, Nullable: true},
 		{Name: "updated", Type: field.TypeTime, Nullable: true},
+		{Name: "hash", Type: field.TypeString, Nullable: true},
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{

@@ -29,6 +29,8 @@ const (
 	FieldBuildDuration = "build_duration"
 	// FieldUpdated holds the string denoting the updated field in the database.
 	FieldUpdated = "updated"
+	// FieldHash holds the string denoting the hash field in the database.
+	FieldHash = "hash"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -47,6 +49,7 @@ var Columns = []string{
 	FieldBuildTime,
 	FieldBuildDuration,
 	FieldUpdated,
+	FieldHash,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

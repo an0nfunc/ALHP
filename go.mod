@@ -12,4 +12,5 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3
 	gopkg.in/yaml.v2 v2.4.0
+	lukechampine.com/blake3 v1.1.5
 )
