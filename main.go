@@ -11,6 +11,7 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
+	"github.com/wercker/journalhook"
 	"gopkg.in/yaml.v2"
 	"html/template"
 	"os"
@@ -599,7 +600,7 @@ func main() {
 	lvl, err := log.ParseLevel(conf.Logging.Level)
 	check(err)
 	log.SetLevel(lvl)
-	// journalhook.Enable()
+	journalhook.Enable()
 
 	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
 	if err != nil {
