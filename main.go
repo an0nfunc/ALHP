@@ -301,7 +301,7 @@ func (b *BuildManager) parseWorker() {
 					dbPkg = dbPkg.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).SaveX(context.Background())
 					dbLock.Unlock()
 				} else {
-					log.Infof("Delayed %s: not all dependencies are up to date", info.Pkgbase)
+					log.Infof("Delayed %s: not all dependencies are up to date or resolvable", info.Pkgbase)
 					dbLock.Lock()
 					dbPkg = dbPkg.Update().SetSkipReason("waiting for mirror").SaveX(context.Background())
 					dbLock.Unlock()
@@ -547,16 +547,16 @@ func (b *BuildManager) syncWorker() {
 			// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
 			// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
 			dbLock.RLock()
-			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]), dbpackage.Repository(repo))).Only(context.Background())
+			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]), dbpackage.Repository(strings.Split(repo, "-")[0]))).Only(context.Background())
 			dbLock.RUnlock()
 
 			if dbErr != nil {
 				switch dbErr.(type) {
 				case *ent.NotFoundError:
-					log.Debugf("[%s/%s] Package not found in database", repo, sPkgbuild[len(sPkgbuild)-4])
+					log.Debugf("[%s/%s] Package not found in database", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4])
 					break
 				default:
-					log.Errorf("[%s/%s] Problem querying db for package: %v", repo, sPkgbuild[len(sPkgbuild)-4], dbErr)
+					log.Errorf("[%s/%s] Problem querying db for package: %v", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], dbErr)
 				}
 			}
 
@@ -564,7 +564,7 @@ func (b *BuildManager) syncWorker() {
 			check(err)
 
 			if dbPkg != nil && b3s == dbPkg.Hash {
-				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", repo, sPkgbuild[len(sPkgbuild)-4], b3s)
+				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], b3s)
 				continue
 			}
 
