@@ -523,11 +523,13 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		// fetch updates between sync runs
+		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
 		setupChroot()
 		var err error
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
 		check(err)
+		b.alpmMutex.Unlock()
 
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)

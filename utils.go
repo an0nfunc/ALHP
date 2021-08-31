@@ -61,6 +61,7 @@ type BuildManager struct {
 	failedMutex    sync.RWMutex
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
+	alpmMutex      sync.RWMutex
 }
 
 type Conf struct {
@@ -498,7 +499,9 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 	allDepends = append(allDepends, buildPkg.Srcinfo.MakeDepends...)
 
 	for _, dep := range allDepends {
+		buildManager.alpmMutex.Lock()
 		pkg, err := dbs.FindSatisfier(dep.Value)
+		buildManager.alpmMutex.Unlock()
 		if err != nil {
 			return false, nil, "", UnableToSatisfyError{err}
 		}
