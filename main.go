@@ -124,7 +124,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 				dbPkg := getDbPackage(pkg)
 				dbLock.Lock()
-				dbPkg.Update().SetStatus(FAILED).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
+				dbPkg.Update().SetStatus(FAILED).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 
 				gitClean(pkg)
