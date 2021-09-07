@@ -127,6 +127,9 @@ func (b *BuildManager) buildWorker(id int) {
 				dbPkg.Update().SetStatus(FAILED).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SetHash(pkg.Hash).SaveX(context.Background())
 				dbLock.Unlock()
 
+				// purge failed package from repo
+				b.repoPurge[pkg.FullRepo] <- pkg
+
 				gitClean(pkg)
 				b.buildWG.Done()
 				continue
