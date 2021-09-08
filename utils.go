@@ -383,7 +383,9 @@ func setupChroot() {
 		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, pristineChroot), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
-		check(err)
+		if err != nil {
+			log.Fatalf("[NSPAWN] Unable to update chroot: %v\n%s", err, string(res))
+		}
 	} else if os.IsNotExist(err) {
 		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
 		check(err)
