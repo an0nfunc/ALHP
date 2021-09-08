@@ -391,7 +391,9 @@ func setupChroot() {
 		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, pristineChroot), "base-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
-		check(err)
+		if err != nil {
+			log.Fatalf("[MKCHROOT] Unable to create chroot: %v\n%s", err, string(res))
+		}
 	} else {
 		check(err)
 	}
