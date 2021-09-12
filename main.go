@@ -313,6 +313,11 @@ func (b *BuildManager) parseWorker() {
 					dbLock.Unlock()
 				}
 
+				// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
+				// Worst case would be clients downloading a package update twice, once from their official mirror,
+				// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
+				// in an outdated version.
+				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
