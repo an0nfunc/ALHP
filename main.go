@@ -6,6 +6,7 @@ import (
 	"ALHP.go/ent/migrate"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
@@ -37,6 +38,7 @@ var (
 	buildManager BuildManager
 	db           *ent.Client
 	dbLock       sync.RWMutex
+	journalLog   = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
 )
 
 func (b *BuildManager) buildWorker(id int) {
@@ -596,6 +598,8 @@ func main() {
 	killSignals := make(chan os.Signal, 1)
 	signal.Notify(killSignals, syscall.SIGINT, syscall.SIGTERM)
 
+	flag.Parse()
+
 	confStr, err := os.ReadFile("config.yaml")
 	check(err)
 
@@ -605,7 +609,9 @@ func main() {
 	lvl, err := log.ParseLevel(conf.Logging.Level)
 	check(err)
 	log.SetLevel(lvl)
-	journalhook.Enable()
+	if *journalLog {
+		journalhook.Enable()
+	}
 
 	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
 	if err != nil {
