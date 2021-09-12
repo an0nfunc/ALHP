@@ -29,16 +29,17 @@ import (
 )
 
 var (
-	conf         = Conf{}
-	repos        []string
-	alpmHandle   *alpm.Handle
-	reMarch      = regexp.MustCompile(`(-march=)(.+?) `)
-	rePkgRel     = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgFile    = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
-	buildManager BuildManager
-	db           *ent.Client
-	dbLock       sync.RWMutex
-	journalLog   = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
+	conf          = Conf{}
+	repos         []string
+	alpmHandle    *alpm.Handle
+	reMarch       = regexp.MustCompile(`(-march=)(.+?) `)
+	rePkgRel      = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
+	rePkgFile     = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
+	buildManager  BuildManager
+	db            *ent.Client
+	dbLock        sync.RWMutex
+	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
+	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
 )
 
 func (b *BuildManager) buildWorker(id int) {
@@ -590,7 +591,7 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		b.parseWG.Wait()
-		time.Sleep(5 * time.Minute)
+		time.Sleep(time.Duration(*checkInterval) * time.Minute)
 	}
 }
 
