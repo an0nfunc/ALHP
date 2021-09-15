@@ -6,6 +6,8 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -399,6 +401,79 @@ func setupChroot() {
 	} else {
 		check(err)
 	}
+}
+
+func getPkgbaseFromPkgfile(pkg string) (*ent.DbPackage, error) {
+	fNameSplit := strings.Split(pkg, "-")
+	pkgname := strings.Join(fNameSplit[0:len(fNameSplit)-3], "-")
+
+	dbLock.RLock()
+	defer dbLock.RUnlock()
+	dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkgname)).Only(context.Background())
+
+	if dbErr != nil {
+		switch dbErr.(type) {
+		case *ent.NotFoundError:
+			log.Debugf("Not found as a pkgbase: %s. Assuming split-package", pkgname)
+			break
+		default:
+			log.Errorf("Problem querying db for package %s: %v", pkgname, dbErr)
+		}
+	} else {
+		return dbPkg, nil
+	}
+
+	// search in split-packages
+	dbPkg, dbErr = db.DbPackage.Query().Where(func(s *sql.Selector) {
+		s.Where(sqljson.ValueContains(dbpackage.FieldPackages, sqljson.Path(pkgname)))
+	}).Only(context.Background())
+
+	if dbErr != nil {
+		switch dbErr.(type) {
+		case *ent.NotFoundError:
+			log.Warningf("Not a split-package: %s: Package not found!", pkgname)
+			break
+		default:
+			log.Errorf("Problem querying db for package %s: %v", pkgname, dbErr)
+		}
+	} else {
+		return dbPkg, nil
+	}
+
+	return nil, fmt.Errorf("package not found in DB: %s", pkgname)
+}
+
+func isSignatureValid(pkg string) (bool, error) {
+	cmd := exec.Command("gpg", "--verify", pkg)
+	res, err := cmd.CombinedOutput()
+	log.Debug(string(res))
+	if cmd.ProcessState.ExitCode() == 2 {
+		return false, nil
+	} else if cmd.ProcessState.ExitCode() == 0 {
+		return true, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	return false, nil
+}
+
+func housekeeping() error {
+	for _, repo := range repos {
+		packages, err := Glob(filepath.Join(conf.Basedir.Repo, repo, "/**/*.pkg.tar.zst"))
+		check(err)
+
+		for _, pkgfile := range packages {
+			// check if signature is valid
+			valid, err := isSignatureValid(pkgfile)
+			check(err)
+			if !valid {
+
+			}
+		}
+	}
+
+	return nil
 }
 
 func findPkgFiles(pkg *BuildPackage) {
