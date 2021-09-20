@@ -30,7 +30,7 @@
 
         <div class="d-flex justify-content-end">
             <input type="search" placeholder="Search for packages.." class="form-control" id="table-sort-input"
-                   onkeyup="searchFilter()" title="Type in a name"/>
+                   title="Type in a name"/>
         </div>
     </div>
 </nav>
@@ -101,6 +101,15 @@
 <script crossorigin="anonymous" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj"
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    let input = document.getElementById('table-sort-input');
+    let timeout = null;
+
+    input.addEventListener('keyup', function (e) {
+        clearTimeout(timeout);
+
+        timeout = setTimeout(searchFilter, 200);
+    });
+
     function searchFilter() {
         let input, filter, table, tr, td, i, txtValue;
         input = document.getElementById('table-sort-input')
