@@ -1,30 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
 
     <!-- Bootstrap CSS -->
     <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css"
-          integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" rel="stylesheet">
+          integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" rel="stylesheet"/>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet"/>
 
     <title>ALHP Status</title>
 </head>
 <body>
+<nav class="navbar navbar-expand-lg sticky-top navbar-light bg-info mb-5">
+    <div class="container">
+        <div class="d-flex justify-content-start">
+            <span class="navbar-brand align-middle">ALHP Status</span>
+            <span class="navbar-text">
+            <a href="https://git.harting.dev/anonfunc/ALHP.GO" class="align-middle position-absolute"><i
+                    class="bi bi-github h4"></i></a>
+          </span>
+        </div>
 
-<nav class="navbar sticky-top navbar-light bg-info mb-3">
-    <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">ALHP Status</span>
-        <span class="navbar-text">
-        <a href="https://git.harting.dev/anonfunc/ALHP.GO"><i class="bi bi-github h3"></i></a>
-      </span>
+        <div class="d-flex justify-content-end">
+            <input type="search" placeholder="Search for packages.." class="form-control" id="table-sort-input"
+                   onkeyup="searchFilter()" title="Type in a name"/>
+        </div>
     </div>
 </nav>
 
 <div class="container">
-    {{range $march := .March}}<h3>{{$march.Name}}</h3>
+    {{range $march := .March}}
+    <h3>{{$march.Name}}</h3>
     <div class="accordion" id="accordion-{{$march.Name}}">
         {{range $repo := $march.Repos}}
         <div class="accordion-item">
@@ -32,15 +40,14 @@
                 <button aria-controls="collapse-{{$march.Name}}-{{$repo.Name}}" aria-expanded="false"
                         class="accordion-button"
                         data-bs-target="#collapse-{{$march.Name}}-{{$repo.Name}}"
-                        data-bs-toggle="collapse" type="button">
-                    {{$repo.Name}}-{{$march.Name}}
+                        data-bs-toggle="collapse"
+                        type="button">{{$repo.Name}}-{{$march.Name}}
                 </button>
             </h2>
-            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}"
-                 class="accordion-collapse collapse show"
+            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}" class="accordion-collapse collapse show"
                  data-bs-parent="#accordion-{{$march.Name}}" id="collapse-{{$march.Name}}-{{$repo.Name}}">
                 <div class="accordion-body overflow-auto">
-                    <table class="table">
+                    <table class="table table-sorted">
                         <thead>
                         <tr>
                             <th scope="col">Pkgbase</th>
@@ -60,11 +67,14 @@
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
                             <td class="text-center">
-                                {{with $pkg.Log}}<a href="{{.}}"><i class="bi bi-file-text-fill"></i></a>{{end}}
+                                {{with $pkg.Log}}<a href="{{.}}"
+                            ><i class="bi bi-file-text-fill"></i></a
+                            >{{end}}
                                 <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
                                    href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
                                    title="{{if $pkg.BuildDate}}Build Date: {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build Duration: {{$pkg.BuildDuration}}&#10;{{end}}Check date: {{$pkg.Checked}}">
-                                    <i class="bi bi-info-circle-fill"></i></a></td>
+                                    <i class="bi bi-info-circle-fill"></i></a>
+                            </td>
                         </tr>
                         {{end}}
                         </tbody>
@@ -77,15 +87,35 @@
     {{end}}
 </div>
 
-<footer class="text-center text-lg-start bg-dark text-muted mt-3">
-    <div class="text-center p-4" style="background-color: rgba(0, 0, 0, 0.05);">
+<footer class="text-center text-lg-start bg-dark text-muted mt-3 fixed-bottom">
+    <div class="text-center p-4" style="background-color: rgba(0, 0, 0, 0.05)">
         Generated: {{.Generated}}
     </div>
 </footer>
 
-<script crossorigin="anonymous"
-        integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj"
+<script crossorigin="anonymous" integrity="sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj"
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js"></script>
-
+<script>
+    function searchFilter() {
+        let input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById('table-sort-input')
+        filter = input.value.toUpperCase()
+        const tables = document.getElementsByClassName('table-sorted');
+        for (let j = 0; j < tables.length; j++) {
+            tr = tables[j].getElementsByTagName('tr')
+            for (i = 0; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName('td')[0]
+                if (td) {
+                    txtValue = td.textContent || td.innerText
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = ''
+                    } else {
+                        tr[i].style.display = 'none'
+                    }
+                }
+            }
+        }
+    }
+</script>
 </body>
 </html>
