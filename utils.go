@@ -409,30 +409,15 @@ func getPkgbaseFromPkgfile(pkg string) (*ent.DbPackage, error) {
 
 	dbLock.RLock()
 	defer dbLock.RUnlock()
-	dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkgname)).Only(context.Background())
-
-	if dbErr != nil {
-		switch dbErr.(type) {
-		case *ent.NotFoundError:
-			log.Debugf("Not found as a pkgbase: %s. Assuming split-package", pkgname)
-			break
-		default:
-			log.Errorf("Problem querying db for package %s: %v", pkgname, dbErr)
-		}
-	} else {
-		return dbPkg, nil
-	}
-
-	// search in split-packages
-	dbPkg, dbErr = db.DbPackage.Query().Where(func(s *sql.Selector) {
-		s.Where(sqljson.ValueContains(dbpackage.FieldPackages, sqljson.Path(pkgname)))
+	dbPkg, dbErr := db.DbPackage.Query().Where(func(s *sql.Selector) {
+		s.Where(sqljson.ValueContains(dbpackage.FieldPackages, pkgname)).Or().Where(sql.EQ(s.C(dbpackage.FieldPkgbase), pkgname))
 	}).Only(context.Background())
 
 	if dbErr != nil {
 		switch dbErr.(type) {
 		case *ent.NotFoundError:
-			log.Warningf("Not a split-package: %s: Package not found!", pkgname)
-			break
+			log.Debugf("Not found in database: %s", pkgname)
+			return nil, fmt.Errorf("package not found in DB: %s", pkgname)
 		default:
 			log.Errorf("Problem querying db for package %s: %v", pkgname, dbErr)
 		}
