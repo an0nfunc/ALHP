@@ -287,8 +287,8 @@ func (dpq *DbPackageQuery) GroupBy(field string, fields ...string) *DbPackageGro
 //		Select(dbpackage.FieldPkgbase).
 //		Scan(ctx, &v)
 //
-func (dpq *DbPackageQuery) Select(field string, fields ...string) *DbPackageSelect {
-	dpq.fields = append([]string{field}, fields...)
+func (dpq *DbPackageQuery) Select(fields ...string) *DbPackageSelect {
+	dpq.fields = append(dpq.fields, fields...)
 	return &DbPackageSelect{DbPackageQuery: dpq}
 }
 
@@ -398,10 +398,14 @@ func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
 func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(dpq.driver.Dialect())
 	t1 := builder.Table(dbpackage.Table)
-	selector := builder.Select(t1.Columns(dbpackage.Columns...)...).From(t1)
+	columns := dpq.fields
+	if len(columns) == 0 {
+		columns = dbpackage.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if dpq.sql != nil {
 		selector = dpq.sql
-		selector.Select(selector.Columns(dbpackage.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
 	}
 	for _, p := range dpq.predicates {
 		p(selector)
@@ -669,13 +673,24 @@ func (dpgb *DbPackageGroupBy) sqlScan(ctx context.Context, v interface{}) error 
 }
 
 func (dpgb *DbPackageGroupBy) sqlQuery() *sql.Selector {
-	selector := dpgb.sql
-	columns := make([]string, 0, len(dpgb.fields)+len(dpgb.fns))
-	columns = append(columns, dpgb.fields...)
+	selector := dpgb.sql.Select()
+	aggregation := make([]string, 0, len(dpgb.fns))
 	for _, fn := range dpgb.fns {
-		columns = append(columns, fn(selector))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(dpgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(dpgb.fields)+len(dpgb.fns))
+		for _, f := range dpgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		for _, c := range aggregation {
+			columns = append(columns, c)
+		}
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(dpgb.fields...)...)
 }
 
 // DbPackageSelect is the builder for selecting fields of DbPackage entities.
@@ -891,16 +906,10 @@ func (dps *DbPackageSelect) BoolX(ctx context.Context) bool {
 
 func (dps *DbPackageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := dps.sqlQuery().Query()
+	query, args := dps.sql.Query()
 	if err := dps.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (dps *DbPackageSelect) sqlQuery() sql.Querier {
-	selector := dps.sql
-	selector.Select(selector.Columns(dps.fields...)...)
-	return selector
 }

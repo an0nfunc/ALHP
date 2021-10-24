@@ -122,8 +122,8 @@ func (m DbPackageMutation) Tx() (*Tx, error) {
 	return tx, nil
 }
 
-// ID returns the ID value in the mutation. Note that the ID
-// is only available if it was provided to the builder.
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
 func (m *DbPackageMutation) ID() (id int, exists bool) {
 	if m.id == nil {
 		return
@@ -706,6 +706,11 @@ func (m *DbPackageMutation) HashCleared() bool {
 func (m *DbPackageMutation) ResetHash() {
 	m.hash = nil
 	delete(m.clearedFields, dbpackage.FieldHash)
+}
+
+// Where appends a list predicates to the DbPackageMutation builder.
+func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
+	m.predicates = append(m.predicates, ps...)
 }
 
 // Op returns the operation name.

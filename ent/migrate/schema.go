@@ -26,10 +26,9 @@ var (
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{
-		Name:        "db_packages",
-		Columns:     DbPackagesColumns,
-		PrimaryKey:  []*schema.Column{DbPackagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "db_packages",
+		Columns:    DbPackagesColumns,
+		PrimaryKey: []*schema.Column{DbPackagesColumns[0]},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{

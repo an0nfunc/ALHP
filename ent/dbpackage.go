@@ -84,7 +84,6 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 				dp.Pkgbase = value.String
 			}
 		case dbpackage.FieldPackages:
-
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field packages", values[i])
 			} else if value != nil && len(*value) > 0 {

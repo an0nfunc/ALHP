@@ -183,11 +183,17 @@ func (dpc *DbPackageCreate) Save(ctx context.Context) (*DbPackage, error) {
 				return nil, err
 			}
 			dpc.mutation = mutation
-			node, err = dpc.sqlSave(ctx)
+			if node, err = dpc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(dpc.hooks) - 1; i >= 0; i-- {
+			if dpc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dpc.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, dpc.mutation); err != nil {
@@ -206,6 +212,19 @@ func (dpc *DbPackageCreate) SaveX(ctx context.Context) *DbPackage {
 	return v
 }
 
+// Exec executes the query.
+func (dpc *DbPackageCreate) Exec(ctx context.Context) error {
+	_, err := dpc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (dpc *DbPackageCreate) ExecX(ctx context.Context) {
+	if err := dpc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // defaults sets the default values of the builder before save.
 func (dpc *DbPackageCreate) defaults() {
 	if _, ok := dpc.mutation.Status(); !ok {
@@ -217,40 +236,40 @@ func (dpc *DbPackageCreate) defaults() {
 // check runs all checks and user-defined validators on the builder.
 func (dpc *DbPackageCreate) check() error {
 	if _, ok := dpc.mutation.Pkgbase(); !ok {
-		return &ValidationError{Name: "pkgbase", err: errors.New("ent: missing required field \"pkgbase\"")}
+		return &ValidationError{Name: "pkgbase", err: errors.New(`ent: missing required field "pkgbase"`)}
 	}
 	if v, ok := dpc.mutation.Pkgbase(); ok {
 		if err := dbpackage.PkgbaseValidator(v); err != nil {
-			return &ValidationError{Name: "pkgbase", err: fmt.Errorf("ent: validator failed for field \"pkgbase\": %w", err)}
+			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "pkgbase": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New("ent: missing required field \"status\"")}
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "status"`)}
 	}
 	if v, ok := dpc.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "status": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.Repository(); !ok {
-		return &ValidationError{Name: "repository", err: errors.New("ent: missing required field \"repository\"")}
+		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required field "repository"`)}
 	}
 	if v, ok := dpc.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf("ent: validator failed for field \"repository\": %w", err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "repository": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.March(); !ok {
-		return &ValidationError{Name: "march", err: errors.New("ent: missing required field \"march\"")}
+		return &ValidationError{Name: "march", err: errors.New(`ent: missing required field "march"`)}
 	}
 	if v, ok := dpc.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
-			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
+			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "march": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.BuildDuration(); ok {
 		if err := dbpackage.BuildDurationValidator(v); err != nil {
-			return &ValidationError{Name: "build_duration", err: fmt.Errorf("ent: validator failed for field \"build_duration\": %w", err)}
+			return &ValidationError{Name: "build_duration", err: fmt.Errorf(`ent: validator failed for field "build_duration": %w`, err)}
 		}
 	}
 	return nil
@@ -259,8 +278,8 @@ func (dpc *DbPackageCreate) check() error {
 func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
 	_node, _spec := dpc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, dpc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -408,19 +427,23 @@ func (dpcb *DbPackageCreateBulk) Save(ctx context.Context) ([]*DbPackage, error)
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, dpcb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, dpcb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, dpcb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				mutation.done = true
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -444,4 +467,17 @@ func (dpcb *DbPackageCreateBulk) SaveX(ctx context.Context) []*DbPackage {
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (dpcb *DbPackageCreateBulk) Exec(ctx context.Context) error {
+	_, err := dpcb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (dpcb *DbPackageCreateBulk) ExecX(ctx context.Context) {
+	if err := dpcb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

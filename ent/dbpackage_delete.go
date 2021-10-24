@@ -20,9 +20,9 @@ type DbPackageDelete struct {
 	mutation *DbPackageMutation
 }
 
-// Where adds a new predicate to the DbPackageDelete builder.
+// Where appends a list predicates to the DbPackageDelete builder.
 func (dpd *DbPackageDelete) Where(ps ...predicate.DbPackage) *DbPackageDelete {
-	dpd.mutation.predicates = append(dpd.mutation.predicates, ps...)
+	dpd.mutation.Where(ps...)
 	return dpd
 }
 
@@ -46,6 +46,9 @@ func (dpd *DbPackageDelete) Exec(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(dpd.hooks) - 1; i >= 0; i-- {
+			if dpd.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dpd.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, dpd.mutation); err != nil {
