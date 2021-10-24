@@ -6,8 +6,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -403,26 +401,27 @@ func setupChroot() {
 	}
 }
 
-func getPkgbaseFromPkgfile(pkg string) (*ent.DbPackage, error) {
+func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {
 	fNameSplit := strings.Split(pkg, "-")
 	pkgname := strings.Join(fNameSplit[0:len(fNameSplit)-3], "-")
 
 	dbLock.RLock()
 	defer dbLock.RUnlock()
-	dbPkg, dbErr := db.DbPackage.Query().Where(func(s *sql.Selector) {
-		s.Where(sqljson.ValueContains(dbpackage.FieldPackages, pkgname)).Or().Where(sql.EQ(s.C(dbpackage.FieldPkgbase), pkgname))
-	}).Only(context.Background())
-
-	if dbErr != nil {
-		switch dbErr.(type) {
+	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.PackagesNotNil()).All(context.Background())
+	if err != nil {
+		switch err.(type) {
 		case *ent.NotFoundError:
 			log.Debugf("Not found in database: %s", pkgname)
 			return nil, fmt.Errorf("package not found in DB: %s", pkgname)
 		default:
-			log.Errorf("Problem querying db for package %s: %v", pkgname, dbErr)
+			log.Errorf("Problem querying db for package %s: %v", pkgname, err)
 		}
 	} else {
-		return dbPkg, nil
+		for _, dbPkg := range dbPkgs {
+			if contains(dbPkg.Packages, pkg) {
+				return dbPkg, nil
+			}
+		}
 	}
 
 	return nil, fmt.Errorf("package not found in DB: %s", pkgname)
@@ -449,12 +448,22 @@ func housekeeping() error {
 		check(err)
 
 		for _, pkgfile := range packages {
-			// check if signature is valid
+			// check if pkg signature is valid
 			valid, err := isSignatureValid(pkgfile)
 			check(err)
 			if !valid {
-
+				// TODO: purge pkg to trigger rebuild -> need srcinfo
 			}
+
+			// TODO: compare db-version with repo version
+
+			// TODO: check split packages
+
+			/* TODO: check if package is still part of repo
+			   maybe we need to query ArchWeb here, since svn2git is not an absolute source
+			   see https://git.harting.dev/anonfunc/ALHP.GO/issues/16#issuecomment-208
+			   or https://git.harting.dev/anonfunc/ALHP.GO/issues/43#issuecomment-371
+			*/
 		}
 	}
 
