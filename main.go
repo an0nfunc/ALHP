@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
-	"github.com/Morganamilo/go-srcinfo"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
@@ -201,17 +200,9 @@ func (b *BuildManager) parseWorker() {
 		}
 		select {
 		case pkg := <-b.parse:
-			cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(pkg.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
-			res, err := cmd.Output()
+			info, err := genSRCINFO(pkg.Pkgbuild)
 			if err != nil {
-				log.Warningf("Failed generate SRCINFO for %s: %v", pkg.Pkgbase, err)
-				b.parseWG.Done()
-				continue
-			}
-
-			info, err := srcinfo.Parse(string(res))
-			if err != nil {
-				log.Warningf("Failed to parse SRCINFO for %s: %v", pkg.Pkgbase, err)
+				log.Warningf("Failed to generate SRCINFO for %s: %v", pkg.Pkgbase, err)
 				b.parseWG.Done()
 				continue
 			}
@@ -226,32 +217,35 @@ func (b *BuildManager) parseWorker() {
 			skipping := false
 			if contains(info.Arch, "any") {
 				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
-				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("arch = any").SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg.SkipReason = "arch = any"
+				dbPkg.Hash = pkg.Hash
+				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
 				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
-				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted").SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg.SkipReason = "blacklisted"
+				dbPkg.Hash = pkg.Hash
+				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
 				// most likely caused by not having a dependency check implemented yet and building at random.
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
-				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("blacklisted (haskell)").SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg.SkipReason = "blacklisted (haskell)"
+				dbPkg.Hash = pkg.Hash
+				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if isPkgFailed(pkg) {
 				log.Debugf("Skipped %s: failed build", info.Pkgbase)
-				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(FAILED).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg.SkipReason = ""
+				dbPkg.Hash = pkg.Hash
+				dbPkg.Status = FAILED
 				skipping = true
 			}
+			dbLock.Lock()
+			dbPkg = dbPkg.Update().SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(dbPkg.Hash).SaveX(context.Background())
+			dbLock.Unlock()
 
 			if skipping {
 				b.repoPurge[pkg.FullRepo] <- pkg

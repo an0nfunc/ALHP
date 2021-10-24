@@ -377,6 +377,21 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	return failed
 }
 
+func genSRCINFO(pkgbuild string) (*srcinfo.Srcinfo, error) {
+	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(pkgbuild)+"&&"+"makepkg --printsrcinfo")
+	res, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := srcinfo.Parse(string(res))
+	if err != nil {
+		return nil, err
+	}
+
+	return info, nil
+}
+
 func setupChroot() {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, pristineChroot)); err == nil {
 		//goland:noinspection SpellCheckingInspection
