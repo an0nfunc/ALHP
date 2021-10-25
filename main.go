@@ -6,9 +6,12 @@ import (
 	"ALHP.go/ent/migrate"
 	"bytes"
 	"context"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/sql"
 	"flag"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
@@ -578,13 +581,23 @@ func main() {
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
 
-	db, err = ent.Open("sqlite3", "file:"+conf.Basedir.Db+"?_journal_mode=WAL&_fk=1&cache=shared&_sync=NORMAL")
-	if err != nil {
-		log.Panicf("Failed to open database %s: %v", conf.Basedir.Db, err)
+	if conf.Db.Driver == "pgx" {
+		pdb, err := sql.Open("pgx", conf.Db.ConnectTo)
+		if err != nil {
+			log.Fatalf("Failed to open database %s: %v", conf.Db.ConnectTo, err)
+		}
+
+		drv := sql.OpenDB(dialect.Postgres, pdb.DB())
+		db = ent.NewClient(ent.Driver(drv))
+	} else {
+		db, err = ent.Open(conf.Db.Driver, conf.Db.ConnectTo)
+		if err != nil {
+			log.Panicf("Failed to open database %s: %v", conf.Db.ConnectTo, err)
+		}
+		defer func(Client *ent.Client) {
+			_ = Client.Close()
+		}(db)
 	}
-	defer func(dbSQLite *ent.Client) {
-		check(dbSQLite.Close())
-	}(db)
 
 	if err := db.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
 		log.Panicf("Automigrate failed: %v", err)

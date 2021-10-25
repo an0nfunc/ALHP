@@ -62,7 +62,11 @@ type Conf struct {
 	Repos, March []string
 	Svn2git      map[string]string
 	Basedir      struct {
-		Repo, Chroot, Makepkg, Upstream, Db string
+		Repo, Chroot, Makepkg, Upstream string
+	}
+	Db struct {
+		Driver    string
+		ConnectTo string `yaml:"connect_to"`
 	}
 	Build struct {
 		Worker int
