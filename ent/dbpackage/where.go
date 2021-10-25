@@ -99,24 +99,10 @@ func Pkgbase(v string) predicate.DbPackage {
 	})
 }
 
-// Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
-func Status(v int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldStatus), v))
-	})
-}
-
 // SkipReason applies equality check predicate on the "skip_reason" field. It's identical to SkipReasonEQ.
 func SkipReason(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldSkipReason), v))
-	})
-}
-
-// Repository applies equality check predicate on the "repository" field. It's identical to RepositoryEQ.
-func Repository(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldRepository), v))
 	})
 }
 
@@ -141,17 +127,17 @@ func RepoVersion(v string) predicate.DbPackage {
 	})
 }
 
-// BuildTime applies equality check predicate on the "build_time" field. It's identical to BuildTimeEQ.
-func BuildTime(v time.Time) predicate.DbPackage {
+// BuildTimeStart applies equality check predicate on the "build_time_start" field. It's identical to BuildTimeStartEQ.
+func BuildTimeStart(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTime), v))
+		s.Where(sql.EQ(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildDuration applies equality check predicate on the "build_duration" field. It's identical to BuildDurationEQ.
-func BuildDuration(v uint64) predicate.DbPackage {
+// BuildTimeEnd applies equality check predicate on the "build_time_end" field. It's identical to BuildTimeEndEQ.
+func BuildTimeEnd(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildDuration), v))
+		s.Where(sql.EQ(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
@@ -295,21 +281,21 @@ func PackagesNotNil() predicate.DbPackage {
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
-func StatusEQ(v int) predicate.DbPackage {
+func StatusEQ(v Status) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldStatus), v))
 	})
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
-func StatusNEQ(v int) predicate.DbPackage {
+func StatusNEQ(v Status) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.NEQ(s.C(FieldStatus), v))
 	})
 }
 
 // StatusIn applies the In predicate on the "status" field.
-func StatusIn(vs ...int) predicate.DbPackage {
+func StatusIn(vs ...Status) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -326,7 +312,7 @@ func StatusIn(vs ...int) predicate.DbPackage {
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
-func StatusNotIn(vs ...int) predicate.DbPackage {
+func StatusNotIn(vs ...Status) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -342,31 +328,17 @@ func StatusNotIn(vs ...int) predicate.DbPackage {
 	})
 }
 
-// StatusGT applies the GT predicate on the "status" field.
-func StatusGT(v int) predicate.DbPackage {
+// StatusIsNil applies the IsNil predicate on the "status" field.
+func StatusIsNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldStatus), v))
+		s.Where(sql.IsNull(s.C(FieldStatus)))
 	})
 }
 
-// StatusGTE applies the GTE predicate on the "status" field.
-func StatusGTE(v int) predicate.DbPackage {
+// StatusNotNil applies the NotNil predicate on the "status" field.
+func StatusNotNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldStatus), v))
-	})
-}
-
-// StatusLT applies the LT predicate on the "status" field.
-func StatusLT(v int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldStatus), v))
-	})
-}
-
-// StatusLTE applies the LTE predicate on the "status" field.
-func StatusLTE(v int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldStatus), v))
+		s.Where(sql.NotNull(s.C(FieldStatus)))
 	})
 }
 
@@ -496,21 +468,21 @@ func SkipReasonContainsFold(v string) predicate.DbPackage {
 }
 
 // RepositoryEQ applies the EQ predicate on the "repository" field.
-func RepositoryEQ(v string) predicate.DbPackage {
+func RepositoryEQ(v Repository) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldRepository), v))
 	})
 }
 
 // RepositoryNEQ applies the NEQ predicate on the "repository" field.
-func RepositoryNEQ(v string) predicate.DbPackage {
+func RepositoryNEQ(v Repository) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.NEQ(s.C(FieldRepository), v))
 	})
 }
 
 // RepositoryIn applies the In predicate on the "repository" field.
-func RepositoryIn(vs ...string) predicate.DbPackage {
+func RepositoryIn(vs ...Repository) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -527,7 +499,7 @@ func RepositoryIn(vs ...string) predicate.DbPackage {
 }
 
 // RepositoryNotIn applies the NotIn predicate on the "repository" field.
-func RepositoryNotIn(vs ...string) predicate.DbPackage {
+func RepositoryNotIn(vs ...Repository) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -540,69 +512,6 @@ func RepositoryNotIn(vs ...string) predicate.DbPackage {
 			return
 		}
 		s.Where(sql.NotIn(s.C(FieldRepository), v...))
-	})
-}
-
-// RepositoryGT applies the GT predicate on the "repository" field.
-func RepositoryGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryGTE applies the GTE predicate on the "repository" field.
-func RepositoryGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryLT applies the LT predicate on the "repository" field.
-func RepositoryLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryLTE applies the LTE predicate on the "repository" field.
-func RepositoryLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryContains applies the Contains predicate on the "repository" field.
-func RepositoryContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryHasPrefix applies the HasPrefix predicate on the "repository" field.
-func RepositoryHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryHasSuffix applies the HasSuffix predicate on the "repository" field.
-func RepositoryHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryEqualFold applies the EqualFold predicate on the "repository" field.
-func RepositoryEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldRepository), v))
-	})
-}
-
-// RepositoryContainsFold applies the ContainsFold predicate on the "repository" field.
-func RepositoryContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldRepository), v))
 	})
 }
 
@@ -967,22 +876,22 @@ func RepoVersionContainsFold(v string) predicate.DbPackage {
 	})
 }
 
-// BuildTimeEQ applies the EQ predicate on the "build_time" field.
-func BuildTimeEQ(v time.Time) predicate.DbPackage {
+// BuildTimeStartEQ applies the EQ predicate on the "build_time_start" field.
+func BuildTimeStartEQ(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTime), v))
+		s.Where(sql.EQ(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeNEQ applies the NEQ predicate on the "build_time" field.
-func BuildTimeNEQ(v time.Time) predicate.DbPackage {
+// BuildTimeStartNEQ applies the NEQ predicate on the "build_time_start" field.
+func BuildTimeStartNEQ(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldBuildTime), v))
+		s.Where(sql.NEQ(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeIn applies the In predicate on the "build_time" field.
-func BuildTimeIn(vs ...time.Time) predicate.DbPackage {
+// BuildTimeStartIn applies the In predicate on the "build_time_start" field.
+func BuildTimeStartIn(vs ...time.Time) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -994,12 +903,12 @@ func BuildTimeIn(vs ...time.Time) predicate.DbPackage {
 			s.Where(sql.False())
 			return
 		}
-		s.Where(sql.In(s.C(FieldBuildTime), v...))
+		s.Where(sql.In(s.C(FieldBuildTimeStart), v...))
 	})
 }
 
-// BuildTimeNotIn applies the NotIn predicate on the "build_time" field.
-func BuildTimeNotIn(vs ...time.Time) predicate.DbPackage {
+// BuildTimeStartNotIn applies the NotIn predicate on the "build_time_start" field.
+func BuildTimeStartNotIn(vs ...time.Time) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -1011,68 +920,68 @@ func BuildTimeNotIn(vs ...time.Time) predicate.DbPackage {
 			s.Where(sql.False())
 			return
 		}
-		s.Where(sql.NotIn(s.C(FieldBuildTime), v...))
+		s.Where(sql.NotIn(s.C(FieldBuildTimeStart), v...))
 	})
 }
 
-// BuildTimeGT applies the GT predicate on the "build_time" field.
-func BuildTimeGT(v time.Time) predicate.DbPackage {
+// BuildTimeStartGT applies the GT predicate on the "build_time_start" field.
+func BuildTimeStartGT(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldBuildTime), v))
+		s.Where(sql.GT(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeGTE applies the GTE predicate on the "build_time" field.
-func BuildTimeGTE(v time.Time) predicate.DbPackage {
+// BuildTimeStartGTE applies the GTE predicate on the "build_time_start" field.
+func BuildTimeStartGTE(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldBuildTime), v))
+		s.Where(sql.GTE(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeLT applies the LT predicate on the "build_time" field.
-func BuildTimeLT(v time.Time) predicate.DbPackage {
+// BuildTimeStartLT applies the LT predicate on the "build_time_start" field.
+func BuildTimeStartLT(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldBuildTime), v))
+		s.Where(sql.LT(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeLTE applies the LTE predicate on the "build_time" field.
-func BuildTimeLTE(v time.Time) predicate.DbPackage {
+// BuildTimeStartLTE applies the LTE predicate on the "build_time_start" field.
+func BuildTimeStartLTE(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldBuildTime), v))
+		s.Where(sql.LTE(s.C(FieldBuildTimeStart), v))
 	})
 }
 
-// BuildTimeIsNil applies the IsNil predicate on the "build_time" field.
-func BuildTimeIsNil() predicate.DbPackage {
+// BuildTimeStartIsNil applies the IsNil predicate on the "build_time_start" field.
+func BuildTimeStartIsNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldBuildTime)))
+		s.Where(sql.IsNull(s.C(FieldBuildTimeStart)))
 	})
 }
 
-// BuildTimeNotNil applies the NotNil predicate on the "build_time" field.
-func BuildTimeNotNil() predicate.DbPackage {
+// BuildTimeStartNotNil applies the NotNil predicate on the "build_time_start" field.
+func BuildTimeStartNotNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldBuildTime)))
+		s.Where(sql.NotNull(s.C(FieldBuildTimeStart)))
 	})
 }
 
-// BuildDurationEQ applies the EQ predicate on the "build_duration" field.
-func BuildDurationEQ(v uint64) predicate.DbPackage {
+// BuildTimeEndEQ applies the EQ predicate on the "build_time_end" field.
+func BuildTimeEndEQ(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildDuration), v))
+		s.Where(sql.EQ(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationNEQ applies the NEQ predicate on the "build_duration" field.
-func BuildDurationNEQ(v uint64) predicate.DbPackage {
+// BuildTimeEndNEQ applies the NEQ predicate on the "build_time_end" field.
+func BuildTimeEndNEQ(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldBuildDuration), v))
+		s.Where(sql.NEQ(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationIn applies the In predicate on the "build_duration" field.
-func BuildDurationIn(vs ...uint64) predicate.DbPackage {
+// BuildTimeEndIn applies the In predicate on the "build_time_end" field.
+func BuildTimeEndIn(vs ...time.Time) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -1084,12 +993,12 @@ func BuildDurationIn(vs ...uint64) predicate.DbPackage {
 			s.Where(sql.False())
 			return
 		}
-		s.Where(sql.In(s.C(FieldBuildDuration), v...))
+		s.Where(sql.In(s.C(FieldBuildTimeEnd), v...))
 	})
 }
 
-// BuildDurationNotIn applies the NotIn predicate on the "build_duration" field.
-func BuildDurationNotIn(vs ...uint64) predicate.DbPackage {
+// BuildTimeEndNotIn applies the NotIn predicate on the "build_time_end" field.
+func BuildTimeEndNotIn(vs ...time.Time) predicate.DbPackage {
 	v := make([]interface{}, len(vs))
 	for i := range v {
 		v[i] = vs[i]
@@ -1101,49 +1010,49 @@ func BuildDurationNotIn(vs ...uint64) predicate.DbPackage {
 			s.Where(sql.False())
 			return
 		}
-		s.Where(sql.NotIn(s.C(FieldBuildDuration), v...))
+		s.Where(sql.NotIn(s.C(FieldBuildTimeEnd), v...))
 	})
 }
 
-// BuildDurationGT applies the GT predicate on the "build_duration" field.
-func BuildDurationGT(v uint64) predicate.DbPackage {
+// BuildTimeEndGT applies the GT predicate on the "build_time_end" field.
+func BuildTimeEndGT(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldBuildDuration), v))
+		s.Where(sql.GT(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationGTE applies the GTE predicate on the "build_duration" field.
-func BuildDurationGTE(v uint64) predicate.DbPackage {
+// BuildTimeEndGTE applies the GTE predicate on the "build_time_end" field.
+func BuildTimeEndGTE(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldBuildDuration), v))
+		s.Where(sql.GTE(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationLT applies the LT predicate on the "build_duration" field.
-func BuildDurationLT(v uint64) predicate.DbPackage {
+// BuildTimeEndLT applies the LT predicate on the "build_time_end" field.
+func BuildTimeEndLT(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldBuildDuration), v))
+		s.Where(sql.LT(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationLTE applies the LTE predicate on the "build_duration" field.
-func BuildDurationLTE(v uint64) predicate.DbPackage {
+// BuildTimeEndLTE applies the LTE predicate on the "build_time_end" field.
+func BuildTimeEndLTE(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldBuildDuration), v))
+		s.Where(sql.LTE(s.C(FieldBuildTimeEnd), v))
 	})
 }
 
-// BuildDurationIsNil applies the IsNil predicate on the "build_duration" field.
-func BuildDurationIsNil() predicate.DbPackage {
+// BuildTimeEndIsNil applies the IsNil predicate on the "build_time_end" field.
+func BuildTimeEndIsNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldBuildDuration)))
+		s.Where(sql.IsNull(s.C(FieldBuildTimeEnd)))
 	})
 }
 
-// BuildDurationNotNil applies the NotNil predicate on the "build_duration" field.
-func BuildDurationNotNil() predicate.DbPackage {
+// BuildTimeEndNotNil applies the NotNil predicate on the "build_time_end" field.
+func BuildTimeEndNotNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldBuildDuration)))
+		s.Where(sql.NotNull(s.C(FieldBuildTimeEnd)))
 	})
 }
 

@@ -2,6 +2,10 @@
 
 package dbpackage
 
+import (
+	"fmt"
+)
+
 const (
 	// Label holds the string label denoting the dbpackage type in the database.
 	Label = "db_package"
@@ -23,10 +27,10 @@ const (
 	FieldVersion = "version"
 	// FieldRepoVersion holds the string denoting the repo_version field in the database.
 	FieldRepoVersion = "repo_version"
-	// FieldBuildTime holds the string denoting the build_time field in the database.
-	FieldBuildTime = "build_time"
-	// FieldBuildDuration holds the string denoting the build_duration field in the database.
-	FieldBuildDuration = "build_duration"
+	// FieldBuildTimeStart holds the string denoting the build_time_start field in the database.
+	FieldBuildTimeStart = "build_time_start"
+	// FieldBuildTimeEnd holds the string denoting the build_time_end field in the database.
+	FieldBuildTimeEnd = "build_time_end"
 	// FieldUpdated holds the string denoting the updated field in the database.
 	FieldUpdated = "updated"
 	// FieldHash holds the string denoting the hash field in the database.
@@ -46,8 +50,8 @@ var Columns = []string{
 	FieldMarch,
 	FieldVersion,
 	FieldRepoVersion,
-	FieldBuildTime,
-	FieldBuildDuration,
+	FieldBuildTimeStart,
+	FieldBuildTimeEnd,
 	FieldUpdated,
 	FieldHash,
 }
@@ -65,14 +69,62 @@ func ValidColumn(column string) bool {
 var (
 	// PkgbaseValidator is a validator for the "pkgbase" field. It is called by the builders before save.
 	PkgbaseValidator func(string) error
-	// DefaultStatus holds the default value on creation for the "status" field.
-	DefaultStatus int
-	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
-	StatusValidator func(int) error
-	// RepositoryValidator is a validator for the "repository" field. It is called by the builders before save.
-	RepositoryValidator func(string) error
 	// MarchValidator is a validator for the "march" field. It is called by the builders before save.
 	MarchValidator func(string) error
-	// BuildDurationValidator is a validator for the "build_duration" field. It is called by the builders before save.
-	BuildDurationValidator func(uint64) error
 )
+
+// Status defines the type for the "status" enum field.
+type Status string
+
+// StatusUnknown is the default value of the Status enum.
+const DefaultStatus = StatusUnknown
+
+// Status values.
+const (
+	StatusSkipped  Status = "skipped"
+	StatusFailed   Status = "failed"
+	StatusBuild    Status = "build"
+	StatusQueued   Status = "queued"
+	StatusBuilding Status = "building"
+	StatusLatest   Status = "latest"
+	StatusSigning  Status = "signing"
+	StatusUnknown  Status = "unknown"
+)
+
+func (s Status) String() string {
+	return string(s)
+}
+
+// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
+func StatusValidator(s Status) error {
+	switch s {
+	case StatusSkipped, StatusFailed, StatusBuild, StatusQueued, StatusBuilding, StatusLatest, StatusSigning, StatusUnknown:
+		return nil
+	default:
+		return fmt.Errorf("dbpackage: invalid enum value for status field: %q", s)
+	}
+}
+
+// Repository defines the type for the "repository" enum field.
+type Repository string
+
+// Repository values.
+const (
+	RepositoryExtra     Repository = "extra"
+	RepositoryCore      Repository = "core"
+	RepositoryCommunity Repository = "community"
+)
+
+func (r Repository) String() string {
+	return string(r)
+}
+
+// RepositoryValidator is a validator for the "repository" field enum values. It is called by the builders before save.
+func RepositoryValidator(r Repository) error {
+	switch r {
+	case RepositoryExtra, RepositoryCore, RepositoryCommunity:
+		return nil
+	default:
+		return fmt.Errorf("dbpackage: invalid enum value for repository field: %q", r)
+	}
+}

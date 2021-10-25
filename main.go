@@ -22,7 +22,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -36,7 +35,6 @@ var (
 	rePkgFile     = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	buildManager  BuildManager
 	db            *ent.Client
-	dbLock        sync.RWMutex
 	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
 	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
 )
@@ -62,9 +60,7 @@ func (b *BuildManager) buildWorker(id int) {
 			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
 
 			dbPkg := getDbPackage(pkg)
-			dbLock.Lock()
-			dbPkg.Update().SetStatus(BUILDING).SetBuildTime(time.Now().UTC()).SetSkipReason("").SaveX(context.Background())
-			dbLock.Unlock()
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).SetBuildTimeStart(time.Now().UTC()).SetSkipReason("").SaveX(context.Background())
 
 			err := importKeys(pkg)
 			if err != nil {
@@ -124,10 +120,7 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), os.ModePerm))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), os.ModePerm))
 
-				dbPkg := getDbPackage(pkg)
-				dbLock.Lock()
-				dbPkg.Update().SetStatus(FAILED).SetBuildTime(time.Now()).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg.Update().SetStatus(dbpackage.StatusFailed).SetBuildTimeEnd(time.Now()).SetHash(pkg.Hash).ExecX(context.Background())
 
 				// purge failed package from repo
 				b.repoPurge[pkg.FullRepo] <- pkg
@@ -180,10 +173,7 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
 			}
 
-			dbPkg = getDbPackage(pkg)
-			dbLock.Lock()
-			dbPkg.Update().SetStatus(BUILD).SetBuildDuration(uint64(time.Now().Sub(start).Milliseconds())).SaveX(context.Background())
-			dbLock.Unlock()
+			dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
 			b.repoAdd[pkg.FullRepo] <- pkg
@@ -210,22 +200,16 @@ func (b *BuildManager) parseWorker() {
 			pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
 			dbPkg := getDbPackage(pkg)
-			dbLock.Lock()
 			dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
-			dbLock.Unlock()
 
 			skipping := false
 			if contains(info.Arch, "any") {
 				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
 				dbPkg.SkipReason = "arch = any"
-				dbPkg.Hash = pkg.Hash
-				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
 				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
 				dbPkg.SkipReason = "blacklisted"
-				dbPkg.Hash = pkg.Hash
-				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
@@ -233,35 +217,25 @@ func (b *BuildManager) parseWorker() {
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
 				dbPkg.SkipReason = "blacklisted (haskell)"
-				dbPkg.Hash = pkg.Hash
-				dbPkg.Status = SKIPPED
 				skipping = true
 			} else if isPkgFailed(pkg) {
 				log.Debugf("Skipped %s: failed build", info.Pkgbase)
 				dbPkg.SkipReason = ""
-				dbPkg.Hash = pkg.Hash
-				dbPkg.Status = FAILED
 				skipping = true
 			}
-			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(dbPkg.Hash).SaveX(context.Background())
-			dbLock.Unlock()
 
 			if skipping {
+				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
 				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			}
 
 			repoVer := getVersionFromRepo(pkg)
-			dbLock.Lock()
 			dbPkg = dbPkg.Update().SetRepoVersion(repoVer).SaveX(context.Background())
-			dbLock.Unlock()
 			if repoVer != "" && alpm.VerCmp(repoVer, pkg.Version) > 0 {
 				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkg.Version, repoVer)
-				dbLock.Lock()
-				dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
-				dbLock.Unlock()
+				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
 				b.parseWG.Done()
 				continue
 			}
@@ -273,38 +247,28 @@ func (b *BuildManager) parseWorker() {
 					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
 				case MultiplePKGBUILDError:
 					log.Debugf("Skipped %s: Multiple PKGBUILDs for dependency found: %v", info.Pkgbase, err)
-					dbLock.Lock()
-					dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
-					dbLock.Unlock()
+					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
 					continue
 				case UnableToSatisfyError:
 					log.Debugf("Skipped %s: unable to resolve dependencies: %v", info.Pkgbase, err)
-					dbLock.Lock()
-					dbPkg = dbPkg.Update().SetStatus(SKIPPED).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
-					dbLock.Unlock()
+					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
 					continue
 				}
 			}
 
-			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetStatus(QUEUED).SaveX(context.Background())
-			dbLock.Unlock()
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusQueued).SaveX(context.Background())
 
 			if !isLatest {
 				if local != nil {
 					log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", info.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
-					dbLock.Lock()
-					dbPkg = dbPkg.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).SaveX(context.Background())
-					dbLock.Unlock()
+					dbPkg.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(context.Background())
 				} else {
 					log.Infof("Delayed %s: not all dependencies are up to date or resolvable", info.Pkgbase)
-					dbLock.Lock()
-					dbPkg = dbPkg.Update().SetSkipReason("waiting for mirror").SaveX(context.Background())
-					dbLock.Unlock()
+					dbPkg.Update().SetSkipReason("waiting for mirror").ExecX(context.Background())
 				}
 
 				// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
@@ -364,9 +328,7 @@ func (b *BuildManager) htmlWorker() {
 					Name: repo,
 				}
 
-				dbLock.RLock()
-				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(repo)).AllX(context.Background())
-				dbLock.RUnlock()
+				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(dbpackage.Repository(repo))).AllX(context.Background())
 
 				for _, pkg := range pkgs {
 					status, class := statusId2string(pkg.Status)
@@ -380,21 +342,19 @@ func (b *BuildManager) htmlWorker() {
 						Svn2GitVersion: pkg.Version,
 					}
 
-					if pkg.BuildDuration > 0 {
-						duration, err := time.ParseDuration(strconv.Itoa(int(pkg.BuildDuration)) + "ms")
-						check(err)
-						addPkg.BuildDuration = duration
+					if !pkg.BuildTimeEnd.IsZero() && !pkg.BuildTimeStart.IsZero() {
+						addPkg.BuildDuration = pkg.BuildTimeEnd.Sub(pkg.BuildTimeStart)
 					}
 
-					if !pkg.BuildTime.IsZero() {
-						addPkg.BuildDate = pkg.BuildTime.UTC().Format(time.RFC3339)
+					if !pkg.BuildTimeStart.IsZero() {
+						addPkg.BuildDate = pkg.BuildTimeStart.UTC().Format(time.RFC3339)
 					}
 
 					if !pkg.Updated.IsZero() {
 						addPkg.Checked = pkg.Updated.UTC().Format(time.RFC3339)
 					}
 
-					if pkg.Status == FAILED {
+					if pkg.Status == dbpackage.StatusFailed {
 						addPkg.Log = fmt.Sprintf("logs/%s.log", pkg.Pkgbase)
 					}
 
@@ -432,9 +392,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			dbPkg := getDbPackage(pkg)
-			dbLock.Lock()
-			dbPkg = dbPkg.Update().SetStatus(LATEST).SetSkipReason("").SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
-			dbLock.Unlock()
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).SetSkipReason("").SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
 
 			cmd = exec.Command("paccache",
 				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
@@ -472,9 +430,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			dbPkg := getDbPackage(pkg)
-			dbLock.Lock()
 			dbPkg = dbPkg.Update().SetRepoVersion("").SaveX(context.Background())
-			dbLock.Unlock()
 
 			for _, file := range pkg.PkgFiles {
 				check(os.Remove(file))
@@ -553,9 +509,10 @@ func (b *BuildManager) syncWorker() {
 
 			// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
 			// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
-			dbLock.RLock()
-			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]), dbpackage.Repository(strings.Split(repo, "-")[0]))).Only(context.Background())
-			dbLock.RUnlock()
+			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(
+				dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]),
+				dbpackage.RepositoryEQ(dbpackage.Repository(strings.Split(repo, "-")[0]))),
+			).Only(context.Background())
 
 			if dbErr != nil {
 				switch dbErr.(type) {
@@ -581,7 +538,7 @@ func (b *BuildManager) syncWorker() {
 				b.parse <- &BuildPackage{
 					Pkgbuild: pkgbuild,
 					Pkgbase:  sPkgbuild[len(sPkgbuild)-4],
-					Repo:     strings.Split(repo, "-")[0],
+					Repo:     dbpackage.Repository(strings.Split(repo, "-")[0]),
 					March:    march,
 					FullRepo: strings.Split(repo, "-")[0] + "-" + march,
 					Hash:     b3s,
@@ -621,7 +578,7 @@ func main() {
 	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
 	check(err)
 
-	db, err = ent.Open("sqlite3", "file:"+conf.Basedir.Db+"?_fk=1&cache=shared")
+	db, err = ent.Open("sqlite3", "file:"+conf.Basedir.Db+"?_journal_mode=WAL&_fk=1&cache=shared&_sync=NORMAL")
 	if err != nil {
 		log.Panicf("Failed to open database %s: %v", conf.Basedir.Db, err)
 	}

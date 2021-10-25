@@ -24,6 +24,7 @@ type DbPackageQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.DbPackage
+	modifiers  []func(s *sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -325,6 +326,9 @@ func (dpq *DbPackageQuery) sqlAll(ctx context.Context) ([]*DbPackage, error) {
 		node := nodes[len(nodes)-1]
 		return node.assignValues(columns, values)
 	}
+	if len(dpq.modifiers) > 0 {
+		_spec.Modifiers = dpq.modifiers
+	}
 	if err := sqlgraph.QueryNodes(ctx, dpq.driver, _spec); err != nil {
 		return nil, err
 	}
@@ -336,6 +340,9 @@ func (dpq *DbPackageQuery) sqlAll(ctx context.Context) ([]*DbPackage, error) {
 
 func (dpq *DbPackageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := dpq.querySpec()
+	if len(dpq.modifiers) > 0 {
+		_spec.Modifiers = dpq.modifiers
+	}
 	return sqlgraph.CountNodes(ctx, dpq.driver, _spec)
 }
 
@@ -407,6 +414,9 @@ func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = dpq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
+	for _, m := range dpq.modifiers {
+		m(selector)
+	}
 	for _, p := range dpq.predicates {
 		p(selector)
 	}
@@ -422,6 +432,12 @@ func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (dpq *DbPackageQuery) Modify(modifiers ...func(s *sql.Selector)) *DbPackageSelect {
+	dpq.modifiers = append(dpq.modifiers, modifiers...)
+	return dpq.Select()
 }
 
 // DbPackageGroupBy is the group-by builder for DbPackage entities.
@@ -912,4 +928,10 @@ func (dps *DbPackageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (dps *DbPackageSelect) Modify(modifiers ...func(s *sql.Selector)) *DbPackageSelect {
+	dps.modifiers = append(dps.modifiers, modifiers...)
+	return dps
 }

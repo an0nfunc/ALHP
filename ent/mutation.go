@@ -29,27 +29,25 @@ const (
 // DbPackageMutation represents an operation that mutates the DbPackage nodes in the graph.
 type DbPackageMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int
-	pkgbase           *string
-	packages          *[]string
-	status            *int
-	addstatus         *int
-	skip_reason       *string
-	repository        *string
-	march             *string
-	version           *string
-	repo_version      *string
-	build_time        *time.Time
-	build_duration    *uint64
-	addbuild_duration *uint64
-	updated           *time.Time
-	hash              *string
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*DbPackage, error)
-	predicates        []predicate.DbPackage
+	op               Op
+	typ              string
+	id               *int
+	pkgbase          *string
+	packages         *[]string
+	status           *dbpackage.Status
+	skip_reason      *string
+	repository       *dbpackage.Repository
+	march            *string
+	version          *string
+	repo_version     *string
+	build_time_start *time.Time
+	build_time_end   *time.Time
+	updated          *time.Time
+	hash             *string
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*DbPackage, error)
+	predicates       []predicate.DbPackage
 }
 
 var _ ent.Mutation = (*DbPackageMutation)(nil)
@@ -217,13 +215,12 @@ func (m *DbPackageMutation) ResetPackages() {
 }
 
 // SetStatus sets the "status" field.
-func (m *DbPackageMutation) SetStatus(i int) {
-	m.status = &i
-	m.addstatus = nil
+func (m *DbPackageMutation) SetStatus(d dbpackage.Status) {
+	m.status = &d
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *DbPackageMutation) Status() (r int, exists bool) {
+func (m *DbPackageMutation) Status() (r dbpackage.Status, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -234,7 +231,7 @@ func (m *DbPackageMutation) Status() (r int, exists bool) {
 // OldStatus returns the old "status" field's value of the DbPackage entity.
 // If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldStatus(ctx context.Context) (v int, err error) {
+func (m *DbPackageMutation) OldStatus(ctx context.Context) (v dbpackage.Status, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, fmt.Errorf("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -248,28 +245,22 @@ func (m *DbPackageMutation) OldStatus(ctx context.Context) (v int, err error) {
 	return oldValue.Status, nil
 }
 
-// AddStatus adds i to the "status" field.
-func (m *DbPackageMutation) AddStatus(i int) {
-	if m.addstatus != nil {
-		*m.addstatus += i
-	} else {
-		m.addstatus = &i
-	}
+// ClearStatus clears the value of the "status" field.
+func (m *DbPackageMutation) ClearStatus() {
+	m.status = nil
+	m.clearedFields[dbpackage.FieldStatus] = struct{}{}
 }
 
-// AddedStatus returns the value that was added to the "status" field in this mutation.
-func (m *DbPackageMutation) AddedStatus() (r int, exists bool) {
-	v := m.addstatus
-	if v == nil {
-		return
-	}
-	return *v, true
+// StatusCleared returns if the "status" field was cleared in this mutation.
+func (m *DbPackageMutation) StatusCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldStatus]
+	return ok
 }
 
 // ResetStatus resets all changes to the "status" field.
 func (m *DbPackageMutation) ResetStatus() {
 	m.status = nil
-	m.addstatus = nil
+	delete(m.clearedFields, dbpackage.FieldStatus)
 }
 
 // SetSkipReason sets the "skip_reason" field.
@@ -322,12 +313,12 @@ func (m *DbPackageMutation) ResetSkipReason() {
 }
 
 // SetRepository sets the "repository" field.
-func (m *DbPackageMutation) SetRepository(s string) {
-	m.repository = &s
+func (m *DbPackageMutation) SetRepository(d dbpackage.Repository) {
+	m.repository = &d
 }
 
 // Repository returns the value of the "repository" field in the mutation.
-func (m *DbPackageMutation) Repository() (r string, exists bool) {
+func (m *DbPackageMutation) Repository() (r dbpackage.Repository, exists bool) {
 	v := m.repository
 	if v == nil {
 		return
@@ -338,7 +329,7 @@ func (m *DbPackageMutation) Repository() (r string, exists bool) {
 // OldRepository returns the old "repository" field's value of the DbPackage entity.
 // If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldRepository(ctx context.Context) (v string, err error) {
+func (m *DbPackageMutation) OldRepository(ctx context.Context) (v dbpackage.Repository, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, fmt.Errorf("OldRepository is only allowed on UpdateOne operations")
 	}
@@ -491,123 +482,102 @@ func (m *DbPackageMutation) ResetRepoVersion() {
 	delete(m.clearedFields, dbpackage.FieldRepoVersion)
 }
 
-// SetBuildTime sets the "build_time" field.
-func (m *DbPackageMutation) SetBuildTime(t time.Time) {
-	m.build_time = &t
+// SetBuildTimeStart sets the "build_time_start" field.
+func (m *DbPackageMutation) SetBuildTimeStart(t time.Time) {
+	m.build_time_start = &t
 }
 
-// BuildTime returns the value of the "build_time" field in the mutation.
-func (m *DbPackageMutation) BuildTime() (r time.Time, exists bool) {
-	v := m.build_time
+// BuildTimeStart returns the value of the "build_time_start" field in the mutation.
+func (m *DbPackageMutation) BuildTimeStart() (r time.Time, exists bool) {
+	v := m.build_time_start
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldBuildTime returns the old "build_time" field's value of the DbPackage entity.
+// OldBuildTimeStart returns the old "build_time_start" field's value of the DbPackage entity.
 // If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldBuildTime(ctx context.Context) (v time.Time, err error) {
+func (m *DbPackageMutation) OldBuildTimeStart(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, fmt.Errorf("OldBuildTime is only allowed on UpdateOne operations")
+		return v, fmt.Errorf("OldBuildTimeStart is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, fmt.Errorf("OldBuildTime requires an ID field in the mutation")
+		return v, fmt.Errorf("OldBuildTimeStart requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldBuildTime: %w", err)
+		return v, fmt.Errorf("querying old value for OldBuildTimeStart: %w", err)
 	}
-	return oldValue.BuildTime, nil
+	return oldValue.BuildTimeStart, nil
 }
 
-// ClearBuildTime clears the value of the "build_time" field.
-func (m *DbPackageMutation) ClearBuildTime() {
-	m.build_time = nil
-	m.clearedFields[dbpackage.FieldBuildTime] = struct{}{}
+// ClearBuildTimeStart clears the value of the "build_time_start" field.
+func (m *DbPackageMutation) ClearBuildTimeStart() {
+	m.build_time_start = nil
+	m.clearedFields[dbpackage.FieldBuildTimeStart] = struct{}{}
 }
 
-// BuildTimeCleared returns if the "build_time" field was cleared in this mutation.
-func (m *DbPackageMutation) BuildTimeCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldBuildTime]
+// BuildTimeStartCleared returns if the "build_time_start" field was cleared in this mutation.
+func (m *DbPackageMutation) BuildTimeStartCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldBuildTimeStart]
 	return ok
 }
 
-// ResetBuildTime resets all changes to the "build_time" field.
-func (m *DbPackageMutation) ResetBuildTime() {
-	m.build_time = nil
-	delete(m.clearedFields, dbpackage.FieldBuildTime)
+// ResetBuildTimeStart resets all changes to the "build_time_start" field.
+func (m *DbPackageMutation) ResetBuildTimeStart() {
+	m.build_time_start = nil
+	delete(m.clearedFields, dbpackage.FieldBuildTimeStart)
 }
 
-// SetBuildDuration sets the "build_duration" field.
-func (m *DbPackageMutation) SetBuildDuration(u uint64) {
-	m.build_duration = &u
-	m.addbuild_duration = nil
+// SetBuildTimeEnd sets the "build_time_end" field.
+func (m *DbPackageMutation) SetBuildTimeEnd(t time.Time) {
+	m.build_time_end = &t
 }
 
-// BuildDuration returns the value of the "build_duration" field in the mutation.
-func (m *DbPackageMutation) BuildDuration() (r uint64, exists bool) {
-	v := m.build_duration
+// BuildTimeEnd returns the value of the "build_time_end" field in the mutation.
+func (m *DbPackageMutation) BuildTimeEnd() (r time.Time, exists bool) {
+	v := m.build_time_end
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldBuildDuration returns the old "build_duration" field's value of the DbPackage entity.
+// OldBuildTimeEnd returns the old "build_time_end" field's value of the DbPackage entity.
 // If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldBuildDuration(ctx context.Context) (v uint64, err error) {
+func (m *DbPackageMutation) OldBuildTimeEnd(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, fmt.Errorf("OldBuildDuration is only allowed on UpdateOne operations")
+		return v, fmt.Errorf("OldBuildTimeEnd is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, fmt.Errorf("OldBuildDuration requires an ID field in the mutation")
+		return v, fmt.Errorf("OldBuildTimeEnd requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldBuildDuration: %w", err)
+		return v, fmt.Errorf("querying old value for OldBuildTimeEnd: %w", err)
 	}
-	return oldValue.BuildDuration, nil
+	return oldValue.BuildTimeEnd, nil
 }
 
-// AddBuildDuration adds u to the "build_duration" field.
-func (m *DbPackageMutation) AddBuildDuration(u uint64) {
-	if m.addbuild_duration != nil {
-		*m.addbuild_duration += u
-	} else {
-		m.addbuild_duration = &u
-	}
+// ClearBuildTimeEnd clears the value of the "build_time_end" field.
+func (m *DbPackageMutation) ClearBuildTimeEnd() {
+	m.build_time_end = nil
+	m.clearedFields[dbpackage.FieldBuildTimeEnd] = struct{}{}
 }
 
-// AddedBuildDuration returns the value that was added to the "build_duration" field in this mutation.
-func (m *DbPackageMutation) AddedBuildDuration() (r uint64, exists bool) {
-	v := m.addbuild_duration
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ClearBuildDuration clears the value of the "build_duration" field.
-func (m *DbPackageMutation) ClearBuildDuration() {
-	m.build_duration = nil
-	m.addbuild_duration = nil
-	m.clearedFields[dbpackage.FieldBuildDuration] = struct{}{}
-}
-
-// BuildDurationCleared returns if the "build_duration" field was cleared in this mutation.
-func (m *DbPackageMutation) BuildDurationCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldBuildDuration]
+// BuildTimeEndCleared returns if the "build_time_end" field was cleared in this mutation.
+func (m *DbPackageMutation) BuildTimeEndCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldBuildTimeEnd]
 	return ok
 }
 
-// ResetBuildDuration resets all changes to the "build_duration" field.
-func (m *DbPackageMutation) ResetBuildDuration() {
-	m.build_duration = nil
-	m.addbuild_duration = nil
-	delete(m.clearedFields, dbpackage.FieldBuildDuration)
+// ResetBuildTimeEnd resets all changes to the "build_time_end" field.
+func (m *DbPackageMutation) ResetBuildTimeEnd() {
+	m.build_time_end = nil
+	delete(m.clearedFields, dbpackage.FieldBuildTimeEnd)
 }
 
 // SetUpdated sets the "updated" field.
@@ -752,11 +722,11 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.repo_version != nil {
 		fields = append(fields, dbpackage.FieldRepoVersion)
 	}
-	if m.build_time != nil {
-		fields = append(fields, dbpackage.FieldBuildTime)
+	if m.build_time_start != nil {
+		fields = append(fields, dbpackage.FieldBuildTimeStart)
 	}
-	if m.build_duration != nil {
-		fields = append(fields, dbpackage.FieldBuildDuration)
+	if m.build_time_end != nil {
+		fields = append(fields, dbpackage.FieldBuildTimeEnd)
 	}
 	if m.updated != nil {
 		fields = append(fields, dbpackage.FieldUpdated)
@@ -788,10 +758,10 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.Version()
 	case dbpackage.FieldRepoVersion:
 		return m.RepoVersion()
-	case dbpackage.FieldBuildTime:
-		return m.BuildTime()
-	case dbpackage.FieldBuildDuration:
-		return m.BuildDuration()
+	case dbpackage.FieldBuildTimeStart:
+		return m.BuildTimeStart()
+	case dbpackage.FieldBuildTimeEnd:
+		return m.BuildTimeEnd()
 	case dbpackage.FieldUpdated:
 		return m.Updated()
 	case dbpackage.FieldHash:
@@ -821,10 +791,10 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldVersion(ctx)
 	case dbpackage.FieldRepoVersion:
 		return m.OldRepoVersion(ctx)
-	case dbpackage.FieldBuildTime:
-		return m.OldBuildTime(ctx)
-	case dbpackage.FieldBuildDuration:
-		return m.OldBuildDuration(ctx)
+	case dbpackage.FieldBuildTimeStart:
+		return m.OldBuildTimeStart(ctx)
+	case dbpackage.FieldBuildTimeEnd:
+		return m.OldBuildTimeEnd(ctx)
 	case dbpackage.FieldUpdated:
 		return m.OldUpdated(ctx)
 	case dbpackage.FieldHash:
@@ -853,7 +823,7 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		m.SetPackages(v)
 		return nil
 	case dbpackage.FieldStatus:
-		v, ok := value.(int)
+		v, ok := value.(dbpackage.Status)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -867,7 +837,7 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		m.SetSkipReason(v)
 		return nil
 	case dbpackage.FieldRepository:
-		v, ok := value.(string)
+		v, ok := value.(dbpackage.Repository)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -894,19 +864,19 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRepoVersion(v)
 		return nil
-	case dbpackage.FieldBuildTime:
+	case dbpackage.FieldBuildTimeStart:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetBuildTime(v)
+		m.SetBuildTimeStart(v)
 		return nil
-	case dbpackage.FieldBuildDuration:
-		v, ok := value.(uint64)
+	case dbpackage.FieldBuildTimeEnd:
+		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetBuildDuration(v)
+		m.SetBuildTimeEnd(v)
 		return nil
 	case dbpackage.FieldUpdated:
 		v, ok := value.(time.Time)
@@ -929,26 +899,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *DbPackageMutation) AddedFields() []string {
-	var fields []string
-	if m.addstatus != nil {
-		fields = append(fields, dbpackage.FieldStatus)
-	}
-	if m.addbuild_duration != nil {
-		fields = append(fields, dbpackage.FieldBuildDuration)
-	}
-	return fields
+	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
-	switch name {
-	case dbpackage.FieldStatus:
-		return m.AddedStatus()
-	case dbpackage.FieldBuildDuration:
-		return m.AddedBuildDuration()
-	}
 	return nil, false
 }
 
@@ -957,20 +914,6 @@ func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *DbPackageMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case dbpackage.FieldStatus:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddStatus(v)
-		return nil
-	case dbpackage.FieldBuildDuration:
-		v, ok := value.(uint64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddBuildDuration(v)
-		return nil
 	}
 	return fmt.Errorf("unknown DbPackage numeric field %s", name)
 }
@@ -982,6 +925,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldPackages) {
 		fields = append(fields, dbpackage.FieldPackages)
 	}
+	if m.FieldCleared(dbpackage.FieldStatus) {
+		fields = append(fields, dbpackage.FieldStatus)
+	}
 	if m.FieldCleared(dbpackage.FieldSkipReason) {
 		fields = append(fields, dbpackage.FieldSkipReason)
 	}
@@ -991,11 +937,11 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldRepoVersion) {
 		fields = append(fields, dbpackage.FieldRepoVersion)
 	}
-	if m.FieldCleared(dbpackage.FieldBuildTime) {
-		fields = append(fields, dbpackage.FieldBuildTime)
+	if m.FieldCleared(dbpackage.FieldBuildTimeStart) {
+		fields = append(fields, dbpackage.FieldBuildTimeStart)
 	}
-	if m.FieldCleared(dbpackage.FieldBuildDuration) {
-		fields = append(fields, dbpackage.FieldBuildDuration)
+	if m.FieldCleared(dbpackage.FieldBuildTimeEnd) {
+		fields = append(fields, dbpackage.FieldBuildTimeEnd)
 	}
 	if m.FieldCleared(dbpackage.FieldUpdated) {
 		fields = append(fields, dbpackage.FieldUpdated)
@@ -1020,6 +966,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 	case dbpackage.FieldPackages:
 		m.ClearPackages()
 		return nil
+	case dbpackage.FieldStatus:
+		m.ClearStatus()
+		return nil
 	case dbpackage.FieldSkipReason:
 		m.ClearSkipReason()
 		return nil
@@ -1029,11 +978,11 @@ func (m *DbPackageMutation) ClearField(name string) error {
 	case dbpackage.FieldRepoVersion:
 		m.ClearRepoVersion()
 		return nil
-	case dbpackage.FieldBuildTime:
-		m.ClearBuildTime()
+	case dbpackage.FieldBuildTimeStart:
+		m.ClearBuildTimeStart()
 		return nil
-	case dbpackage.FieldBuildDuration:
-		m.ClearBuildDuration()
+	case dbpackage.FieldBuildTimeEnd:
+		m.ClearBuildTimeEnd()
 		return nil
 	case dbpackage.FieldUpdated:
 		m.ClearUpdated()
@@ -1073,11 +1022,11 @@ func (m *DbPackageMutation) ResetField(name string) error {
 	case dbpackage.FieldRepoVersion:
 		m.ResetRepoVersion()
 		return nil
-	case dbpackage.FieldBuildTime:
-		m.ResetBuildTime()
+	case dbpackage.FieldBuildTimeStart:
+		m.ResetBuildTimeStart()
 		return nil
-	case dbpackage.FieldBuildDuration:
-		m.ResetBuildDuration()
+	case dbpackage.FieldBuildTimeEnd:
+		m.ResetBuildTimeEnd()
 		return nil
 	case dbpackage.FieldUpdated:
 		m.ResetUpdated()

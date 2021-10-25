@@ -17,22 +17,8 @@ func init() {
 	dbpackageDescPkgbase := dbpackageFields[0].Descriptor()
 	// dbpackage.PkgbaseValidator is a validator for the "pkgbase" field. It is called by the builders before save.
 	dbpackage.PkgbaseValidator = dbpackageDescPkgbase.Validators[0].(func(string) error)
-	// dbpackageDescStatus is the schema descriptor for status field.
-	dbpackageDescStatus := dbpackageFields[2].Descriptor()
-	// dbpackage.DefaultStatus holds the default value on creation for the status field.
-	dbpackage.DefaultStatus = dbpackageDescStatus.Default.(int)
-	// dbpackage.StatusValidator is a validator for the "status" field. It is called by the builders before save.
-	dbpackage.StatusValidator = dbpackageDescStatus.Validators[0].(func(int) error)
-	// dbpackageDescRepository is the schema descriptor for repository field.
-	dbpackageDescRepository := dbpackageFields[4].Descriptor()
-	// dbpackage.RepositoryValidator is a validator for the "repository" field. It is called by the builders before save.
-	dbpackage.RepositoryValidator = dbpackageDescRepository.Validators[0].(func(string) error)
 	// dbpackageDescMarch is the schema descriptor for march field.
 	dbpackageDescMarch := dbpackageFields[5].Descriptor()
 	// dbpackage.MarchValidator is a validator for the "march" field. It is called by the builders before save.
 	dbpackage.MarchValidator = dbpackageDescMarch.Validators[0].(func(string) error)
-	// dbpackageDescBuildDuration is the schema descriptor for build_duration field.
-	dbpackageDescBuildDuration := dbpackageFields[9].Descriptor()
-	// dbpackage.BuildDurationValidator is a validator for the "build_duration" field. It is called by the builders before save.
-	dbpackage.BuildDurationValidator = dbpackageDescBuildDuration.Validators[0].(func(uint64) error)
 }

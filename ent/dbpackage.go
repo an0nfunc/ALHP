@@ -22,21 +22,21 @@ type DbPackage struct {
 	// Packages holds the value of the "packages" field.
 	Packages []string `json:"packages,omitempty"`
 	// Status holds the value of the "status" field.
-	Status int `json:"status,omitempty"`
+	Status dbpackage.Status `json:"status,omitempty"`
 	// SkipReason holds the value of the "skip_reason" field.
 	SkipReason string `json:"skip_reason,omitempty"`
 	// Repository holds the value of the "repository" field.
-	Repository string `json:"repository,omitempty"`
+	Repository dbpackage.Repository `json:"repository,omitempty"`
 	// March holds the value of the "march" field.
 	March string `json:"march,omitempty"`
 	// Version holds the value of the "version" field.
 	Version string `json:"version,omitempty"`
 	// RepoVersion holds the value of the "repo_version" field.
 	RepoVersion string `json:"repo_version,omitempty"`
-	// BuildTime holds the value of the "build_time" field.
-	BuildTime time.Time `json:"build_time,omitempty"`
-	// BuildDuration holds the value of the "build_duration" field.
-	BuildDuration uint64 `json:"build_duration,omitempty"`
+	// BuildTimeStart holds the value of the "build_time_start" field.
+	BuildTimeStart time.Time `json:"build_time_start,omitempty"`
+	// BuildTimeEnd holds the value of the "build_time_end" field.
+	BuildTimeEnd time.Time `json:"build_time_end,omitempty"`
 	// Updated holds the value of the "updated" field.
 	Updated time.Time `json:"updated,omitempty"`
 	// Hash holds the value of the "hash" field.
@@ -50,11 +50,11 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 		switch columns[i] {
 		case dbpackage.FieldPackages:
 			values[i] = new([]byte)
-		case dbpackage.FieldID, dbpackage.FieldStatus, dbpackage.FieldBuildDuration:
+		case dbpackage.FieldID:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash:
 			values[i] = new(sql.NullString)
-		case dbpackage.FieldBuildTime, dbpackage.FieldUpdated:
+		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated:
 			values[i] = new(sql.NullTime)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type DbPackage", columns[i])
@@ -92,10 +92,10 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 				}
 			}
 		case dbpackage.FieldStatus:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				dp.Status = int(value.Int64)
+				dp.Status = dbpackage.Status(value.String)
 			}
 		case dbpackage.FieldSkipReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -107,7 +107,7 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field repository", values[i])
 			} else if value.Valid {
-				dp.Repository = value.String
+				dp.Repository = dbpackage.Repository(value.String)
 			}
 		case dbpackage.FieldMarch:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -127,17 +127,17 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.RepoVersion = value.String
 			}
-		case dbpackage.FieldBuildTime:
+		case dbpackage.FieldBuildTimeStart:
 			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field build_time", values[i])
+				return fmt.Errorf("unexpected type %T for field build_time_start", values[i])
 			} else if value.Valid {
-				dp.BuildTime = value.Time
+				dp.BuildTimeStart = value.Time
 			}
-		case dbpackage.FieldBuildDuration:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field build_duration", values[i])
+		case dbpackage.FieldBuildTimeEnd:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field build_time_end", values[i])
 			} else if value.Valid {
-				dp.BuildDuration = uint64(value.Int64)
+				dp.BuildTimeEnd = value.Time
 			}
 		case dbpackage.FieldUpdated:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -188,17 +188,17 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(", skip_reason=")
 	builder.WriteString(dp.SkipReason)
 	builder.WriteString(", repository=")
-	builder.WriteString(dp.Repository)
+	builder.WriteString(fmt.Sprintf("%v", dp.Repository))
 	builder.WriteString(", march=")
 	builder.WriteString(dp.March)
 	builder.WriteString(", version=")
 	builder.WriteString(dp.Version)
 	builder.WriteString(", repo_version=")
 	builder.WriteString(dp.RepoVersion)
-	builder.WriteString(", build_time=")
-	builder.WriteString(dp.BuildTime.Format(time.ANSIC))
-	builder.WriteString(", build_duration=")
-	builder.WriteString(fmt.Sprintf("%v", dp.BuildDuration))
+	builder.WriteString(", build_time_start=")
+	builder.WriteString(dp.BuildTimeStart.Format(time.ANSIC))
+	builder.WriteString(", build_time_end=")
+	builder.WriteString(dp.BuildTimeEnd.Format(time.ANSIC))
 	builder.WriteString(", updated=")
 	builder.WriteString(dp.Updated.Format(time.ANSIC))
 	builder.WriteString(", hash=")

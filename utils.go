@@ -24,13 +24,6 @@ import (
 )
 
 const (
-	SKIPPED        = iota
-	FAILED         = iota
-	BUILD          = iota
-	QUEUED         = iota
-	BUILDING       = iota
-	LATEST         = iota
-	UNKNOWN        = iota
 	pacmanConf     = "/usr/share/devtools/pacman-extra.conf"
 	makepkgConf    = "/usr/share/devtools/makepkg-x86_64.conf"
 	logDir         = "logs"
@@ -42,7 +35,7 @@ type BuildPackage struct {
 	Pkgbuild string
 	Srcinfo  *srcinfo.Srcinfo
 	PkgFiles []string
-	Repo     string
+	Repo     dbpackage.Repository
 	March    string
 	FullRepo string
 	Version  string
@@ -129,19 +122,19 @@ func containsSubStr(str string, subList []string) bool {
 	return false
 }
 
-func statusId2string(status int) (string, string) {
-	switch status {
-	case SKIPPED:
+func statusId2string(s dbpackage.Status) (string, string) {
+	switch s {
+	case dbpackage.StatusSkipped:
 		return "SKIPPED", "table-" + conf.Status.Class.Skipped
-	case QUEUED:
+	case dbpackage.StatusQueued:
 		return "QUEUED", "table-" + conf.Status.Class.Queued
-	case LATEST:
+	case dbpackage.StatusLatest:
 		return "LATEST", "table-" + conf.Status.Class.Latest
-	case FAILED:
+	case dbpackage.StatusFailed:
 		return "FAILED", "table-" + conf.Status.Class.Failed
-	case BUILD:
+	case dbpackage.StatusSigning:
 		return "SIGNING", "table-" + conf.Status.Class.Signing
-	case BUILDING:
+	case dbpackage.StatusBuilding:
 		return "BUILDING", "table-" + conf.Status.Class.Building
 	default:
 		return "UNKNOWN", "table-" + conf.Status.Class.Unknown
@@ -420,8 +413,6 @@ func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {
 	fNameSplit := strings.Split(pkg, "-")
 	pkgname := strings.Join(fNameSplit[0:len(fNameSplit)-3], "-")
 
-	dbLock.RLock()
-	defer dbLock.RUnlock()
 	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.PackagesNotNil()).All(context.Background())
 	if err != nil {
 		switch err.(type) {
@@ -463,11 +454,36 @@ func housekeeping() error {
 		check(err)
 
 		for _, pkgfile := range packages {
+			dbPkg, err := getDBPkgFromPkgfile(pkgfile)
+			pkg := &BuildPackage{
+				Pkgbase:  dbPkg.Pkgbase,
+				Repo:     dbPkg.Repository,
+				FullRepo: dbPkg.Repository.String() + "-" + dbPkg.March,
+			}
+
 			// check if pkg signature is valid
 			valid, err := isSignatureValid(pkgfile)
 			check(err)
 			if !valid {
 				// TODO: purge pkg to trigger rebuild -> need srcinfo
+				if err != nil {
+					return err
+				}
+
+				var upstream string
+				switch dbPkg.Repository {
+				case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
+					upstream = "upstream-core-extra"
+				case dbpackage.RepositoryCommunity:
+					upstream = "upstream-community"
+				}
+
+				pkg.Srcinfo, err = genSRCINFO(filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD"))
+				if err != nil {
+					return err
+				}
+
+				buildManager.repoPurge[pkg.FullRepo] <- pkg
 			}
 
 			// TODO: compare db-version with repo version
@@ -509,12 +525,10 @@ func findPkgFiles(pkg *BuildPackage) {
 }
 
 func getDbPackage(pkg *BuildPackage) *ent.DbPackage {
-	dbLock.Lock()
 	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkg.Pkgbase)).Only(context.Background())
 	if err != nil {
-		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetRepository(pkg.Repo).SaveX(context.Background())
+		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetRepository(dbpackage.Repository(pkg.Repo)).SaveX(context.Background())
 	}
-	dbLock.Unlock()
 
 	return dbPkg
 }
@@ -533,18 +547,18 @@ func syncMarchs() {
 	for _, march := range conf.March {
 		setupMakepkg(march)
 		for _, repo := range conf.Repos {
-			tRepo := fmt.Sprintf("%s-%s", repo, march)
-			repos = append(repos, tRepo)
-			buildManager.repoAdd[tRepo] = make(chan *BuildPackage, conf.Build.Worker)
-			buildManager.repoPurge[tRepo] = make(chan *BuildPackage, 10000)
-			go buildManager.repoWorker(tRepo)
+			fRepo := fmt.Sprintf("%s-%s", repo, march)
+			repos = append(repos, fRepo)
+			buildManager.repoAdd[fRepo] = make(chan *BuildPackage, conf.Build.Worker)
+			buildManager.repoPurge[fRepo] = make(chan *BuildPackage, 10000)
+			go buildManager.repoWorker(fRepo)
 
-			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))); os.IsNotExist(err) {
-				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch))
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, tRepo, "os", conf.Arch), os.ModePerm))
+			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))); os.IsNotExist(err) {
+				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), os.ModePerm))
 			}
 
-			if i := find(eRepos, tRepo); i != -1 {
+			if i := find(eRepos, fRepo); i != -1 {
 				eRepos = append(eRepos[:i], eRepos[i+1:]...)
 			}
 		}

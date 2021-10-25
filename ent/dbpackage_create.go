@@ -33,15 +33,15 @@ func (dpc *DbPackageCreate) SetPackages(s []string) *DbPackageCreate {
 }
 
 // SetStatus sets the "status" field.
-func (dpc *DbPackageCreate) SetStatus(i int) *DbPackageCreate {
-	dpc.mutation.SetStatus(i)
+func (dpc *DbPackageCreate) SetStatus(d dbpackage.Status) *DbPackageCreate {
+	dpc.mutation.SetStatus(d)
 	return dpc
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableStatus(i *int) *DbPackageCreate {
-	if i != nil {
-		dpc.SetStatus(*i)
+func (dpc *DbPackageCreate) SetNillableStatus(d *dbpackage.Status) *DbPackageCreate {
+	if d != nil {
+		dpc.SetStatus(*d)
 	}
 	return dpc
 }
@@ -61,8 +61,8 @@ func (dpc *DbPackageCreate) SetNillableSkipReason(s *string) *DbPackageCreate {
 }
 
 // SetRepository sets the "repository" field.
-func (dpc *DbPackageCreate) SetRepository(s string) *DbPackageCreate {
-	dpc.mutation.SetRepository(s)
+func (dpc *DbPackageCreate) SetRepository(d dbpackage.Repository) *DbPackageCreate {
+	dpc.mutation.SetRepository(d)
 	return dpc
 }
 
@@ -100,30 +100,30 @@ func (dpc *DbPackageCreate) SetNillableRepoVersion(s *string) *DbPackageCreate {
 	return dpc
 }
 
-// SetBuildTime sets the "build_time" field.
-func (dpc *DbPackageCreate) SetBuildTime(t time.Time) *DbPackageCreate {
-	dpc.mutation.SetBuildTime(t)
+// SetBuildTimeStart sets the "build_time_start" field.
+func (dpc *DbPackageCreate) SetBuildTimeStart(t time.Time) *DbPackageCreate {
+	dpc.mutation.SetBuildTimeStart(t)
 	return dpc
 }
 
-// SetNillableBuildTime sets the "build_time" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableBuildTime(t *time.Time) *DbPackageCreate {
+// SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableBuildTimeStart(t *time.Time) *DbPackageCreate {
 	if t != nil {
-		dpc.SetBuildTime(*t)
+		dpc.SetBuildTimeStart(*t)
 	}
 	return dpc
 }
 
-// SetBuildDuration sets the "build_duration" field.
-func (dpc *DbPackageCreate) SetBuildDuration(u uint64) *DbPackageCreate {
-	dpc.mutation.SetBuildDuration(u)
+// SetBuildTimeEnd sets the "build_time_end" field.
+func (dpc *DbPackageCreate) SetBuildTimeEnd(t time.Time) *DbPackageCreate {
+	dpc.mutation.SetBuildTimeEnd(t)
 	return dpc
 }
 
-// SetNillableBuildDuration sets the "build_duration" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableBuildDuration(u *uint64) *DbPackageCreate {
-	if u != nil {
-		dpc.SetBuildDuration(*u)
+// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableBuildTimeEnd(t *time.Time) *DbPackageCreate {
+	if t != nil {
+		dpc.SetBuildTimeEnd(*t)
 	}
 	return dpc
 }
@@ -243,9 +243,6 @@ func (dpc *DbPackageCreate) check() error {
 			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "pkgbase": %w`, err)}
 		}
 	}
-	if _, ok := dpc.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "status"`)}
-	}
 	if v, ok := dpc.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "status": %w`, err)}
@@ -265,11 +262,6 @@ func (dpc *DbPackageCreate) check() error {
 	if v, ok := dpc.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
 			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "march": %w`, err)}
-		}
-	}
-	if v, ok := dpc.mutation.BuildDuration(); ok {
-		if err := dbpackage.BuildDurationValidator(v); err != nil {
-			return &ValidationError{Name: "build_duration", err: fmt.Errorf(`ent: validator failed for field "build_duration": %w`, err)}
 		}
 	}
 	return nil
@@ -317,7 +309,7 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := dpc.mutation.Status(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldStatus,
 		})
@@ -333,7 +325,7 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := dpc.mutation.Repository(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldRepository,
 		})
@@ -363,21 +355,21 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 		})
 		_node.RepoVersion = value
 	}
-	if value, ok := dpc.mutation.BuildTime(); ok {
+	if value, ok := dpc.mutation.BuildTimeStart(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildTime,
+			Column: dbpackage.FieldBuildTimeStart,
 		})
-		_node.BuildTime = value
+		_node.BuildTimeStart = value
 	}
-	if value, ok := dpc.mutation.BuildDuration(); ok {
+	if value, ok := dpc.mutation.BuildTimeEnd(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
+			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildDuration,
+			Column: dbpackage.FieldBuildTimeEnd,
 		})
-		_node.BuildDuration = value
+		_node.BuildTimeEnd = value
 	}
 	if value, ok := dpc.mutation.Updated(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{

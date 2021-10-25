@@ -40,23 +40,22 @@ func (dpu *DbPackageUpdate) ClearPackages() *DbPackageUpdate {
 }
 
 // SetStatus sets the "status" field.
-func (dpu *DbPackageUpdate) SetStatus(i int) *DbPackageUpdate {
-	dpu.mutation.ResetStatus()
-	dpu.mutation.SetStatus(i)
+func (dpu *DbPackageUpdate) SetStatus(d dbpackage.Status) *DbPackageUpdate {
+	dpu.mutation.SetStatus(d)
 	return dpu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableStatus(i *int) *DbPackageUpdate {
-	if i != nil {
-		dpu.SetStatus(*i)
+func (dpu *DbPackageUpdate) SetNillableStatus(d *dbpackage.Status) *DbPackageUpdate {
+	if d != nil {
+		dpu.SetStatus(*d)
 	}
 	return dpu
 }
 
-// AddStatus adds i to the "status" field.
-func (dpu *DbPackageUpdate) AddStatus(i int) *DbPackageUpdate {
-	dpu.mutation.AddStatus(i)
+// ClearStatus clears the value of the "status" field.
+func (dpu *DbPackageUpdate) ClearStatus() *DbPackageUpdate {
+	dpu.mutation.ClearStatus()
 	return dpu
 }
 
@@ -81,8 +80,8 @@ func (dpu *DbPackageUpdate) ClearSkipReason() *DbPackageUpdate {
 }
 
 // SetRepository sets the "repository" field.
-func (dpu *DbPackageUpdate) SetRepository(s string) *DbPackageUpdate {
-	dpu.mutation.SetRepository(s)
+func (dpu *DbPackageUpdate) SetRepository(d dbpackage.Repository) *DbPackageUpdate {
+	dpu.mutation.SetRepository(d)
 	return dpu
 }
 
@@ -132,50 +131,43 @@ func (dpu *DbPackageUpdate) ClearRepoVersion() *DbPackageUpdate {
 	return dpu
 }
 
-// SetBuildTime sets the "build_time" field.
-func (dpu *DbPackageUpdate) SetBuildTime(t time.Time) *DbPackageUpdate {
-	dpu.mutation.SetBuildTime(t)
+// SetBuildTimeStart sets the "build_time_start" field.
+func (dpu *DbPackageUpdate) SetBuildTimeStart(t time.Time) *DbPackageUpdate {
+	dpu.mutation.SetBuildTimeStart(t)
 	return dpu
 }
 
-// SetNillableBuildTime sets the "build_time" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableBuildTime(t *time.Time) *DbPackageUpdate {
+// SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableBuildTimeStart(t *time.Time) *DbPackageUpdate {
 	if t != nil {
-		dpu.SetBuildTime(*t)
+		dpu.SetBuildTimeStart(*t)
 	}
 	return dpu
 }
 
-// ClearBuildTime clears the value of the "build_time" field.
-func (dpu *DbPackageUpdate) ClearBuildTime() *DbPackageUpdate {
-	dpu.mutation.ClearBuildTime()
+// ClearBuildTimeStart clears the value of the "build_time_start" field.
+func (dpu *DbPackageUpdate) ClearBuildTimeStart() *DbPackageUpdate {
+	dpu.mutation.ClearBuildTimeStart()
 	return dpu
 }
 
-// SetBuildDuration sets the "build_duration" field.
-func (dpu *DbPackageUpdate) SetBuildDuration(u uint64) *DbPackageUpdate {
-	dpu.mutation.ResetBuildDuration()
-	dpu.mutation.SetBuildDuration(u)
+// SetBuildTimeEnd sets the "build_time_end" field.
+func (dpu *DbPackageUpdate) SetBuildTimeEnd(t time.Time) *DbPackageUpdate {
+	dpu.mutation.SetBuildTimeEnd(t)
 	return dpu
 }
 
-// SetNillableBuildDuration sets the "build_duration" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableBuildDuration(u *uint64) *DbPackageUpdate {
-	if u != nil {
-		dpu.SetBuildDuration(*u)
+// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableBuildTimeEnd(t *time.Time) *DbPackageUpdate {
+	if t != nil {
+		dpu.SetBuildTimeEnd(*t)
 	}
 	return dpu
 }
 
-// AddBuildDuration adds u to the "build_duration" field.
-func (dpu *DbPackageUpdate) AddBuildDuration(u uint64) *DbPackageUpdate {
-	dpu.mutation.AddBuildDuration(u)
-	return dpu
-}
-
-// ClearBuildDuration clears the value of the "build_duration" field.
-func (dpu *DbPackageUpdate) ClearBuildDuration() *DbPackageUpdate {
-	dpu.mutation.ClearBuildDuration()
+// ClearBuildTimeEnd clears the value of the "build_time_end" field.
+func (dpu *DbPackageUpdate) ClearBuildTimeEnd() *DbPackageUpdate {
+	dpu.mutation.ClearBuildTimeEnd()
 	return dpu
 }
 
@@ -301,11 +293,6 @@ func (dpu *DbPackageUpdate) check() error {
 			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
 		}
 	}
-	if v, ok := dpu.mutation.BuildDuration(); ok {
-		if err := dbpackage.BuildDurationValidator(v); err != nil {
-			return &ValidationError{Name: "build_duration", err: fmt.Errorf("ent: validator failed for field \"build_duration\": %w", err)}
-		}
-	}
 	return nil
 }
 
@@ -342,15 +329,14 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := dpu.mutation.Status(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldStatus,
 		})
 	}
-	if value, ok := dpu.mutation.AddedStatus(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
-			Value:  value,
+	if dpu.mutation.StatusCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
 			Column: dbpackage.FieldStatus,
 		})
 	}
@@ -369,7 +355,7 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := dpu.mutation.Repository(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldRepository,
 		})
@@ -407,37 +393,30 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldRepoVersion,
 		})
 	}
-	if value, ok := dpu.mutation.BuildTime(); ok {
+	if value, ok := dpu.mutation.BuildTimeStart(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildTime,
+			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if dpu.mutation.BuildTimeCleared() {
+	if dpu.mutation.BuildTimeStartCleared() {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTime,
+			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if value, ok := dpu.mutation.BuildDuration(); ok {
+	if value, ok := dpu.mutation.BuildTimeEnd(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
+			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildDuration,
+			Column: dbpackage.FieldBuildTimeEnd,
 		})
 	}
-	if value, ok := dpu.mutation.AddedBuildDuration(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: dbpackage.FieldBuildDuration,
-		})
-	}
-	if dpu.mutation.BuildDurationCleared() {
+	if dpu.mutation.BuildTimeEndCleared() {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Column: dbpackage.FieldBuildDuration,
+			Type:   field.TypeTime,
+			Column: dbpackage.FieldBuildTimeEnd,
 		})
 	}
 	if value, ok := dpu.mutation.Updated(); ok {
@@ -498,23 +477,22 @@ func (dpuo *DbPackageUpdateOne) ClearPackages() *DbPackageUpdateOne {
 }
 
 // SetStatus sets the "status" field.
-func (dpuo *DbPackageUpdateOne) SetStatus(i int) *DbPackageUpdateOne {
-	dpuo.mutation.ResetStatus()
-	dpuo.mutation.SetStatus(i)
+func (dpuo *DbPackageUpdateOne) SetStatus(d dbpackage.Status) *DbPackageUpdateOne {
+	dpuo.mutation.SetStatus(d)
 	return dpuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableStatus(i *int) *DbPackageUpdateOne {
-	if i != nil {
-		dpuo.SetStatus(*i)
+func (dpuo *DbPackageUpdateOne) SetNillableStatus(d *dbpackage.Status) *DbPackageUpdateOne {
+	if d != nil {
+		dpuo.SetStatus(*d)
 	}
 	return dpuo
 }
 
-// AddStatus adds i to the "status" field.
-func (dpuo *DbPackageUpdateOne) AddStatus(i int) *DbPackageUpdateOne {
-	dpuo.mutation.AddStatus(i)
+// ClearStatus clears the value of the "status" field.
+func (dpuo *DbPackageUpdateOne) ClearStatus() *DbPackageUpdateOne {
+	dpuo.mutation.ClearStatus()
 	return dpuo
 }
 
@@ -539,8 +517,8 @@ func (dpuo *DbPackageUpdateOne) ClearSkipReason() *DbPackageUpdateOne {
 }
 
 // SetRepository sets the "repository" field.
-func (dpuo *DbPackageUpdateOne) SetRepository(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetRepository(s)
+func (dpuo *DbPackageUpdateOne) SetRepository(d dbpackage.Repository) *DbPackageUpdateOne {
+	dpuo.mutation.SetRepository(d)
 	return dpuo
 }
 
@@ -590,50 +568,43 @@ func (dpuo *DbPackageUpdateOne) ClearRepoVersion() *DbPackageUpdateOne {
 	return dpuo
 }
 
-// SetBuildTime sets the "build_time" field.
-func (dpuo *DbPackageUpdateOne) SetBuildTime(t time.Time) *DbPackageUpdateOne {
-	dpuo.mutation.SetBuildTime(t)
+// SetBuildTimeStart sets the "build_time_start" field.
+func (dpuo *DbPackageUpdateOne) SetBuildTimeStart(t time.Time) *DbPackageUpdateOne {
+	dpuo.mutation.SetBuildTimeStart(t)
 	return dpuo
 }
 
-// SetNillableBuildTime sets the "build_time" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableBuildTime(t *time.Time) *DbPackageUpdateOne {
+// SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableBuildTimeStart(t *time.Time) *DbPackageUpdateOne {
 	if t != nil {
-		dpuo.SetBuildTime(*t)
+		dpuo.SetBuildTimeStart(*t)
 	}
 	return dpuo
 }
 
-// ClearBuildTime clears the value of the "build_time" field.
-func (dpuo *DbPackageUpdateOne) ClearBuildTime() *DbPackageUpdateOne {
-	dpuo.mutation.ClearBuildTime()
+// ClearBuildTimeStart clears the value of the "build_time_start" field.
+func (dpuo *DbPackageUpdateOne) ClearBuildTimeStart() *DbPackageUpdateOne {
+	dpuo.mutation.ClearBuildTimeStart()
 	return dpuo
 }
 
-// SetBuildDuration sets the "build_duration" field.
-func (dpuo *DbPackageUpdateOne) SetBuildDuration(u uint64) *DbPackageUpdateOne {
-	dpuo.mutation.ResetBuildDuration()
-	dpuo.mutation.SetBuildDuration(u)
+// SetBuildTimeEnd sets the "build_time_end" field.
+func (dpuo *DbPackageUpdateOne) SetBuildTimeEnd(t time.Time) *DbPackageUpdateOne {
+	dpuo.mutation.SetBuildTimeEnd(t)
 	return dpuo
 }
 
-// SetNillableBuildDuration sets the "build_duration" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableBuildDuration(u *uint64) *DbPackageUpdateOne {
-	if u != nil {
-		dpuo.SetBuildDuration(*u)
+// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableBuildTimeEnd(t *time.Time) *DbPackageUpdateOne {
+	if t != nil {
+		dpuo.SetBuildTimeEnd(*t)
 	}
 	return dpuo
 }
 
-// AddBuildDuration adds u to the "build_duration" field.
-func (dpuo *DbPackageUpdateOne) AddBuildDuration(u uint64) *DbPackageUpdateOne {
-	dpuo.mutation.AddBuildDuration(u)
-	return dpuo
-}
-
-// ClearBuildDuration clears the value of the "build_duration" field.
-func (dpuo *DbPackageUpdateOne) ClearBuildDuration() *DbPackageUpdateOne {
-	dpuo.mutation.ClearBuildDuration()
+// ClearBuildTimeEnd clears the value of the "build_time_end" field.
+func (dpuo *DbPackageUpdateOne) ClearBuildTimeEnd() *DbPackageUpdateOne {
+	dpuo.mutation.ClearBuildTimeEnd()
 	return dpuo
 }
 
@@ -766,11 +737,6 @@ func (dpuo *DbPackageUpdateOne) check() error {
 			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
 		}
 	}
-	if v, ok := dpuo.mutation.BuildDuration(); ok {
-		if err := dbpackage.BuildDurationValidator(v); err != nil {
-			return &ValidationError{Name: "build_duration", err: fmt.Errorf("ent: validator failed for field \"build_duration\": %w", err)}
-		}
-	}
 	return nil
 }
 
@@ -824,15 +790,14 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	}
 	if value, ok := dpuo.mutation.Status(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldStatus,
 		})
 	}
-	if value, ok := dpuo.mutation.AddedStatus(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt,
-			Value:  value,
+	if dpuo.mutation.StatusCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
 			Column: dbpackage.FieldStatus,
 		})
 	}
@@ -851,7 +816,7 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	}
 	if value, ok := dpuo.mutation.Repository(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
+			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldRepository,
 		})
@@ -889,37 +854,30 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 			Column: dbpackage.FieldRepoVersion,
 		})
 	}
-	if value, ok := dpuo.mutation.BuildTime(); ok {
+	if value, ok := dpuo.mutation.BuildTimeStart(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildTime,
+			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if dpuo.mutation.BuildTimeCleared() {
+	if dpuo.mutation.BuildTimeStartCleared() {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTime,
+			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if value, ok := dpuo.mutation.BuildDuration(); ok {
+	if value, ok := dpuo.mutation.BuildTimeEnd(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
+			Type:   field.TypeTime,
 			Value:  value,
-			Column: dbpackage.FieldBuildDuration,
+			Column: dbpackage.FieldBuildTimeEnd,
 		})
 	}
-	if value, ok := dpuo.mutation.AddedBuildDuration(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: dbpackage.FieldBuildDuration,
-		})
-	}
-	if dpuo.mutation.BuildDurationCleared() {
+	if dpuo.mutation.BuildTimeEndCleared() {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Column: dbpackage.FieldBuildDuration,
+			Type:   field.TypeTime,
+			Column: dbpackage.FieldBuildTimeEnd,
 		})
 	}
 	if value, ok := dpuo.mutation.Updated(); ok {
