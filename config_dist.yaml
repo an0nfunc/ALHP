@@ -8,12 +8,15 @@ svn2git:
   upstream-core-extra: "https://github.com/archlinux/svntogit-packages.git"
   upstream-community: "https://github.com/archlinux/svntogit-community.git"
 
+db:
+  driver: sqlite3
+  connect_to: "file:/var/lib/alhp/alhp.db?_journal_mode=WAL&_fk=1&cache=shared&_sync=NORMAL"
+
 basedir:
   repo: /var/lib/alhp/repo/
   chroot: /var/lib/alhp/chroot/
   makepkg: /var/lib/alhp/makepkg/
   upstream: /var/lib/alhp/upstream/
-  db: /var/lib/alhp/alhp.db
 
 march:
   - x86-64-v3
