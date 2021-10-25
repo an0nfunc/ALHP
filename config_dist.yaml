@@ -9,8 +9,8 @@ svn2git:
   upstream-community: "https://github.com/archlinux/svntogit-community.git"
 
 db:
-  driver: sqlite3
-  connect_to: "file:/var/lib/alhp/alhp.db?_journal_mode=WAL&_fk=1&cache=shared&_sync=NORMAL"
+  driver: pgx
+  connect_to: "postgres://username:password@localhost:5432/database_name"
 
 basedir:
   repo: /var/lib/alhp/repo/

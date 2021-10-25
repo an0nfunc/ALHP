@@ -9,7 +9,6 @@ require (
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/jackc/pgx/v4 v4.13.0
-	github.com/mattn/go-sqlite3 v1.14.9
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3
 	golang.org/x/sys v0.0.0-20211023085530-d6a326fbbf70 // indirect

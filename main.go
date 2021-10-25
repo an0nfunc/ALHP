@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
 	"gopkg.in/yaml.v2"
