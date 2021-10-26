@@ -248,13 +248,13 @@ func (b *BuildManager) parseWorker() {
 				default:
 					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
 				case MultiplePKGBUILDError:
-					log.Debugf("Skipped %s: Multiple PKGBUILDs for dependency found: %v", info.Pkgbase, err)
+					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", info.Pkgbase, err)
 					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
 					continue
 				case UnableToSatisfyError:
-					log.Debugf("Skipped %s: unable to resolve dependencies: %v", info.Pkgbase, err)
+					log.Infof("Skipped %s: unable to resolve dependencies: %v", info.Pkgbase, err)
 					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
