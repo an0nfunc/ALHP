@@ -208,10 +208,12 @@ func (b *BuildManager) parseWorker() {
 			if contains(info.Arch, "any") {
 				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
 				dbPkg.SkipReason = "arch = any"
+				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
 			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
 				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
 				dbPkg.SkipReason = "blacklisted"
+				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
 			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
@@ -219,15 +221,17 @@ func (b *BuildManager) parseWorker() {
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
 				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
 				dbPkg.SkipReason = "blacklisted (haskell)"
+				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
 			} else if isPkgFailed(pkg) {
 				log.Debugf("Skipped %s: failed build", info.Pkgbase)
 				dbPkg.SkipReason = ""
+				dbPkg.Status = dbpackage.StatusFailed
 				skipping = true
 			}
 
 			if skipping {
-				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
 				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
