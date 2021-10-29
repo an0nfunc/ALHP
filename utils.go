@@ -284,7 +284,7 @@ func initALPM(root string, dbpath string) (*alpm.Handle, error) {
 	return h, nil
 }
 
-func getSVN2GITVersion(pkg *BuildPackage) (string, error) {
+func getSVN2GITVersion(pkg *BuildPackage, h *alpm.Handle) (string, error) {
 	if pkg.Pkgbuild == "" && pkg.Pkgbase == "" {
 		return "", fmt.Errorf("invalid arguments")
 	}
@@ -307,7 +307,41 @@ func getSVN2GITVersion(pkg *BuildPackage) (string, error) {
 	}
 
 	if len(fPkgbuilds) > 1 {
-		return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", pkg.Pkgbase, fPkgbuilds)}
+		log.Infof("%s: multiple PKGBUILD found, try resolving from mirror", pkg.Pkgbase)
+		dbs, err := h.SyncDBs()
+		if err != nil {
+			return "", err
+		}
+
+		iPackage, err := dbs.FindSatisfier(pkg.Pkgbase)
+		if err != nil {
+			return "", err
+		}
+
+	pkgloop:
+		for _, pkgbuild := range fPkgbuilds {
+			repo := strings.Split(filepath.Base(filepath.Dir(pkgbuild)), "-")[0]
+			upstreamA := strings.Split(filepath.Dir(pkgbuild), "/")
+			upstream := upstreamA[len(upstreamA)-4]
+
+			switch upstream {
+			case "upstream-core-extra":
+				if iPackage.DB().Name() == repo && (repo == "extra" || repo == "core") {
+					fPkgbuilds = []string{pkgbuild}
+					break pkgloop
+				}
+			case "upstream-community":
+				if iPackage.DB().Name() == repo && repo == "community" {
+					fPkgbuilds = []string{pkgbuild}
+					break pkgloop
+				}
+			}
+		}
+
+		if len(fPkgbuilds) > 1 {
+			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", pkg.Pkgbase, fPkgbuilds)}
+		}
+		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", pkg.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
 	} else if len(fPkgbuilds) == 0 {
 		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", pkg.Pkgbase, filepath.Join(conf.Basedir.Upstream, "**/"+pkg.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}
@@ -531,7 +565,7 @@ func findPkgFiles(pkg *BuildPackage) {
 func getDbPackage(pkg *BuildPackage) *ent.DbPackage {
 	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkg.Pkgbase)).Only(context.Background())
 	if err != nil {
-		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetRepository(dbpackage.Repository(pkg.Repo)).SaveX(context.Background())
+		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetRepository(pkg.Repo).SaveX(context.Background())
 	}
 
 	return dbPkg
@@ -614,7 +648,7 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 
 		svn2gitVer, err := getSVN2GITVersion(&BuildPackage{
 			Pkgbase: pkg.Base(),
-		})
+		}, h)
 		if err != nil {
 			return false, nil, "", err
 		}
