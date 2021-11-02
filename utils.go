@@ -423,14 +423,14 @@ func genSRCINFO(pkgbuild string) (*srcinfo.Srcinfo, error) {
 	return info, nil
 }
 
-func setupChroot() {
+func setupChroot() error {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, pristineChroot)); err == nil {
 		//goland:noinspection SpellCheckingInspection
 		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, pristineChroot), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			log.Fatalf("[NSPAWN] Unable to update chroot: %v\n%s", err, string(res))
+			return fmt.Errorf("Unable to update chroot: %v\n%s", err, string(res))
 		}
 	} else if os.IsNotExist(err) {
 		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
@@ -440,11 +440,12 @@ func setupChroot() {
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			log.Fatalf("[MKCHROOT] Unable to create chroot: %v\n%s", err, string(res))
+			return fmt.Errorf("Unable to create chroot: %v\n%s", err, string(res))
 		}
 	} else {
-		check(err)
+		return err
 	}
+	return nil
 }
 
 func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {

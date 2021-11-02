@@ -492,8 +492,13 @@ func (b *BuildManager) syncWorker() {
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
-		setupChroot()
-		var err error
+		err := setupChroot()
+		for err != nil {
+			log.Warningf("Unable to upgrade chroot, trying again later.")
+			time.Sleep(time.Minute)
+			err = setupChroot()
+		}
+
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
 		check(err)
 		b.alpmMutex.Unlock()
@@ -614,7 +619,10 @@ func main() {
 		exit:      false,
 	}
 
-	setupChroot()
+	err = setupChroot()
+	if err != nil {
+		log.Fatalf("Unable to setup chroot: %v", err)
+	}
 	syncMarchs()
 
 	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
