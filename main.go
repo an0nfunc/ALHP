@@ -318,7 +318,7 @@ func (b *BuildManager) htmlWorker() {
 
 	type tpl struct {
 		March     []March
-		Generated time.Time
+		Generated string
 	}
 
 	for {
@@ -353,11 +353,11 @@ func (b *BuildManager) htmlWorker() {
 					}
 
 					if !pkg.BuildTimeStart.IsZero() {
-						addPkg.BuildDate = pkg.BuildTimeStart.UTC().Format(time.RFC3339)
+						addPkg.BuildDate = pkg.BuildTimeStart.UTC().Format(time.RFC1123)
 					}
 
 					if !pkg.Updated.IsZero() {
-						addPkg.Checked = pkg.Updated.UTC().Format(time.RFC3339)
+						addPkg.Checked = pkg.Updated.UTC().Format(time.RFC1123)
 					}
 
 					if pkg.Status == dbpackage.StatusFailed {
@@ -371,7 +371,7 @@ func (b *BuildManager) htmlWorker() {
 			gen.March = append(gen.March, addMarch)
 		}
 
-		gen.Generated = time.Now().UTC()
+		gen.Generated = time.Now().UTC().Format(time.RFC1123)
 
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		check(err)
