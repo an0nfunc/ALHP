@@ -167,7 +167,7 @@ func gitClean(pkg *BuildPackage) {
 }
 
 func increasePkgRel(pkg *BuildPackage) error {
-	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, os.ModePerm)
+	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, 0644)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func isPkgFailed(pkg *BuildPackage) bool {
 	buildManager.failedMutex.Lock()
 	defer buildManager.failedMutex.Unlock()
 
-	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE|os.O_SYNC, os.ModePerm)
+	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE|os.O_SYNC, 0664)
 	check(err)
 	defer func(file *os.File) {
 		check(file.Close())
@@ -433,7 +433,7 @@ func setupChroot() error {
 			return fmt.Errorf("Unable to update chroot: %v\n%s", err, string(res))
 		}
 	} else if os.IsNotExist(err) {
-		err := os.MkdirAll(conf.Basedir.Chroot, os.ModePerm)
+		err := os.MkdirAll(conf.Basedir.Chroot, 0755)
 		check(err)
 
 		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, pristineChroot), "base-devel")
@@ -594,7 +594,7 @@ func syncMarchs() {
 
 			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))); os.IsNotExist(err) {
 				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), os.ModePerm))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0755))
 			}
 
 			if i := find(eRepos, fRepo); i != -1 {
@@ -615,19 +615,24 @@ func syncMarchs() {
 func setupMakepkg(march string) {
 	lMakepkg := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", march))
 
-	check(os.MkdirAll(conf.Basedir.Makepkg, os.ModePerm))
+	check(os.MkdirAll(conf.Basedir.Makepkg, 0755))
 	t, err := os.ReadFile(makepkgConf)
 	check(err)
 	makepkgStr := string(t)
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "!lto", "")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
+	// Add LTO. Since it's (!lto) not in devtools yet, add it instead.
+	// See https://git.harting.dev/anonfunc/ALHP.GO/issues/52 for more
+	makepkgStr = strings.ReplaceAll(makepkgStr, "!debug", "!debug lto")
+
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 
-	check(os.WriteFile(lMakepkg, []byte(makepkgStr), os.ModePerm))
+	check(os.WriteFile(lMakepkg, []byte(makepkgStr), 0644))
 }
 
 func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage, string, error) {

@@ -29,13 +29,13 @@ import (
 )
 
 var (
-	conf          = Conf{}
+	conf          *Conf
 	repos         []string
 	alpmHandle    *alpm.Handle
 	reMarch       = regexp.MustCompile(`(-march=)(.+?) `)
 	rePkgRel      = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgFile     = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
-	buildManager  BuildManager
+	buildManager  *BuildManager
 	db            *ent.Client
 	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
 	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
@@ -111,7 +111,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Warningf("[%s/%s] Build failed, exit code %d", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
 
 				b.failedMutex.Lock()
-				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm)
+				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0644)
 				check(err)
 
 				_, err = f.WriteString(fmt.Sprintf("%s==%s\n", pkg.Pkgbase, constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)))
@@ -119,8 +119,8 @@ func (b *BuildManager) buildWorker(id int) {
 				check(f.Close())
 				b.failedMutex.Unlock()
 
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), os.ModePerm))
-				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), os.ModePerm))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
+				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
 
 				dbPkg.Update().SetStatus(dbpackage.StatusFailed).SetBuildTimeEnd(time.Now()).SetHash(pkg.Hash).ExecX(context.Background())
 
@@ -376,7 +376,7 @@ func (b *BuildManager) htmlWorker() {
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		check(err)
 
-		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		check(statusTpl.Execute(f, gen))
 		check(f.Close())
 
@@ -448,7 +448,7 @@ func (b *BuildManager) repoWorker(repo string) {
 }
 
 func (b *BuildManager) syncWorker() {
-	check(os.MkdirAll(conf.Basedir.Upstream, os.ModePerm))
+	check(os.MkdirAll(conf.Basedir.Upstream, 0755))
 
 	for i := 0; i < conf.Build.Worker; i++ {
 		go b.buildWorker(i)
@@ -586,7 +586,7 @@ func main() {
 		log.Warningf("Failed to drop priority: %v", err)
 	}
 
-	err = os.MkdirAll(conf.Basedir.Repo, os.ModePerm)
+	err = os.MkdirAll(conf.Basedir.Repo, 0755)
 	check(err)
 
 	if conf.Db.Driver == "pgx" {
@@ -611,7 +611,7 @@ func main() {
 		log.Panicf("Automigrate failed: %v", err)
 	}
 
-	buildManager = BuildManager{
+	buildManager = &BuildManager{
 		build:     make(chan *BuildPackage, 10000),
 		parse:     make(chan *BuildPackage, 10000),
 		repoPurge: make(map[string]chan *BuildPackage),
