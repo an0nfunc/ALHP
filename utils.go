@@ -622,7 +622,8 @@ func setupMakepkg(march string) {
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "!lto", "")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
+	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	// Add LTO. Since it's (!lto) not in devtools yet, add it instead.
