@@ -87,10 +87,15 @@ Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
 ## FAQ
 
+### LTO
+
+Enabled for all packages build after 04 Nov 2021 12:07:00
+UTC. [More details.](https://git.harting.dev/anonfunc/ALHP.GO/issues/52)
+
 ### error: *-x86-64-v3: signature from "Archlinux CIE Repos (Build 2020/2021) <cie@harting.dev>" is unknown trust
 
-You get this because the new, extended key has unknown trust value attached to it.
-To fix it, first import the key again to be sure you got the extended one:
+You get this because the new, extended key has unknown trust value attached to it. To fix it, first import the key again
+to be sure you got the extended one:
 `pacman-key --keyserver keyserver.ubuntu.com --recv-keys 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298`
 
 After that you just have to set the trust on this key with (as root, for `pacman-key`):
