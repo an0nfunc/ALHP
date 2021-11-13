@@ -126,3 +126,10 @@ Please decide how far you trust this user to correctly verify other users' keys
 
 Your decision? 4
 ````
+
+### Donations
+
+I appreciate any money you want to throw my way, but donations are strictly optional.
+Also consider [donating to the Archlinux Team](https://archlinux.org/donate/), without their work ALHP would not be possible.
+
+[Donate on LiberaPay](https://liberapay.com/anonfunc/)
