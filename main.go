@@ -412,6 +412,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
 			check(err)
+			updateLastUpdated()
 			b.buildWG.Done()
 		case pkg := <-b.repoPurge[repo]:
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
@@ -448,6 +449,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				check(os.Remove(file))
 				check(os.Remove(file + ".sig"))
 			}
+			updateLastUpdated()
 			b.repoWG.Done()
 		}
 	}

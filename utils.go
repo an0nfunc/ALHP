@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 	makepkgConf    = "/usr/share/devtools/makepkg-x86_64.conf"
 	logDir         = "logs"
 	pristineChroot = "root"
+	lastUpdate     = "lastupdate"
 )
 
 type BuildPackage struct {
@@ -100,6 +102,10 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func updateLastUpdated() {
+	check(os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644))
 }
 
 func b3sum(filePath string) (string, error) {
