@@ -349,7 +349,7 @@ func (b *BuildManager) htmlWorker() {
 					}
 
 					if !pkg.BuildTimeEnd.IsZero() && !pkg.BuildTimeStart.IsZero() {
-						addPkg.BuildDuration = pkg.BuildTimeStart.Sub(pkg.BuildTimeEnd)
+						addPkg.BuildDuration = pkg.BuildTimeEnd.Sub(pkg.BuildTimeStart)
 					}
 
 					if !pkg.BuildTimeStart.IsZero() {
