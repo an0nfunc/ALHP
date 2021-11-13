@@ -23,7 +23,6 @@ march:
 
 blacklist:
   packages:
-    - pacman
     - tensorflow
     - tensorflow-cuda
     - gcc
@@ -32,6 +31,9 @@ blacklist:
     - i686
     - staging
     - unstable
+  lto:
+    - llvm
+    - rust
 
 build:
   worker: 4

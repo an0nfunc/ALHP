@@ -77,9 +77,15 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 			pkg.PkgFiles = []string{}
 
+			// default to LTO
+			makepkgFile := "makepkg-%s-lto.conf"
+			if contains(conf.Blacklist.LTO, pkg.Pkgbase) {
+				// use non-lto makepkg.conf if LTO is blacklisted for this package
+				makepkgFile = "makepkg-%s.conf"
+			}
 			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
-					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", pkg.March)))
+					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf(makepkgFile, pkg.March)))
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			cmd.Stderr = &out

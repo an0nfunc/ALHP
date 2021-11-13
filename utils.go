@@ -83,6 +83,7 @@ type Conf struct {
 	Blacklist struct {
 		Packages []string
 		Repo     []string
+		LTO      []string `yaml:"lto"`
 	}
 }
 
@@ -584,7 +585,10 @@ func syncMarchs() {
 	}
 
 	for _, march := range conf.March {
-		setupMakepkg(march)
+		err := setupMakepkg(march)
+		if err != nil {
+			log.Errorf("Can't generate makepkg for %s: %v", march, err)
+		}
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
@@ -612,28 +616,47 @@ func syncMarchs() {
 }
 
 //goland:noinspection SpellCheckingInspection
-func setupMakepkg(march string) {
+func setupMakepkg(march string) error {
 	lMakepkg := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", march))
+	lMakepkgLTO := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s-lto.conf", march))
 
-	check(os.MkdirAll(conf.Basedir.Makepkg, 0755))
+	err := os.MkdirAll(conf.Basedir.Makepkg, 0755)
+	if err != nil {
+		return err
+	}
 	t, err := os.ReadFile(makepkgConf)
-	check(err)
+	if err != nil {
+		return err
+	}
 	makepkgStr := string(t)
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "!lto", "")
-	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
-	// Add LTO. Since it's (!lto) not in devtools yet, add it instead.
-	// See https://git.harting.dev/anonfunc/ALHP.GO/issues/52 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "!debug", "!debug lto")
-
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 
-	check(os.WriteFile(lMakepkg, []byte(makepkgStr), 0644))
+	// write non-lto makepkg
+	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
+	if err != nil {
+		return err
+	}
+
+	// Add LTO. Since (lto) not in devtools yet, add it instead.
+	// See https://git.harting.dev/anonfunc/ALHP.GO/issues/52 for more
+	makepkgStr = strings.ReplaceAll(makepkgStr, "!lto", "")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "!debug", "!debug lto")
+	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O3", "-O3 -falign-functions=32")
+
+	// write lto makepkg
+	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage, string, error) {
