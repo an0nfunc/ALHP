@@ -24,7 +24,17 @@ Subdirectories of glibc-hwcaps directories, in priority order:
 
 To enable these complement repos you need to add them above the regular repos in `/etc/pacman.conf`
 
+### Choose a mirror (optional)
+
+You can choose from different available mirrors.
+> Note: Only `alhp.harting.dev` is hosted by ALHP directly.
+
+- `alhp.harting.dev` (Tier 0, Central Europe)
+- `www.gardling.com/alhp` (Tier 1, North America, provided by @titaniumtown)
+
 ### Example pacman.conf
+
+Replace `alhp.harting.dev` if you want to use another mirror (see section above).
 
 ```editorconfig
 [core-x86-64-v3]
@@ -127,9 +137,14 @@ Please decide how far you trust this user to correctly verify other users' keys
 Your decision? 4
 ````
 
+### Mirrors
+
+You want to mirror ALHP? You are welcome to do
+so, [see this issue for how to become one](https://git.harting.dev/anonfunc/ALHP.GO/issues/38#issuecomment-744).
+
 ### Donations
 
-I appreciate any money you want to throw my way, but donations are strictly optional.
-Also consider [donating to the Archlinux Team](https://archlinux.org/donate/), without their work ALHP would not be possible.
+I appreciate any money you want to throw my way, but donations are strictly optional. Also
+consider [donating to the Archlinux Team](https://archlinux.org/donate/), without their work ALHP would not be possible.
 
 [Donate on LiberaPay](https://liberapay.com/anonfunc/)
