@@ -317,7 +317,9 @@ func (b *BuildManager) htmlWorker() {
 		BuildDuration  time.Duration
 		Checked        string
 		Log            string
-		LTO            string
+		LTO            bool
+		LTOUnknown     bool
+		LTODisabled    bool
 	}
 
 	type Repo struct {
@@ -380,11 +382,11 @@ func (b *BuildManager) htmlWorker() {
 
 					switch pkg.Lto {
 					case dbpackage.LtoUnknown:
-						addPkg.LTO = "<i class=\"bi bi-question-lg\" style=\"color: var(--bs-warning);\" title=\"LTO Status Unknown\"></i>"
+						addPkg.LTOUnknown = true
 					case dbpackage.LtoEnabled:
-						addPkg.LTO = "<i class=\"bi bi-check-lg\" style=\"color: var(--bs-success);\" title=\"LTO Enabled\"></i>"
+						addPkg.LTO = true
 					case dbpackage.LtoDisabled:
-						addPkg.LTO = "<i class=\"bi bi-x-lg\" style=\"color: var(--bs-danger);\" title=\"LTO Disabled\"></i>"
+						addPkg.LTODisabled = true
 					}
 
 					addRepo.Packages = append(addRepo.Packages, addPkg)

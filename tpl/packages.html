@@ -70,7 +70,14 @@
                             <td>{{$pkg.Pkgbase}}</td>
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
-                            <td>{{$pkg.LTO}}</td>
+                            <td>
+                                {{if $pkg.LTO}}<i class="bi bi-check-lg" style="color: var(--bs-success);"
+                                                  title="LTO Enabled"></i>{{end}}
+                                {{if $pkg.LTODisabled}}<i class="bi bi-x-lg" style="color: var(--bs-danger);"
+                                                          title="LTO Disabled"></i>{{end}}
+                                {{if $pkg.LTOUnknown}}<i class="bi bi-question-lg" style="color: var(--bs-warning);"
+                                                         title="LTO Unknown"></i>{{end}}
+                            </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
                             <td class="text-center">
