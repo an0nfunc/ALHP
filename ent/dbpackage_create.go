@@ -156,6 +156,20 @@ func (dpc *DbPackageCreate) SetNillableHash(s *string) *DbPackageCreate {
 	return dpc
 }
 
+// SetLto sets the "lto" field.
+func (dpc *DbPackageCreate) SetLto(d dbpackage.Lto) *DbPackageCreate {
+	dpc.mutation.SetLto(d)
+	return dpc
+}
+
+// SetNillableLto sets the "lto" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableLto(d *dbpackage.Lto) *DbPackageCreate {
+	if d != nil {
+		dpc.SetLto(*d)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -231,6 +245,10 @@ func (dpc *DbPackageCreate) defaults() {
 		v := dbpackage.DefaultStatus
 		dpc.mutation.SetStatus(v)
 	}
+	if _, ok := dpc.mutation.Lto(); !ok {
+		v := dbpackage.DefaultLto
+		dpc.mutation.SetLto(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -262,6 +280,11 @@ func (dpc *DbPackageCreate) check() error {
 	if v, ok := dpc.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
 			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "march": %w`, err)}
+		}
+	}
+	if v, ok := dpc.mutation.Lto(); ok {
+		if err := dbpackage.LtoValidator(v); err != nil {
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "lto": %w`, err)}
 		}
 	}
 	return nil
@@ -386,6 +409,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldHash,
 		})
 		_node.Hash = value
+	}
+	if value, ok := dpc.mutation.Lto(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldLto,
+		})
+		_node.Lto = value
 	}
 	return _node, _spec
 }

@@ -41,6 +41,8 @@ type DbPackage struct {
 	Updated time.Time `json:"updated,omitempty"`
 	// Hash holds the value of the "hash" field.
 	Hash string `json:"hash,omitempty"`
+	// Lto holds the value of the "lto" field.
+	Lto dbpackage.Lto `json:"lto,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -52,7 +54,7 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new([]byte)
 		case dbpackage.FieldID:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated:
 			values[i] = new(sql.NullTime)
@@ -151,6 +153,12 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.Hash = value.String
 			}
+		case dbpackage.FieldLto:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lto", values[i])
+			} else if value.Valid {
+				dp.Lto = dbpackage.Lto(value.String)
+			}
 		}
 	}
 	return nil
@@ -203,6 +211,8 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(dp.Updated.Format(time.ANSIC))
 	builder.WriteString(", hash=")
 	builder.WriteString(dp.Hash)
+	builder.WriteString(", lto=")
+	builder.WriteString(fmt.Sprintf("%v", dp.Lto))
 	builder.WriteByte(')')
 	return builder.String()
 }

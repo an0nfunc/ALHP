@@ -25,6 +25,7 @@ func (DbPackage) Fields() []ent.Field {
 		field.Time("build_time_end").Optional(),
 		field.Time("updated").Optional(),
 		field.String("hash").Optional(),
+		field.Enum("lto").Values("enabled", "unknown", "disabled").Default("unknown").Optional(),
 	}
 }
 

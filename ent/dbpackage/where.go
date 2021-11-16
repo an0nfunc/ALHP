@@ -1271,6 +1271,68 @@ func HashContainsFold(v string) predicate.DbPackage {
 	})
 }
 
+// LtoEQ applies the EQ predicate on the "lto" field.
+func LtoEQ(v Lto) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldLto), v))
+	})
+}
+
+// LtoNEQ applies the NEQ predicate on the "lto" field.
+func LtoNEQ(v Lto) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldLto), v))
+	})
+}
+
+// LtoIn applies the In predicate on the "lto" field.
+func LtoIn(vs ...Lto) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldLto), v...))
+	})
+}
+
+// LtoNotIn applies the NotIn predicate on the "lto" field.
+func LtoNotIn(vs ...Lto) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldLto), v...))
+	})
+}
+
+// LtoIsNil applies the IsNil predicate on the "lto" field.
+func LtoIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldLto)))
+	})
+}
+
+// LtoNotNil applies the NotNil predicate on the "lto" field.
+func LtoNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldLto)))
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.DbPackage) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {

@@ -211,6 +211,26 @@ func (dpu *DbPackageUpdate) ClearHash() *DbPackageUpdate {
 	return dpu
 }
 
+// SetLto sets the "lto" field.
+func (dpu *DbPackageUpdate) SetLto(d dbpackage.Lto) *DbPackageUpdate {
+	dpu.mutation.SetLto(d)
+	return dpu
+}
+
+// SetNillableLto sets the "lto" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdate {
+	if d != nil {
+		dpu.SetLto(*d)
+	}
+	return dpu
+}
+
+// ClearLto clears the value of the "lto" field.
+func (dpu *DbPackageUpdate) ClearLto() *DbPackageUpdate {
+	dpu.mutation.ClearLto()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -291,6 +311,11 @@ func (dpu *DbPackageUpdate) check() error {
 	if v, ok := dpu.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
 			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
+		}
+	}
+	if v, ok := dpu.mutation.Lto(); ok {
+		if err := dbpackage.LtoValidator(v); err != nil {
+			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
 		}
 	}
 	return nil
@@ -443,6 +468,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldHash,
+		})
+	}
+	if value, ok := dpu.mutation.Lto(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldLto,
+		})
+	}
+	if dpu.mutation.LtoCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Column: dbpackage.FieldLto,
 		})
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
@@ -648,6 +686,26 @@ func (dpuo *DbPackageUpdateOne) ClearHash() *DbPackageUpdateOne {
 	return dpuo
 }
 
+// SetLto sets the "lto" field.
+func (dpuo *DbPackageUpdateOne) SetLto(d dbpackage.Lto) *DbPackageUpdateOne {
+	dpuo.mutation.SetLto(d)
+	return dpuo
+}
+
+// SetNillableLto sets the "lto" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdateOne {
+	if d != nil {
+		dpuo.SetLto(*d)
+	}
+	return dpuo
+}
+
+// ClearLto clears the value of the "lto" field.
+func (dpuo *DbPackageUpdateOne) ClearLto() *DbPackageUpdateOne {
+	dpuo.mutation.ClearLto()
+	return dpuo
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpuo *DbPackageUpdateOne) Mutation() *DbPackageMutation {
 	return dpuo.mutation
@@ -735,6 +793,11 @@ func (dpuo *DbPackageUpdateOne) check() error {
 	if v, ok := dpuo.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
 			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
+		}
+	}
+	if v, ok := dpuo.mutation.Lto(); ok {
+		if err := dbpackage.LtoValidator(v); err != nil {
+			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
 		}
 	}
 	return nil
@@ -904,6 +967,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldHash,
+		})
+	}
+	if value, ok := dpuo.mutation.Lto(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldLto,
+		})
+	}
+	if dpuo.mutation.LtoCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Column: dbpackage.FieldLto,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}

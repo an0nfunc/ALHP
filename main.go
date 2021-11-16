@@ -76,12 +76,15 @@ func (b *BuildManager) buildWorker(id int) {
 				continue
 			}
 			pkg.PkgFiles = []string{}
+			ltoDisabled := false
 
 			// default to LTO
 			makepkgFile := "makepkg-%s-lto.conf"
 			if contains(conf.Blacklist.LTO, pkg.Pkgbase) {
 				// use non-lto makepkg.conf if LTO is blacklisted for this package
 				makepkgFile = "makepkg-%s.conf"
+				ltoDisabled = true
+				dbPkg.Update().SetLto(dbpackage.LtoDisabled).ExecX(context.Background())
 			}
 			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
@@ -181,7 +184,11 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
 			}
 
-			dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+			if !ltoDisabled {
+				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+			} else {
+				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoDisabled).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+			}
 
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
 			b.repoAdd[pkg.FullRepo] <- pkg
@@ -310,6 +317,7 @@ func (b *BuildManager) htmlWorker() {
 		BuildDuration  time.Duration
 		Checked        string
 		Log            string
+		LTO            string
 	}
 
 	type Repo struct {
@@ -368,6 +376,15 @@ func (b *BuildManager) htmlWorker() {
 
 					if pkg.Status == dbpackage.StatusFailed {
 						addPkg.Log = fmt.Sprintf("logs/%s.log", pkg.Pkgbase)
+					}
+
+					switch pkg.Lto {
+					case dbpackage.LtoUnknown:
+						addPkg.LTO = "<i class=\"bi bi-question-lg\" style=\"color: var(--bs-warning);\" title=\"LTO Status Unknown\"></i>"
+					case dbpackage.LtoEnabled:
+						addPkg.LTO = "<i class=\"bi bi-check-lg\" style=\"color: var(--bs-success);\" title=\"LTO Enabled\"></i>"
+					case dbpackage.LtoDisabled:
+						addPkg.LTO = "<i class=\"bi bi-x-lg\" style=\"color: var(--bs-danger);\" title=\"LTO Disabled\"></i>"
 					}
 
 					addRepo.Packages = append(addRepo.Packages, addPkg)

@@ -23,6 +23,7 @@ var (
 		{Name: "build_time_end", Type: field.TypeTime, Nullable: true},
 		{Name: "updated", Type: field.TypeTime, Nullable: true},
 		{Name: "hash", Type: field.TypeString, Nullable: true},
+		{Name: "lto", Type: field.TypeEnum, Nullable: true, Enums: []string{"enabled", "unknown", "disabled"}, Default: "unknown"},
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{

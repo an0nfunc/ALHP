@@ -27,7 +27,7 @@ To enable these complement repos you need to add them above the regular repos in
 ### Choose a mirror (optional)
 
 You can choose from different available mirrors.
-> Note: Only `alhp.harting.dev` is hosted by ALHP directly.
+> Note: Only `alhp.harting.dev` is hosted by ALHP directly. Make sure you use an up-to-date mirror.
 
 - `alhp.harting.dev` (Tier 0, Central Europe)
 - `www.gardling.com/alhp` (Tier 1, North America, provided by @titaniumtown)
@@ -56,13 +56,14 @@ Include = /etc/pacman.d/mirrorlist
 Include = /etc/pacman.d/mirrorlist
 ```
 
-Replace `x86-64-v3` with your cpu-set. More information about all available options on [this gcc page](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html).
-Currently, alhp.harting.dev only builds for `x86-64-v3` (list is subject to change).
-You can see all available repositories [here](https://alhp.harting.dev/). 
+Replace `x86-64-v3` with your cpu-set. More information about all available options
+on [this gcc page](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html). Currently, alhp.harting.dev only builds
+for `x86-64-v3` (list is subject to change). You can see all available repositories [here](https://alhp.harting.dev/).
 
 After finished adding the repos to `pacman.conf` you need to import and sign the used pgp key:
 
 Import:
+
 ```
 pacman-key --keyserver keyserver.ubuntu.com --recv-keys 0D4D2FDAF45468F3DDF59BEDE3D0D2CD3952E298
 ```
@@ -101,6 +102,7 @@ Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
 Enabled for all packages build after 04 Nov 2021 12:07:00
 UTC. [More details.](https://git.harting.dev/anonfunc/ALHP.GO/issues/52)
+LTO status visible per package on the package status page.
 
 ### error: *-x86-64-v3: signature from "Archlinux CIE Repos (Build 2020/2021) <cie@harting.dev>" is unknown trust
 

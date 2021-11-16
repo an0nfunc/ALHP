@@ -58,6 +58,7 @@
                             <th scope="col">Pkgbase</th>
                             <th scope="col">Status</th>
                             <th scope="col">Reason</th>
+                            <th scope="col" title="link time optimization">LTO</th>
                             <th scope="col">SVN2GIT Version</th>
                             <th scope="col">{{$repo.Name}}-{{$march.Name}} Version</th>
                             <th scope="col">Info</th>
@@ -69,6 +70,7 @@
                             <td>{{$pkg.Pkgbase}}</td>
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
+                            <td>{{$pkg.LTO}}</td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
                             <td class="text-center">

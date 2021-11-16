@@ -35,6 +35,8 @@ const (
 	FieldUpdated = "updated"
 	// FieldHash holds the string denoting the hash field in the database.
 	FieldHash = "hash"
+	// FieldLto holds the string denoting the lto field in the database.
+	FieldLto = "lto"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldBuildTimeEnd,
 	FieldUpdated,
 	FieldHash,
+	FieldLto,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -126,5 +129,32 @@ func RepositoryValidator(r Repository) error {
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for repository field: %q", r)
+	}
+}
+
+// Lto defines the type for the "lto" enum field.
+type Lto string
+
+// LtoUnknown is the default value of the Lto enum.
+const DefaultLto = LtoUnknown
+
+// Lto values.
+const (
+	LtoEnabled  Lto = "enabled"
+	LtoUnknown  Lto = "unknown"
+	LtoDisabled Lto = "disabled"
+)
+
+func (l Lto) String() string {
+	return string(l)
+}
+
+// LtoValidator is a validator for the "lto" field enum values. It is called by the builders before save.
+func LtoValidator(l Lto) error {
+	switch l {
+	case LtoEnabled, LtoUnknown, LtoDisabled:
+		return nil
+	default:
+		return fmt.Errorf("dbpackage: invalid enum value for lto field: %q", l)
 	}
 }
