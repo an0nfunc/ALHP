@@ -57,12 +57,12 @@ func (b *BuildManager) buildWorker(id int) {
 				b.buildWG.Add(1)
 			}
 
-			start := time.Now()
+			start := time.Now().UTC()
 
 			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
 
 			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).SetBuildTimeStart(time.Now().UTC()).ClearSkipReason().SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(context.Background())
 
 			err := importKeys(pkg)
 			if err != nil {
@@ -121,7 +121,7 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
 
-				dbPkg.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeEnd(time.Now()).SetHash(pkg.Hash).ExecX(context.Background())
+				dbPkg.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(pkg.Hash).ExecX(context.Background())
 
 				// purge failed package from repo
 				b.repoPurge[pkg.FullRepo] <- pkg
@@ -354,7 +354,7 @@ func (b *BuildManager) htmlWorker() {
 						Svn2GitVersion: pkg.Version,
 					}
 
-					if !pkg.BuildTimeEnd.IsZero() && !pkg.BuildTimeStart.IsZero() {
+					if !pkg.BuildTimeEnd.IsZero() && !pkg.BuildTimeStart.IsZero() && pkg.BuildTimeStart.Before(pkg.BuildTimeEnd) {
 						addPkg.BuildDuration = pkg.BuildTimeEnd.Sub(pkg.BuildTimeStart)
 					}
 
