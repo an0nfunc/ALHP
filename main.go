@@ -175,9 +175,9 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 
 			if !ltoDisabled {
-				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 			} else {
-				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoDisabled).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				dbPkg.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoDisabled).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 			}
 
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
