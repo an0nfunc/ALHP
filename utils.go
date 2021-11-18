@@ -3,7 +3,6 @@ package main
 import (
 	"ALHP.go/ent"
 	"ALHP.go/ent/dbpackage"
-	"bufio"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,7 +51,6 @@ type BuildManager struct {
 	buildWG        sync.WaitGroup
 	parseWG        sync.WaitGroup
 	repoWG         sync.WaitGroup
-	failedMutex    sync.RWMutex
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
 	alpmMutex      sync.RWMutex
@@ -152,15 +149,15 @@ func statusId2string(s dbpackage.Status) (string, string) {
 	}
 }
 
-func getVersionFromRepo(pkg *BuildPackage) string {
+func getVersionFromRepo(pkg *BuildPackage) (string, error) {
 	findPkgFiles(pkg)
 
 	if len(pkg.PkgFiles) == 0 {
-		return ""
+		return "", fmt.Errorf("not found")
 	}
 
 	fNameSplit := strings.Split(pkg.PkgFiles[0], "-")
-	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2]
+	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2], nil
 }
 
 func gitClean(pkg *BuildPackage) {
@@ -367,52 +364,20 @@ func getSVN2GITVersion(pkg *BuildPackage, h *alpm.Handle) (string, error) {
 	return constructVersion(info.Pkgver, info.Pkgrel, info.Epoch), nil
 }
 
-func isPkgFailed(pkg *BuildPackage) bool {
-	buildManager.failedMutex.Lock()
-	defer buildManager.failedMutex.Unlock()
-
-	file, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_RDWR|os.O_CREATE|os.O_SYNC, 0664)
-	check(err)
-	defer func(file *os.File) {
-		check(file.Close())
-	}(file)
-
-	failed := false
-	var newContent []string
-	scanner := bufio.NewScanner(file)
-	found := false
-	for scanner.Scan() {
-		line := scanner.Text()
-		splitPkg := strings.Split(line, "==")
-
-		if splitPkg[0] == pkg.Pkgbase {
-			found = true
-			pkgVer := constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
-
-			// try to build new versions of previously failed packages
-			if alpm.VerCmp(splitPkg[1], pkgVer) < 0 {
-				failed = false
-			} else {
-				failed = true
-				newContent = append(newContent, line+"\n")
-			}
-		} else {
-			newContent = append(newContent, line+"\n")
-		}
-	}
-	check(scanner.Err())
-
-	if found {
-		sort.Strings(newContent)
-
-		_, err = file.Seek(0, 0)
-		check(err)
-		check(file.Truncate(0))
-		_, err = file.WriteString(strings.Join(newContent, ""))
-		check(err)
+func isPkgFailed(pkg *BuildPackage, dbPkg *ent.DbPackage) bool {
+	if dbPkg.Version == "" {
+		return false
 	}
 
-	return failed
+	if pkg.Version == "" {
+		pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
+	}
+
+	if alpm.VerCmp(dbPkg.Version, pkg.Version) < 0 {
+		return false
+	} else {
+		return dbPkg.Status == dbpackage.StatusFailed
+	}
 }
 
 func genSRCINFO(pkgbuild string) (*srcinfo.Srcinfo, error) {

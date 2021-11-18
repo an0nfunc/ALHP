@@ -62,7 +62,7 @@ func (b *BuildManager) buildWorker(id int) {
 			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
 
 			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).SetBuildTimeStart(time.Now().UTC()).SetSkipReason("").SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).SetBuildTimeStart(time.Now().UTC()).ClearSkipReason().SaveX(context.Background())
 
 			err := importKeys(pkg)
 			if err != nil {
@@ -112,26 +112,16 @@ func (b *BuildManager) buildWorker(id int) {
 
 			if err != nil {
 				if b.exit {
-					gitClean(pkg)
 					b.buildWG.Done()
 					continue
 				}
 
 				log.Warningf("[%s/%s] Build failed, exit code %d", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
 
-				b.failedMutex.Lock()
-				f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, pkg.FullRepo+"_failed.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0644)
-				check(err)
-
-				_, err = f.WriteString(fmt.Sprintf("%s==%s\n", pkg.Pkgbase, constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)))
-				check(err)
-				check(f.Close())
-				b.failedMutex.Unlock()
-
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
 
-				dbPkg.Update().SetStatus(dbpackage.StatusFailed).SetBuildTimeEnd(time.Now()).SetHash(pkg.Hash).ExecX(context.Background())
+				dbPkg.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeEnd(time.Now()).SetHash(pkg.Hash).ExecX(context.Background())
 
 				// purge failed package from repo
 				b.repoPurge[pkg.FullRepo] <- pkg
@@ -215,7 +205,6 @@ func (b *BuildManager) parseWorker() {
 			pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
 			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
 
 			skipping := false
 			if contains(info.Arch, "any") {
@@ -236,25 +225,26 @@ func (b *BuildManager) parseWorker() {
 				dbPkg.SkipReason = "blacklisted (haskell)"
 				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
-			} else if isPkgFailed(pkg) {
+			} else if isPkgFailed(pkg, dbPkg) {
 				log.Debugf("Skipped %s: failed build", info.Pkgbase)
-				dbPkg.SkipReason = ""
-				dbPkg.Status = dbpackage.StatusFailed
 				skipping = true
 			}
 
 			if skipping {
-				dbPkg = dbPkg.Update().SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
+				dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).ExecX(context.Background())
 				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
+			} else {
+				dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
 			}
 
-			repoVer := getVersionFromRepo(pkg)
-			dbPkg = dbPkg.Update().SetRepoVersion(repoVer).SaveX(context.Background())
-			if repoVer != "" && alpm.VerCmp(repoVer, pkg.Version) > 0 {
+			repoVer, err := getVersionFromRepo(pkg)
+			if err != nil {
+				dbPkg = dbPkg.Update().ClearRepoVersion().SaveX(context.Background())
+			} else if err == nil && alpm.VerCmp(repoVer, pkg.Version) > 0 {
 				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkg.Version, repoVer)
-				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).SetSkipReason("").SetHash(pkg.Hash).SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetHash(pkg.Hash).SaveX(context.Background())
 				b.parseWG.Done()
 				continue
 			}
@@ -423,7 +413,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).SetSkipReason("").SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
+			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
 
 			cmd = exec.Command("paccache",
 				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
@@ -462,7 +452,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().SetRepoVersion("").SaveX(context.Background())
+			dbPkg = dbPkg.Update().ClearRepoVersion().SaveX(context.Background())
 
 			for _, file := range pkg.PkgFiles {
 				check(os.Remove(file))
