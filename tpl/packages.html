@@ -85,7 +85,7 @@
                             >{{end}}
                                 <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
                                    href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
-                                   title="{{if $pkg.BuildDate}}Build Date: {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build Duration: {{$pkg.BuildDuration}}&#10;{{end}}Check date: {{$pkg.Checked}}">
+                                   title="{{if $pkg.BuildDate}}Build on {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build duration: {{$pkg.BuildDuration}}&#10;{{end}}Last checked: {{$pkg.Checked}}">
                                     <i class="bi bi-info-circle-fill"></i></a>
                             </td>
                         </tr>
