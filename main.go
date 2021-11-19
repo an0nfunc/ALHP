@@ -61,7 +61,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
 
-			dbPkg := getDbPackage(pkg)
+			dbPkg := pkg.toDbPackage(true)
 			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(context.Background())
 
 			err := importKeys(pkg)
@@ -69,7 +69,7 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Warningf("[%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, err)
 			}
 
-			err = increasePkgRel(pkg)
+			err = pkg.increasePkgRel()
 			if err != nil {
 				log.Errorf("[%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
 				b.buildWG.Done()
@@ -133,7 +133,6 @@ func (b *BuildManager) buildWorker(id int) {
 
 			pkgFiles, err := filepath.Glob(filepath.Join(filepath.Dir(pkg.Pkgbuild), "*.pkg.tar.zst"))
 			check(err)
-			log.Debug(pkgFiles)
 
 			if len(pkgFiles) == 0 {
 				log.Warningf("No packages found after building %s. Abort build.", pkg.Pkgbase)
@@ -195,38 +194,36 @@ func (b *BuildManager) parseWorker() {
 		}
 		select {
 		case pkg := <-b.parse:
-			info, err := genSRCINFO(pkg.Pkgbuild)
-			if err != nil {
+			if err := pkg.genSrcinfo(); err != nil {
 				log.Warningf("Failed to generate SRCINFO for %s: %v", pkg.Pkgbase, err)
 				b.parseWG.Done()
 				continue
 			}
-			pkg.Srcinfo = info
 			pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
-			dbPkg := getDbPackage(pkg)
+			dbPkg := pkg.toDbPackage(true)
 
 			skipping := false
-			if contains(info.Arch, "any") {
-				log.Debugf("Skipped %s: any-Package", info.Pkgbase)
+			if contains(pkg.Srcinfo.Arch, "any") {
+				log.Debugf("Skipped %s: any-Package", pkg.Srcinfo.Pkgbase)
 				dbPkg.SkipReason = "arch = any"
 				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
-			} else if contains(conf.Blacklist.Packages, info.Pkgbase) {
-				log.Debugf("Skipped %s: blacklisted package", info.Pkgbase)
+			} else if contains(conf.Blacklist.Packages, pkg.Srcinfo.Pkgbase) {
+				log.Debugf("Skipped %s: blacklisted package", pkg.Srcinfo.Pkgbase)
 				dbPkg.SkipReason = "blacklisted"
 				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
-			} else if contains(info.MakeDepends, "ghc") || contains(info.MakeDepends, "haskell-ghc") || contains(info.Depends, "ghc") || contains(info.Depends, "haskell-ghc") {
+			} else if contains(pkg.Srcinfo.MakeDepends, "ghc") || contains(pkg.Srcinfo.MakeDepends, "haskell-ghc") || contains(pkg.Srcinfo.Depends, "ghc") || contains(pkg.Srcinfo.Depends, "haskell-ghc") {
 				// Skip Haskell packages for now, as we are facing linking problems with them,
 				// most likely caused by not having a dependency check implemented yet and building at random.
 				// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
-				log.Debugf("Skipped %s: haskell package", info.Pkgbase)
+				log.Debugf("Skipped %s: haskell package", pkg.Srcinfo.Pkgbase)
 				dbPkg.SkipReason = "blacklisted (haskell)"
 				dbPkg.Status = dbpackage.StatusSkipped
 				skipping = true
 			} else if isPkgFailed(pkg, dbPkg) {
-				log.Debugf("Skipped %s: failed build", info.Pkgbase)
+				log.Debugf("Skipped %s: failed build", pkg.Srcinfo.Pkgbase)
 				skipping = true
 			}
 
@@ -239,29 +236,29 @@ func (b *BuildManager) parseWorker() {
 				dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
 			}
 
-			repoVer, err := getVersionFromRepo(pkg)
+			repoVer, err := pkg.repoVersion()
 			if err != nil {
 				dbPkg = dbPkg.Update().ClearRepoVersion().SaveX(context.Background())
 			} else if err == nil && alpm.VerCmp(repoVer, pkg.Version) > 0 {
-				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", info.Pkgbase, pkg.Version, repoVer)
+				log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", pkg.Srcinfo.Pkgbase, pkg.Version, repoVer)
 				dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetHash(pkg.Hash).SaveX(context.Background())
 				b.parseWG.Done()
 				continue
 			}
 
-			isLatest, local, syncVersion, err := isMirrorLatest(alpmHandle, pkg)
+			isLatest, local, syncVersion, err := pkg.isMirrorLatest(alpmHandle)
 			if err != nil {
 				switch err.(type) {
 				default:
-					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, info.Pkgbase, err)
+					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, pkg.Srcinfo.Pkgbase, err)
 				case MultiplePKGBUILDError:
-					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", info.Pkgbase, err)
+					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", pkg.Srcinfo.Pkgbase, err)
 					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
 					continue
 				case UnableToSatisfyError:
-					log.Infof("Skipped %s: unable to resolve dependencies: %v", info.Pkgbase, err)
+					log.Infof("Skipped %s: unable to resolve dependencies: %v", pkg.Srcinfo.Pkgbase, err)
 					dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
 					b.repoPurge[pkg.FullRepo] <- pkg
 					b.parseWG.Done()
@@ -273,10 +270,10 @@ func (b *BuildManager) parseWorker() {
 
 			if !isLatest {
 				if local != nil {
-					log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", info.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
+					log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", pkg.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
 					dbPkg.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(context.Background())
 				} else {
-					log.Infof("Delayed %s: not all dependencies are up to date or resolvable", info.Pkgbase)
+					log.Infof("Delayed %s: not all dependencies are up to date or resolvable", pkg.Srcinfo.Pkgbase)
 					dbPkg.Update().SetSkipReason("waiting for mirror").ExecX(context.Background())
 				}
 
@@ -372,7 +369,9 @@ func (b *BuildManager) htmlWorker() {
 
 					switch pkg.Lto {
 					case dbpackage.LtoUnknown:
-						addPkg.LTOUnknown = true
+						if pkg.Status != dbpackage.StatusSkipped {
+							addPkg.LTOUnknown = true
+						}
 					case dbpackage.LtoEnabled:
 						addPkg.LTO = true
 					case dbpackage.LtoDisabled:
@@ -412,7 +411,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				log.Panicf("%s while repo-add: %v", string(res), err)
 			}
 
-			dbPkg := getDbPackage(pkg)
+			dbPkg := pkg.toDbPackage(true)
 			dbPkg = dbPkg.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
 
 			cmd = exec.Command("paccache",
@@ -428,8 +427,10 @@ func (b *BuildManager) repoWorker(repo string) {
 				continue
 			}
 			if len(pkg.PkgFiles) == 0 {
-				findPkgFiles(pkg)
-				if len(pkg.PkgFiles) == 0 {
+				if err := pkg.findPkgFiles(); err != nil {
+					log.Warningf("[%s/%s] Unable to find files: %v", pkg.FullRepo, pkg.Pkgbase, err)
+					continue
+				} else if len(pkg.PkgFiles) == 0 {
 					continue
 				}
 			}
@@ -451,8 +452,10 @@ func (b *BuildManager) repoWorker(repo string) {
 				continue
 			}
 
-			dbPkg := getDbPackage(pkg)
-			dbPkg = dbPkg.Update().ClearRepoVersion().SaveX(context.Background())
+			dbPkg := pkg.toDbPackage(false)
+			if dbPkg != nil {
+				dbPkg = dbPkg.Update().ClearRepoVersion().SaveX(context.Background())
+			}
 
 			for _, file := range pkg.PkgFiles {
 				check(os.Remove(file))
@@ -506,10 +509,16 @@ func (b *BuildManager) syncWorker() {
 			}
 		}
 
+		// housekeeping
+		err := housekeeping()
+		if err != nil {
+			log.Warningf("Housekeeping failed: %v", err)
+		}
+
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
-		err := setupChroot()
+		err = setupChroot()
 		for err != nil {
 			log.Warningf("Unable to upgrade chroot, trying again later.")
 			time.Sleep(time.Minute)

@@ -87,6 +87,7 @@ type Conf struct {
 }
 
 type Globs []string
+type PKGFile string
 
 type MultiplePKGBUILDError struct {
 	error
@@ -149,14 +150,17 @@ func statusId2string(s dbpackage.Status) (string, string) {
 	}
 }
 
-func getVersionFromRepo(pkg *BuildPackage) (string, error) {
-	findPkgFiles(pkg)
+func (p *BuildPackage) repoVersion() (string, error) {
+	err := p.findPkgFiles()
+	if err != nil {
+		return "", err
+	}
 
-	if len(pkg.PkgFiles) == 0 {
+	if len(p.PkgFiles) == 0 {
 		return "", fmt.Errorf("not found")
 	}
 
-	fNameSplit := strings.Split(pkg.PkgFiles[0], "-")
+	fNameSplit := strings.Split(p.PkgFiles[0], "-")
 	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2], nil
 }
 
@@ -170,8 +174,8 @@ func gitClean(pkg *BuildPackage) {
 	}
 }
 
-func increasePkgRel(pkg *BuildPackage) error {
-	f, err := os.OpenFile(pkg.Pkgbuild, os.O_RDWR, 0644)
+func (p *BuildPackage) increasePkgRel() error {
+	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
 	if err != nil {
 		return err
 	}
@@ -188,7 +192,7 @@ func increasePkgRel(pkg *BuildPackage) error {
 		return err
 	}
 
-	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+pkg.Srcinfo.Pkgrel+".1")
+	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+".1")
 	_, err = f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -203,7 +207,7 @@ func increasePkgRel(pkg *BuildPackage) error {
 		return err
 	}
 
-	pkg.Version = pkg.Version + ".1"
+	p.Version += ".1"
 	return nil
 }
 
@@ -288,13 +292,13 @@ func initALPM(root string, dbpath string) (*alpm.Handle, error) {
 	return h, nil
 }
 
-func getSVN2GITVersion(pkg *BuildPackage, h *alpm.Handle) (string, error) {
-	if pkg.Pkgbuild == "" && pkg.Pkgbase == "" {
+func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
+	if p.Pkgbuild == "" && p.Pkgbase == "" {
 		return "", fmt.Errorf("invalid arguments")
 	}
 
 	// upstream/upstream-core-extra/extra-cmake-modules/repos/extra-any/PKGBUILD
-	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Upstream, "**/"+pkg.Pkgbase+"/repos/*/PKGBUILD"))
+	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Upstream, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
 
 	var fPkgbuilds []string
 	for _, pkgbuild := range pkgBuilds {
@@ -311,13 +315,13 @@ func getSVN2GITVersion(pkg *BuildPackage, h *alpm.Handle) (string, error) {
 	}
 
 	if len(fPkgbuilds) > 1 {
-		log.Infof("%s: multiple PKGBUILD found, try resolving from mirror", pkg.Pkgbase)
+		log.Infof("%s: multiple PKGBUILD found, try resolving from mirror", p.Pkgbase)
 		dbs, err := h.SyncDBs()
 		if err != nil {
 			return "", err
 		}
 
-		iPackage, err := dbs.FindSatisfier(pkg.Pkgbase)
+		iPackage, err := dbs.FindSatisfier(p.Pkgbase)
 		if err != nil {
 			return "", err
 		}
@@ -343,11 +347,11 @@ func getSVN2GITVersion(pkg *BuildPackage, h *alpm.Handle) (string, error) {
 		}
 
 		if len(fPkgbuilds) > 1 {
-			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", pkg.Pkgbase, fPkgbuilds)}
+			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", p.Pkgbase, fPkgbuilds)}
 		}
-		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", pkg.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
+		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
 	} else if len(fPkgbuilds) == 0 {
-		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", pkg.Pkgbase, filepath.Join(conf.Basedir.Upstream, "**/"+pkg.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
+		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Upstream, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}
 
 	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(fPkgbuilds[0])+"&&"+"makepkg --printsrcinfo")
@@ -369,6 +373,10 @@ func isPkgFailed(pkg *BuildPackage, dbPkg *ent.DbPackage) bool {
 		return false
 	}
 
+	if err := pkg.genSrcinfo(); err != nil {
+		return false
+	}
+
 	if pkg.Version == "" {
 		pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 	}
@@ -380,19 +388,24 @@ func isPkgFailed(pkg *BuildPackage, dbPkg *ent.DbPackage) bool {
 	}
 }
 
-func genSRCINFO(pkgbuild string) (*srcinfo.Srcinfo, error) {
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(pkgbuild)+"&&"+"makepkg --printsrcinfo")
+func (p *BuildPackage) genSrcinfo() error {
+	if p.Srcinfo != nil {
+		return nil
+	}
+
+	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
 	res, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	info, err := srcinfo.Parse(string(res))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return info, nil
+	p.Srcinfo = info
+	return nil
 }
 
 func setupChroot() error {
@@ -420,9 +433,9 @@ func setupChroot() error {
 	return nil
 }
 
-func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {
-	fNameSplit := strings.Split(pkg, "-")
-	pkgname := strings.Join(fNameSplit[0:len(fNameSplit)-3], "-")
+func (path PKGFile) DBPackage() (*ent.DbPackage, error) {
+	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
+	pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
 
 	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.PackagesNotNil()).All(context.Background())
 	if err != nil {
@@ -431,11 +444,13 @@ func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {
 			log.Debugf("Not found in database: %s", pkgname)
 			return nil, fmt.Errorf("package not found in DB: %s", pkgname)
 		default:
-			log.Errorf("Problem querying db for package %s: %v", pkgname, err)
+			return nil, err
 		}
+	} else if len(dbPkgs) == 0 {
+		return nil, fmt.Errorf("package not found in DB: %s", pkgname)
 	} else {
 		for _, dbPkg := range dbPkgs {
-			if contains(dbPkg.Packages, pkg) {
+			if contains(dbPkg.Packages, pkgname) {
 				return dbPkg, nil
 			}
 		}
@@ -444,11 +459,11 @@ func getDBPkgFromPkgfile(pkg string) (*ent.DbPackage, error) {
 	return nil, fmt.Errorf("package not found in DB: %s", pkgname)
 }
 
-func isSignatureValid(pkg string) (bool, error) {
-	cmd := exec.Command("gpg", "--verify", pkg)
+func (path PKGFile) isSignatureValid() (bool, error) {
+	cmd := exec.Command("gpg", "--verify", string(path)+".sig")
 	res, err := cmd.CombinedOutput()
 	log.Debug(string(res))
-	if cmd.ProcessState.ExitCode() == 2 {
+	if cmd.ProcessState.ExitCode() == 2 || cmd.ProcessState.ExitCode() == 1 {
 		return false, nil
 	} else if cmd.ProcessState.ExitCode() == 0 {
 		return true, nil
@@ -460,85 +475,123 @@ func isSignatureValid(pkg string) (bool, error) {
 }
 
 func housekeeping() error {
+	log.Debugf("Start housekeeping")
 	for _, repo := range repos {
 		packages, err := Glob(filepath.Join(conf.Basedir.Repo, repo, "/**/*.pkg.tar.zst"))
-		check(err)
+		if err != nil {
+			return err
+		}
 
-		for _, pkgfile := range packages {
-			dbPkg, err := getDBPkgFromPkgfile(pkgfile)
+		for _, path := range packages {
+			pkgfile := PKGFile(path)
+			dbPkg, err := pkgfile.DBPackage()
+			if err != nil {
+				log.Warningf("[HK] Unable to find entry for %s in db: %v", filepath.Base(path), err)
+				// TODO: remove orphan file not tracked by db (WTF kmod-debug!)
+				continue
+			}
+
 			pkg := &BuildPackage{
 				Pkgbase:  dbPkg.Pkgbase,
 				Repo:     dbPkg.Repository,
 				FullRepo: dbPkg.Repository.String() + "-" + dbPkg.March,
 			}
 
-			// check if pkg signature is valid
-			valid, err := isSignatureValid(pkgfile)
-			check(err)
-			if !valid {
-				// TODO: purge pkg to trigger rebuild -> need srcinfo
-				if err != nil {
-					return err
-				}
-
-				var upstream string
-				switch dbPkg.Repository {
-				case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
-					upstream = "upstream-core-extra"
-				case dbpackage.RepositoryCommunity:
-					upstream = "upstream-community"
-				}
-
-				pkg.Srcinfo, err = genSRCINFO(filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD"))
-				if err != nil {
-					return err
-				}
-
-				buildManager.repoPurge[pkg.FullRepo] <- pkg
+			var upstream string
+			switch dbPkg.Repository {
+			case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
+				upstream = "upstream-core-extra"
+			case dbpackage.RepositoryCommunity:
+				upstream = "upstream-community"
 			}
 
-			// TODO: compare db-version with repo version
+			pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+			if err = pkg.genSrcinfo(); err != nil {
+				return err
+			}
+
+			// check if pkg signature is valid
+			valid, err := pkgfile.isSignatureValid()
+			if err != nil {
+				return err
+			}
+			if !valid {
+				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
+				buildManager.repoPurge[pkg.FullRepo] <- pkg
+				continue
+			}
+
+			// compare db-version with repo version
+			repoVer, err := pkg.repoVersion()
+			if err != nil {
+				log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
+				// error means package was not found -> delete version & hash from db so rebuild can happen
+				err := dbPkg.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
+				if err != nil {
+					return err
+				}
+			} else if alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
+				log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
+				dbPkg, err = dbPkg.Update().SetRepoVersion(repoVer).Save(context.Background())
+				if err != nil {
+					return err
+				}
+			}
 
 			// TODO: check split packages
 
-			/* TODO: check if package is still part of repo
-			   maybe we need to query ArchWeb here, since svn2git is not an absolute source
-			   see https://git.harting.dev/anonfunc/ALHP.GO/issues/16#issuecomment-208
-			   or https://git.harting.dev/anonfunc/ALHP.GO/issues/43#issuecomment-371
-			*/
+			// check if package is still part of repo
+			dbs, err := alpmHandle.SyncDBs()
+			if err != nil {
+				return err
+			}
+			pkgResolved, err := dbs.FindSatisfier(pkg.Srcinfo.Packages[0].Pkgname)
+			if err != nil || pkgResolved.DB().Name() != dbPkg.Repository.String() {
+				// package not found on mirror/db -> not part of any repo anymore
+				log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
+				buildManager.repoPurge[pkg.FullRepo] <- pkg
+				err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
+				if err != nil {
+					return err
+				}
+				continue
+			}
 		}
 	}
 
 	return nil
 }
 
-func findPkgFiles(pkg *BuildPackage) {
-	pkgs, err := os.ReadDir(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch))
-	check(err)
+func (p *BuildPackage) findPkgFiles() error {
+	pkgs, err := os.ReadDir(filepath.Join(conf.Basedir.Repo, p.FullRepo, "os", conf.Arch))
+	if err != nil {
+		return err
+	}
+
+	var realPkgs []string
+	for _, realPkg := range p.Srcinfo.Packages {
+		realPkgs = append(realPkgs, realPkg.Pkgname)
+	}
 
 	var fPkg []string
 	for _, file := range pkgs {
 		if !file.IsDir() && !strings.HasSuffix(file.Name(), ".sig") {
 			matches := rePkgFile.FindStringSubmatch(file.Name())
 
-			var realPkgs []string
-			for _, realPkg := range pkg.Srcinfo.Packages {
-				realPkgs = append(realPkgs, realPkg.Pkgname)
-			}
-
 			if len(matches) > 1 && contains(realPkgs, matches[1]) {
-				fPkg = append(fPkg, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, file.Name()))
+				fPkg = append(fPkg, filepath.Join(conf.Basedir.Repo, p.FullRepo, "os", conf.Arch, file.Name()))
 			}
 		}
 	}
 
-	pkg.PkgFiles = fPkg
+	p.PkgFiles = fPkg
+	return nil
 }
 
-func getDbPackage(pkg *BuildPackage) *ent.DbPackage {
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(pkg.Pkgbase)).Only(context.Background())
-	if err != nil {
-		dbPkg = db.DbPackage.Create().SetPkgbase(pkg.Pkgbase).SetMarch(pkg.March).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetRepository(pkg.Repo).SaveX(context.Background())
+func (p *BuildPackage) toDbPackage(create bool) *ent.DbPackage {
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(p.Pkgbase)).Only(context.Background())
+	if err != nil && create {
+		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())
 	}
 
 	return dbPkg
@@ -630,14 +683,14 @@ func setupMakepkg(march string) error {
 	return nil
 }
 
-func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage, string, error) {
+func (p *BuildPackage) isMirrorLatest(h *alpm.Handle) (bool, alpm.IPackage, string, error) {
 	dbs, err := h.SyncDBs()
 	if err != nil {
 		return false, nil, "", err
 	}
 
-	allDepends := buildPkg.Srcinfo.Depends
-	allDepends = append(allDepends, buildPkg.Srcinfo.MakeDepends...)
+	allDepends := p.Srcinfo.Depends
+	allDepends = append(allDepends, p.Srcinfo.MakeDepends...)
 
 	for _, dep := range allDepends {
 		buildManager.alpmMutex.Lock()
@@ -647,9 +700,9 @@ func isMirrorLatest(h *alpm.Handle, buildPkg *BuildPackage) (bool, alpm.IPackage
 			return false, nil, "", UnableToSatisfyError{err}
 		}
 
-		svn2gitVer, err := getSVN2GITVersion(&BuildPackage{
+		svn2gitVer, err := (&BuildPackage{
 			Pkgbase: pkg.Base(),
-		}, h)
+		}).SVN2GITVersion(h)
 		if err != nil {
 			return false, nil, "", err
 		}
