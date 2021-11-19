@@ -486,7 +486,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		pkgfile := PKGFile(path)
 		dbPkg, err := pkgfile.DBPackage()
 		if err != nil {
-			log.Warningf("[HK] Unable to find entry for %s in db: %v", filepath.Base(path), err)
+			log.Warningf("[HK/%s] Unable to find entry for %s in db: %v", repo, filepath.Base(path), err)
 			// TODO: remove orphan file not tracked by db (WTF kmod-debug!)
 			continue
 		}
@@ -507,7 +507,8 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 		if err = pkg.genSrcinfo(); err != nil {
-			return err
+			log.Warningf("[HK/%s/%s] failed to gen sourceinfo: %v", repo, pkg.Pkgbase, err)
+			continue
 		}
 
 		// check if pkg signature is valid
