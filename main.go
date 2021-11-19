@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -228,12 +229,12 @@ func (b *BuildManager) parseWorker() {
 			}
 
 			if skipping {
-				dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).ExecX(context.Background())
+				dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetStatus(dbPkg.Status).SetSkipReason(dbPkg.SkipReason).SetHash(pkg.Hash).ExecX(context.Background())
 				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			} else {
-				dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
+				dbPkg = dbPkg.Update().SetUpdated(time.Now()).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetVersion(pkg.Version).SaveX(context.Background())
 			}
 
 			repoVer, err := pkg.repoVersion()
@@ -510,15 +511,23 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		// housekeeping
-		err := housekeeping()
-		if err != nil {
-			log.Warningf("Housekeeping failed: %v", err)
+		wg := new(sync.WaitGroup)
+		for _, repo := range repos {
+			wg.Add(1)
+			repo := repo
+			go func() {
+				err := housekeeping(repo, wg)
+				if err != nil {
+					log.Warningf("[%s] Housekeeping failed: %v", repo, err)
+				}
+			}()
 		}
+		wg.Wait()
 
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
-		err = setupChroot()
+		err := setupChroot()
 		for err != nil {
 			log.Warningf("Unable to upgrade chroot, trying again later.")
 			time.Sleep(time.Minute)

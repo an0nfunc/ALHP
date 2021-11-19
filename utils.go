@@ -474,88 +474,87 @@ func (path PKGFile) isSignatureValid() (bool, error) {
 	return false, nil
 }
 
-func housekeeping() error {
-	log.Debugf("Start housekeeping")
-	for _, repo := range repos {
-		packages, err := Glob(filepath.Join(conf.Basedir.Repo, repo, "/**/*.pkg.tar.zst"))
+func housekeeping(repo string, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	log.Debugf("[%s] Start housekeeping", repo)
+	packages, err := Glob(filepath.Join(conf.Basedir.Repo, repo, "/**/*.pkg.tar.zst"))
+	if err != nil {
+		return err
+	}
+
+	for _, path := range packages {
+		pkgfile := PKGFile(path)
+		dbPkg, err := pkgfile.DBPackage()
 		if err != nil {
+			log.Warningf("[HK] Unable to find entry for %s in db: %v", filepath.Base(path), err)
+			// TODO: remove orphan file not tracked by db (WTF kmod-debug!)
+			continue
+		}
+
+		pkg := &BuildPackage{
+			Pkgbase:  dbPkg.Pkgbase,
+			Repo:     dbPkg.Repository,
+			FullRepo: dbPkg.Repository.String() + "-" + dbPkg.March,
+		}
+
+		var upstream string
+		switch dbPkg.Repository {
+		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
+			upstream = "upstream-core-extra"
+		case dbpackage.RepositoryCommunity:
+			upstream = "upstream-community"
+		}
+
+		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+		if err = pkg.genSrcinfo(); err != nil {
 			return err
 		}
 
-		for _, path := range packages {
-			pkgfile := PKGFile(path)
-			dbPkg, err := pkgfile.DBPackage()
-			if err != nil {
-				log.Warningf("[HK] Unable to find entry for %s in db: %v", filepath.Base(path), err)
-				// TODO: remove orphan file not tracked by db (WTF kmod-debug!)
-				continue
-			}
+		// check if pkg signature is valid
+		valid, err := pkgfile.isSignatureValid()
+		if err != nil {
+			return err
+		}
+		if !valid {
+			log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
+			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			continue
+		}
 
-			pkg := &BuildPackage{
-				Pkgbase:  dbPkg.Pkgbase,
-				Repo:     dbPkg.Repository,
-				FullRepo: dbPkg.Repository.String() + "-" + dbPkg.March,
-			}
-
-			var upstream string
-			switch dbPkg.Repository {
-			case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
-				upstream = "upstream-core-extra"
-			case dbpackage.RepositoryCommunity:
-				upstream = "upstream-community"
-			}
-
-			pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
-			if err = pkg.genSrcinfo(); err != nil {
-				return err
-			}
-
-			// check if pkg signature is valid
-			valid, err := pkgfile.isSignatureValid()
+		// compare db-version with repo version
+		repoVer, err := pkg.repoVersion()
+		if err != nil {
+			log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
+			// error means package was not found -> delete version & hash from db so rebuild can happen
+			err := dbPkg.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
-			if !valid {
-				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
-				buildManager.repoPurge[pkg.FullRepo] <- pkg
-				continue
-			}
-
-			// compare db-version with repo version
-			repoVer, err := pkg.repoVersion()
-			if err != nil {
-				log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
-				// error means package was not found -> delete version & hash from db so rebuild can happen
-				err := dbPkg.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
-				if err != nil {
-					return err
-				}
-			} else if alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
-				log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-				dbPkg, err = dbPkg.Update().SetRepoVersion(repoVer).Save(context.Background())
-				if err != nil {
-					return err
-				}
-			}
-
-			// TODO: check split packages
-
-			// check if package is still part of repo
-			dbs, err := alpmHandle.SyncDBs()
+		} else if alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
+			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
+			dbPkg, err = dbPkg.Update().SetRepoVersion(repoVer).Save(context.Background())
 			if err != nil {
 				return err
 			}
-			pkgResolved, err := dbs.FindSatisfier(pkg.Srcinfo.Packages[0].Pkgname)
-			if err != nil || pkgResolved.DB().Name() != dbPkg.Repository.String() {
-				// package not found on mirror/db -> not part of any repo anymore
-				log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
-				buildManager.repoPurge[pkg.FullRepo] <- pkg
-				err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
-				if err != nil {
-					return err
-				}
-				continue
+		}
+
+		// TODO: check split packages
+
+		// check if package is still part of repo
+		dbs, err := alpmHandle.SyncDBs()
+		if err != nil {
+			return err
+		}
+		pkgResolved, err := dbs.FindSatisfier(pkg.Srcinfo.Packages[0].Pkgname)
+		if err != nil || pkgResolved.DB().Name() != dbPkg.Repository.String() {
+			// package not found on mirror/db -> not part of any repo anymore
+			log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
+			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
+			if err != nil {
+				return err
 			}
+			continue
 		}
 	}
 
