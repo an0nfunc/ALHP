@@ -40,6 +40,7 @@ var (
 	db            *ent.Client
 	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
 	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
+	lastHKRun     time.Time
 )
 
 func (b *BuildManager) buildWorker(id int) {
@@ -511,23 +512,32 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		// housekeeping
-		wg := new(sync.WaitGroup)
-		for _, repo := range repos {
-			wg.Add(1)
-			repo := repo
-			go func() {
-				err := housekeeping(repo, wg)
-				if err != nil {
-					log.Warningf("[%s] Housekeeping failed: %v", repo, err)
-				}
-			}()
+		hkDur, err := time.ParseDuration(conf.Housekeeping.Interval)
+		if err != nil {
+			log.Warningf("Unable to parse housekeeping duration %s: %v", conf.Housekeeping.Interval, err)
+			hkDur, _ = time.ParseDuration("12h")
 		}
-		wg.Wait()
+
+		if time.Since(lastHKRun) > hkDur {
+			lastHKRun = time.Now()
+			wg := new(sync.WaitGroup)
+			for _, repo := range repos {
+				wg.Add(1)
+				repo := repo
+				go func() {
+					err := housekeeping(repo, wg)
+					if err != nil {
+						log.Warningf("[%s] housekeeping failed: %v", repo, err)
+					}
+				}()
+			}
+			wg.Wait()
+		}
 
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
-		err := setupChroot()
+		err = setupChroot()
 		for err != nil {
 			log.Warningf("Unable to upgrade chroot, trying again later.")
 			time.Sleep(time.Minute)

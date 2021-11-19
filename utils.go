@@ -84,6 +84,9 @@ type Conf struct {
 		Repo     []string
 		LTO      []string `yaml:"lto"`
 	}
+	Housekeeping struct {
+		Interval string
+	}
 }
 
 type Globs []string
