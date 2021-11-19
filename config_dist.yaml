@@ -21,9 +21,6 @@ basedir:
 march:
   - x86-64-v3
 
-housekeeping:
-  interval: 12h
-
 blacklist:
   packages:
     - tensorflow

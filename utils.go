@@ -31,15 +31,16 @@ const (
 )
 
 type BuildPackage struct {
-	Pkgbase  string
-	Pkgbuild string
-	Srcinfo  *srcinfo.Srcinfo
-	PkgFiles []string
-	Repo     dbpackage.Repository
-	March    string
-	FullRepo string
-	Version  string
-	Hash     string
+	Pkgbase   string
+	Pkgbuild  string
+	Srcinfo   *srcinfo.Srcinfo
+	PkgFiles  []string
+	Repo      dbpackage.Repository
+	March     string
+	FullRepo  string
+	Version   string
+	Hash      string
+	DbPackage *ent.DbPackage
 }
 
 type BuildManager struct {
@@ -371,8 +372,8 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 	return constructVersion(info.Pkgver, info.Pkgrel, info.Epoch), nil
 }
 
-func isPkgFailed(pkg *BuildPackage, dbPkg *ent.DbPackage) bool {
-	if dbPkg.Version == "" {
+func isPkgFailed(pkg *BuildPackage) bool {
+	if pkg.DbPackage.Version == "" {
 		return false
 	}
 
@@ -384,10 +385,10 @@ func isPkgFailed(pkg *BuildPackage, dbPkg *ent.DbPackage) bool {
 		pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 	}
 
-	if alpm.VerCmp(dbPkg.Version, pkg.Version) < 0 {
+	if alpm.VerCmp(pkg.DbPackage.Version, pkg.Version) < 0 {
 		return false
 	} else {
-		return dbPkg.Status == dbpackage.StatusFailed
+		return pkg.DbPackage.Status == dbpackage.StatusFailed
 	}
 }
 
@@ -495,19 +496,20 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 
 		pkg := &BuildPackage{
-			Pkgbase:  dbPkg.Pkgbase,
-			Repo:     dbPkg.Repository,
-			FullRepo: dbPkg.Repository.String() + "-" + dbPkg.March,
+			Pkgbase:   dbPkg.Pkgbase,
+			Repo:      dbPkg.Repository,
+			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
+			DbPackage: dbPkg,
 		}
 
 		var upstream string
-		switch dbPkg.Repository {
+		switch pkg.DbPackage.Repository {
 		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
 			upstream = "upstream-core-extra"
 		case dbpackage.RepositoryCommunity:
 			upstream = "upstream-community"
 		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 
 		// check if pkg signature is valid
 		valid, err := pkgfile.isSignatureValid()
@@ -525,13 +527,13 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if err != nil {
 			log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
 			// error means package was not found -> delete version & hash from db so rebuild can happen
-			err := dbPkg.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
+			err := pkg.DbPackage.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
 		} else if alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
 			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			dbPkg, err = dbPkg.Update().SetRepoVersion(repoVer).Save(context.Background())
+			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).Save(context.Background())
 			if err != nil {
 				return err
 			}
@@ -545,11 +547,11 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			return err
 		}
 		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
-		if err != nil || pkgResolved.DB().Name() != dbPkg.Repository.String() {
+		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
 			buildManager.repoPurge[pkg.FullRepo] <- pkg
-			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
+			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
 			if err != nil {
 				return err
 			}
@@ -567,8 +569,8 @@ func (p *BuildPackage) findPkgFiles() error {
 	}
 
 	var realPkgs []string
-	for _, realPkg := range p.Srcinfo.Packages {
-		realPkgs = append(realPkgs, realPkg.Pkgname)
+	for _, realPkg := range p.DbPackage.Packages {
+		realPkgs = append(realPkgs, realPkg)
 	}
 
 	var fPkg []string
@@ -586,13 +588,13 @@ func (p *BuildPackage) findPkgFiles() error {
 	return nil
 }
 
-func (p *BuildPackage) toDbPackage(create bool) *ent.DbPackage {
+func (p *BuildPackage) toDbPackage(create bool) {
 	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(p.Pkgbase)).Only(context.Background())
 	if err != nil && create {
 		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())
 	}
 
-	return dbPkg
+	p.DbPackage = dbPkg
 }
 
 func syncMarchs() {
