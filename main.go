@@ -458,7 +458,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			if pkg.DbPackage != nil {
-				pkg.DbPackage = pkg.DbPackage.Update().ClearRepoVersion().SaveX(context.Background())
+				_ = pkg.DbPackage.Update().ClearRepoVersion().Exec(context.Background())
 			}
 
 			for _, file := range pkg.PkgFiles {
