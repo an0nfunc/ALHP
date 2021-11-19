@@ -507,12 +507,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		case dbpackage.RepositoryCommunity:
 			upstream = "upstream-community"
 		}
-
 		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", dbPkg.Repository.String()+"-"+conf.Arch, "PKGBUILD")
-		if err = pkg.genSrcinfo(); err != nil {
-			log.Warningf("[HK/%s/%s] failed to gen sourceinfo: %v", repo, pkg.Pkgbase, err)
-			continue
-		}
 
 		// check if pkg signature is valid
 		valid, err := pkgfile.isSignatureValid()
@@ -549,7 +544,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if err != nil {
 			return err
 		}
-		pkgResolved, err := dbs.FindSatisfier(pkg.Srcinfo.Packages[0].Pkgname)
+		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
 		if err != nil || pkgResolved.DB().Name() != dbPkg.Repository.String() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)

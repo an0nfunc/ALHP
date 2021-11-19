@@ -438,8 +438,10 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			var realPkgs []string
-			for _, realPkg := range pkg.Srcinfo.Packages {
-				realPkgs = append(realPkgs, realPkg.Pkgname)
+			for _, filePath := range pkg.PkgFiles {
+				fNameSplit := strings.Split(filepath.Base(filePath), "-")
+				pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
+				realPkgs = append(realPkgs, pkgname)
 			}
 
 			b.repoWG.Add(1)
