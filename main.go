@@ -204,6 +204,7 @@ func (b *BuildManager) parseWorker() {
 
 			if !pkg.isAvailable(alpmHandle) {
 				log.Debugf("[%s/%s] Not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
+				b.parseWG.Done()
 				continue
 			}
 
