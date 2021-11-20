@@ -202,8 +202,12 @@ func (b *BuildManager) parseWorker() {
 			}
 			pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
 
-			pkg.toDbPackage(true)
+			if !pkg.isAvailable(alpmHandle) {
+				log.Debugf("[%s/%s] Not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
+				continue
+			}
 
+			pkg.toDbPackage(true)
 			skipping := false
 			if contains(pkg.Srcinfo.Arch, "any") {
 				log.Debugf("Skipped %s: any-Package", pkg.Srcinfo.Pkgbase)
@@ -452,9 +456,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil && cmd.ProcessState.ExitCode() == 1 {
-				log.Debugf("Deleteing package %s failed: Package not found in database", pkg.Pkgbase)
-				b.repoWG.Done()
-				continue
+				log.Debugf("Deleting package %s failed: Package not found in repo-database", pkg.Pkgbase)
 			}
 
 			if pkg.DbPackage != nil {
@@ -462,8 +464,8 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			for _, file := range pkg.PkgFiles {
-				check(os.Remove(file))
-				check(os.Remove(file + ".sig"))
+				_ = os.Remove(file)
+				_ = os.Remove(file + ".sig")
 			}
 			updateLastUpdated()
 			b.repoWG.Done()

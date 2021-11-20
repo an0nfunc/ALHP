@@ -296,6 +296,26 @@ func initALPM(root string, dbpath string) (*alpm.Handle, error) {
 	return h, nil
 }
 
+func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
+	dbs, err := h.SyncDBs()
+	if err != nil {
+		return false
+	}
+
+	buildManager.alpmMutex.Lock()
+	pkg, err := dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
+	buildManager.alpmMutex.Unlock()
+	if err != nil {
+		return false
+	}
+
+	if pkg.DB().Name() != p.Repo.String() {
+		return false
+	}
+
+	return true
+}
+
 func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 	if p.Pkgbuild == "" && p.Pkgbase == "" {
 		return "", fmt.Errorf("invalid arguments")
@@ -306,7 +326,7 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 
 	var fPkgbuilds []string
 	for _, pkgbuild := range pkgBuilds {
-		sPkgbuild := strings.Split(pkgbuild, "/")
+		sPkgbuild := strings.Split(pkgbuild, string(filepath.Separator))
 		repo := sPkgbuild[len(sPkgbuild)-2]
 
 		if repo == "trunk" || containsSubStr(repo, conf.Blacklist.Repo) {
@@ -325,7 +345,9 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 			return "", err
 		}
 
+		buildManager.alpmMutex.Lock()
 		iPackage, err := dbs.FindSatisfier(p.Pkgbase)
+		buildManager.alpmMutex.Unlock()
 		if err != nil {
 			return "", err
 		}
@@ -490,8 +512,13 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		pkgfile := PKGFile(path)
 		dbPkg, err := pkgfile.DBPackage()
 		if err != nil {
-			log.Warningf("[HK/%s] Unable to find entry for %s in db: %v", repo, filepath.Base(path), err)
-			// TODO: remove orphan file not tracked by db (WTF kmod-debug!)
+			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
+			splitPath := strings.Split(path, string(filepath.Separator))
+			pkg := &BuildPackage{
+				FullRepo: splitPath[len(splitPath)-4],
+				PkgFiles: []string{path},
+			}
+			buildManager.repoPurge[pkg.FullRepo] <- pkg
 			continue
 		}
 
@@ -546,7 +573,9 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if err != nil {
 			return err
 		}
+		buildManager.alpmMutex.Lock()
 		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
+		buildManager.alpmMutex.Unlock()
 		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
