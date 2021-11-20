@@ -376,7 +376,7 @@ func (b *BuildManager) htmlWorker() {
 
 					switch pkg.Lto {
 					case dbpackage.LtoUnknown:
-						if pkg.Status != dbpackage.StatusSkipped {
+						if pkg.Status != dbpackage.StatusSkipped && pkg.Status != dbpackage.StatusFailed {
 							addPkg.LTOUnknown = true
 						}
 					case dbpackage.LtoEnabled:
