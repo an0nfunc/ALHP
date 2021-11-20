@@ -512,7 +512,9 @@ func (b *BuildManager) syncWorker() {
 				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git pull")
 				res, err = cmd.CombinedOutput()
 				log.Debug(string(res))
-				check(err)
+				if err != nil {
+					log.Warningf("Failed to update git repo %s: %v", gitDir, err)
+				}
 			}
 		}
 
