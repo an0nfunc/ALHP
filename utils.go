@@ -78,6 +78,7 @@ type Conf struct {
 	Build struct {
 		Worker int
 		Makej  int
+		Checks string
 	}
 	Logging struct {
 		Level string
@@ -691,7 +692,9 @@ func setupMakepkg(march string) error {
 	makepkgStr := string(t)
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
+	if conf.Build.Checks != "true" {
+		makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
+	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")

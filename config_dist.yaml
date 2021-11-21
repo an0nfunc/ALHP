@@ -48,6 +48,7 @@ status:
 build:
   worker: 4
   makej: 8
+  checks: true
 
 logging:
   level: INFO
