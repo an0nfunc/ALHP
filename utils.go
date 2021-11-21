@@ -82,11 +82,6 @@ type Conf struct {
 	Logging struct {
 		Level string
 	}
-	Status struct {
-		Class struct {
-			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
-		}
-	}
 	Blacklist struct {
 		Packages []string
 		Repo     []string
