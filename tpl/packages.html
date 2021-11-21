@@ -78,8 +78,10 @@
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
                             <td class="text-center">
-                                {{if $pkg.LTO}}<i class="bi bi-check-lg" title="build with LTO"></i>{{end}}
-                                {{if $pkg.LTODisabled}}<i class="bi bi-x-lg" title="LTO explicit disabled"></i>{{end}}
+                                {{if $pkg.LTO}}<i class="bi bi-check-lg" style="color: var(--bs-success)"
+                                                  title="build with LTO"></i>{{end}}
+                                {{if $pkg.LTODisabled}}<i class="bi bi-x-lg" style="color: var(--bs-danger)"
+                                                          title="LTO explicit disabled"></i>{{end}}
                                 {{if $pkg.LTOUnknown}}<i class="bi bi-hourglass" title="not build with LTO yet"></i>{{end}}
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
