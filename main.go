@@ -72,6 +72,17 @@ func (b *BuildManager) buildWorker(id int) {
 				b.buildWG.Done()
 				continue
 			}
+
+			if contains(conf.KernelToPatch, pkg.Pkgbase) {
+				err = pkg.prepareKernelPatches()
+				if err != nil {
+					log.Warningf("[%s/%s] Failed to modify PKGBUILD for kernel patch: %v", pkg.FullRepo, pkg.Pkgbase, err)
+					pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(pkg.Hash).ExecX(context.Background())
+					b.buildWG.Done()
+					continue
+				}
+			}
+
 			pkg.PkgFiles = []string{}
 			ltoDisabled := false
 
@@ -113,7 +124,7 @@ func (b *BuildManager) buildWorker(id int) {
 					continue
 				}
 
-				log.Warningf("[%s/%s] Build failed, exit code %d", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
+				log.Warningf("[%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
@@ -452,7 +463,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil && cmd.ProcessState.ExitCode() == 1 {
-				log.Debugf("Deleting package %s failed: Package not found in repo-database", pkg.Pkgbase)
+				log.Warningf("Error while deleting package %s: %s", pkg.Pkgbase, string(res))
 			}
 
 			if pkg.DbPackage != nil {

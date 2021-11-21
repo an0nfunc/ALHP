@@ -4,6 +4,7 @@ import (
 	"ALHP.go/ent"
 	"ALHP.go/ent/dbpackage"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"lukechampine.com/blake3"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,9 +34,11 @@ const (
 )
 
 var (
-	reMarch   = regexp.MustCompile(`(-march=)(.+?) `)
-	rePkgRel  = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgFile = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
+	reMarch     = regexp.MustCompile(`(-march=)(.+?) `)
+	rePkgRel    = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
+	rePkgSource = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
+	rePkgSum    = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
+	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 )
 
 type BuildPackage struct {
@@ -96,6 +100,8 @@ type Conf struct {
 			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
 		}
 	}
+	KernelPatches map[string]string `yaml:"kernel_patches"`
+	KernelToPatch []string          `yaml:"kernel_to_patch"`
 }
 
 type Globs []string
@@ -220,6 +226,104 @@ func (p *BuildPackage) increasePkgRel() error {
 	}
 
 	p.Version += ".1"
+	return nil
+}
+
+func (p *BuildPackage) prepareKernelPatches() error {
+	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(f)
+
+	fStr, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	// choose best suited patch based on kernel version
+	var curVer string
+	for k, _ := range conf.KernelPatches {
+		if alpm.VerCmp(p.Srcinfo.Pkgver, k) >= 0 && alpm.VerCmp(k, curVer) >= 0 {
+			curVer = k
+		}
+	}
+	log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
+
+	if curVer == "none" {
+		return nil
+	}
+
+	// add patch to source-array
+	orgSource := rePkgSource.FindStringSubmatch(string(fStr))
+	if orgSource == nil || len(orgSource) < 1 {
+		return fmt.Errorf("no source=() found")
+	}
+
+	sources := strings.Split(orgSource[1], "\n")
+	sources = append(sources, fmt.Sprintf("\"%s\"", conf.KernelPatches[curVer]))
+
+	newPKGBUILD := rePkgSource.ReplaceAllLiteralString(string(fStr), fmt.Sprintf("source=(%s)", strings.Join(sources, "\n")))
+
+	// add patch sha256 to sha256sums-array (yes, hardcoded to sha256)
+	// TODO: support all sums that makepkg also supports
+	// get sum
+	resp, err := http.Get(conf.KernelPatches[curVer])
+	if err != nil {
+		return err
+	}
+	h := sha256.New()
+	_, err = io.Copy(h, resp.Body)
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	orgSums := rePkgSum.FindStringSubmatch(newPKGBUILD)
+	if orgSums == nil || len(orgSums) < 1 {
+		return fmt.Errorf("no sha256sums=() found")
+	}
+
+	sums := strings.Split(orgSums[1], "\n")
+	sums = append(sums, fmt.Sprintf("'%s'", hex.EncodeToString(h.Sum(nil))))
+
+	newPKGBUILD = rePkgSum.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("sha256sums=(\n%s\n)", strings.Join(sums, "\n")))
+
+	// enable config option
+	switch {
+	case strings.Contains(p.March, "v4"):
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU4=y >> .config\nmake olddefconfig\n", 1)
+	case strings.Contains(p.March, "v3"):
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU3=y >> .config\nmake olddefconfig\n", 1)
+	case strings.Contains(p.March, "v2"):
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU2=y >> .config\nmake olddefconfig\n", 1)
+	}
+
+	// empty file before writing
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	err = f.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.WriteString(newPKGBUILD)
+	if err != nil {
+		return err
+	}
+
+	log.Debug(newPKGBUILD)
+
 	return nil
 }
 
@@ -562,7 +666,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if err != nil {
 			log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
 			// error means package was not found -> delete version & hash from db so rebuild can happen
-			err := pkg.DbPackage.Update().ClearHash().ClearRepoVersion().Exec(context.Background())
+			err := pkg.DbPackage.Update().ClearStatus().ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
