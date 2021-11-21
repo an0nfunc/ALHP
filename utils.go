@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,12 @@ const (
 	logDir         = "logs"
 	pristineChroot = "root"
 	lastUpdate     = "lastupdate"
+)
+
+var (
+	reMarch   = regexp.MustCompile(`(-march=)(.+?) `)
+	rePkgRel  = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
+	rePkgFile = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 )
 
 type BuildPackage struct {
@@ -133,25 +140,6 @@ func containsSubStr(str string, subList []string) bool {
 		}
 	}
 	return false
-}
-
-func statusId2string(s dbpackage.Status) (string, string) {
-	switch s {
-	case dbpackage.StatusSkipped:
-		return "SKIPPED", "table-" + conf.Status.Class.Skipped
-	case dbpackage.StatusQueued:
-		return "QUEUED", "table-" + conf.Status.Class.Queued
-	case dbpackage.StatusLatest:
-		return "LATEST", "table-" + conf.Status.Class.Latest
-	case dbpackage.StatusFailed:
-		return "FAILED", "table-" + conf.Status.Class.Failed
-	case dbpackage.StatusSigning:
-		return "SIGNING", "table-" + conf.Status.Class.Signing
-	case dbpackage.StatusBuilding:
-		return "BUILDING", "table-" + conf.Status.Class.Building
-	default:
-		return "UNKNOWN", "table-" + conf.Status.Class.Unknown
-	}
 }
 
 func (p *BuildPackage) repoVersion() (string, error) {
@@ -578,7 +566,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		buildManager.alpmMutex.Unlock()
 		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() {
 			// package not found on mirror/db -> not part of any repo anymore
-			log.Infof("[HK/%s/%s] not part of repo", pkg.FullRepo, pkg.Pkgbase)
+			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
 			buildManager.repoPurge[pkg.FullRepo] <- pkg
 			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
 			if err != nil {

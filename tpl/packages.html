@@ -16,8 +16,34 @@
     </style>
 
     <title>ALHP Status</title>
+
+    <style>
+        .table-latest {
+            --bs-table-bg: #172322;
+        }
+
+        .table-skipped {
+            --bs-table-bg: #2d2d2d;
+        }
+
+        .table-failed {
+            --bs-table-bg: #412323;
+        }
+
+        .table-queued {
+            --bs-table-bg: #8f833a;
+        }
+
+        .table-building {
+            --bs-table-bg: #375e9d;
+        }
+
+        .table-unknown {
+            --bs-table-bg: #969696;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-dark">
 <nav class="navbar navbar-expand-lg sticky-top navbar-light bg-info mb-5">
     <div class="container">
         <div class="d-flex justify-content-start">
@@ -35,25 +61,26 @@
     </div>
 </nav>
 
-<div class="container">
+<div class="container text-light">
     {{range $march := .March}}
     <h3>{{$march.Name}}</h3>
     <div class="accordion" id="accordion-{{$march.Name}}">
         {{range $repo := $march.Repos}}
-        <div class="accordion-item">
+        <div class="accordion-item bg-dark bg-opacity-25 border-light">
             <h2 class="accordion-header" id="heading-{{$march.Name}}-{{$repo.Name}}">
                 <button aria-controls="collapse-{{$march.Name}}-{{$repo.Name}}" aria-expanded="false"
-                        class="accordion-button"
+                        class="accordion-button bg-opacity-50 bg-dark text-light border-light"
                         data-bs-target="#collapse-{{$march.Name}}-{{$repo.Name}}"
                         data-bs-toggle="collapse"
                         type="button">{{$repo.Name}}-{{$march.Name}}
                 </button>
             </h2>
-            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}" class="accordion-collapse collapse show"
+            <div aria-labelledby="heading-{{$march.Name}}-{{$repo.Name}}"
+                 class="accordion-collapse collapse show border-light"
                  data-bs-parent="#accordion-{{$march.Name}}" id="collapse-{{$march.Name}}-{{$repo.Name}}">
                 <div class="accordion-body overflow-auto">
                     <table class="table table-sorted">
-                        <thead>
+                        <thead class="text-light">
                         <tr>
                             <th scope="col">Pkgbase</th>
                             <th scope="col">Status</th>
@@ -61,30 +88,29 @@
                             <th class="text-center" scope="col" title="link time optimization">LTO</th>
                             <th scope="col">SVN2GIT Version</th>
                             <th scope="col">{{$repo.Name}}-{{$march.Name}} Version</th>
-                            <th scope="col">Info</th>
+                            <th class="text-end" scope="col">Info</th>
                         </tr>
                         </thead>
                         <tbody>
                         {{range $pkg := $repo.Packages}}
-                        <tr class="{{$pkg.Class}}" id="{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}">
-                            <td>{{$pkg.Pkgbase}} <a class="text-muted small text-decoration-none"
-                                                    href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}"><sup>AW</sup></a>
-                            </td>
+                        <tr class="table-dark table-{{$pkg.Class}}"
+                            id="{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}">
+                            <td>{{$pkg.Pkgbase}}</td>
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
-                            <td class="text-center">
-                                {{if $pkg.LTO}}<i class="bi bi-check-lg" style="color: var(--bs-success);"
-                                                  title="build with LTO"></i>{{end}}
-                                {{if $pkg.LTODisabled}}<i class="bi bi-x-lg" style="color: var(--bs-danger);"
-                                                          title="LTO explicit disabled"></i>{{end}}
+                            <td class="text-center text-light">
+                                {{if $pkg.LTO}}<i class="bi bi-check-lg" title="build with LTO"></i>{{end}}
+                                {{if $pkg.LTODisabled}}<i class="bi bi-x-lg" title="LTO explicit disabled"></i>{{end}}
                                 {{if $pkg.LTOUnknown}}<i class="bi bi-hourglass" title="not build with LTO yet"></i>{{end}}
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
-                            <td class="text-center">
+                            <td class="text-end text-light">
                                 {{with $pkg.Log}}<a href="{{.}}"
                             ><i class="bi bi-file-text-fill"></i></a
                             >{{end}}
+                                <a class="text-decoration-none fw-bold"
+                                   href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}">AW</a>
                                 <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
                                    href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
                                    title="{{if $pkg.BuildDate}}Build on {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build duration: {{$pkg.BuildDuration}}&#10;{{end}}Last checked on {{$pkg.Checked}}">

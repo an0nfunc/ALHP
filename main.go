@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -33,9 +32,6 @@ var (
 	conf          *Conf
 	repos         []string
 	alpmHandle    *alpm.Handle
-	reMarch       = regexp.MustCompile(`(-march=)(.+?) `)
-	rePkgRel      = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgFile     = regexp.MustCompile(`^(.*)-.*-.*-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	buildManager  *BuildManager
 	db            *ent.Client
 	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
@@ -348,12 +344,11 @@ func (b *BuildManager) htmlWorker() {
 				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(dbpackage.Repository(repo))).AllX(context.Background())
 
 				for _, pkg := range pkgs {
-					status, class := statusId2string(pkg.Status)
 
 					addPkg := Pkg{
 						Pkgbase:        pkg.Pkgbase,
-						Status:         status,
-						Class:          class,
+						Status:         strings.ToUpper(pkg.Status.String()),
+						Class:          pkg.Status.String(),
 						Skip:           pkg.SkipReason,
 						Version:        pkg.RepoVersion,
 						Svn2GitVersion: pkg.Version,
