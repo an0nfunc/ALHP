@@ -692,7 +692,7 @@ func setupMakepkg(march string) error {
 	makepkgStr := string(t)
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	if conf.Build.Checks {
+	if !conf.Build.Checks {
 		makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
