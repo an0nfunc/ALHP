@@ -35,6 +35,16 @@ blacklist:
     - llvm
     - rust
 
+status:
+  class:
+    skipped: "secondary"
+    queued: "warning"
+    latest: "primary"
+    failed: "danger"
+    signing: "success"
+    building: "info"
+    unknown: "dark"
+
 build:
   worker: 4
   makej: 8

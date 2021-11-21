@@ -348,7 +348,7 @@ func (b *BuildManager) htmlWorker() {
 					addPkg := Pkg{
 						Pkgbase:        pkg.Pkgbase,
 						Status:         strings.ToUpper(pkg.Status.String()),
-						Class:          pkg.Status.String(),
+						Class:          statusId2string(pkg.Status),
 						Skip:           pkg.SkipReason,
 						Version:        pkg.RepoVersion,
 						Svn2GitVersion: pkg.Version,

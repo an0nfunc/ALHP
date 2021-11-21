@@ -90,6 +90,11 @@ type Conf struct {
 	Housekeeping struct {
 		Interval string
 	}
+	Status struct {
+		Class struct {
+			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
+		}
+	}
 }
 
 type Globs []string
@@ -110,6 +115,25 @@ func check(e error) {
 
 func updateLastUpdated() {
 	check(os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644))
+}
+
+func statusId2string(s dbpackage.Status) string {
+	switch s {
+	case dbpackage.StatusSkipped:
+		return conf.Status.Class.Skipped
+	case dbpackage.StatusQueued:
+		return conf.Status.Class.Queued
+	case dbpackage.StatusLatest:
+		return conf.Status.Class.Latest
+	case dbpackage.StatusFailed:
+		return conf.Status.Class.Failed
+	case dbpackage.StatusSigning:
+		return conf.Status.Class.Signing
+	case dbpackage.StatusBuilding:
+		return conf.Status.Class.Building
+	default:
+		return conf.Status.Class.Unknown
+	}
 }
 
 func b3sum(filePath string) (string, error) {
