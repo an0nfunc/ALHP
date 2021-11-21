@@ -1,11 +1,9 @@
 # ALHP
 
-![](https://img.shields.io/badge/license-GPL-blue) ![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay)
+![](https://img.shields.io/badge/license-GPL-blue) [![](https://img.shields.io/badge/package-status-informational)](https://alhp.anonfunc.dev/packages.html) ![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay)
 
 Build script for archlinux instructionset enabled repos. All packages are build with `-march=<cpu-set> -O3`. Some
 packages will fail to build, they will just be provided from the official repos as usual.
-
-[Package status page](https://alhp.anonfunc.dev/packages.html)
 
 ## Check your system for support
 
