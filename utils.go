@@ -249,7 +249,7 @@ func (p *BuildPackage) prepareKernelPatches() error {
 
 	// choose best suited patch based on kernel version
 	var curVer string
-	for k, _ := range conf.KernelPatches {
+	for k := range conf.KernelPatches {
 		if alpm.VerCmp(p.Srcinfo.Pkgver, k) >= 0 && alpm.VerCmp(k, curVer) >= 0 {
 			curVer = k
 		}
@@ -257,7 +257,7 @@ func (p *BuildPackage) prepareKernelPatches() error {
 	log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
 
 	if curVer == "none" {
-		return nil
+		return fmt.Errorf("no patch available")
 	}
 
 	// add patch to source-array
