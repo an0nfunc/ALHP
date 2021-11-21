@@ -121,7 +121,7 @@
     let input = document.getElementById('table-sort-input');
     let timeout = null;
 
-    input.addEventListener('keyup', function (e) {
+    input.addEventListener('input', function (e) {
         clearTimeout(timeout);
 
         timeout = setTimeout(searchFilter, 200);
