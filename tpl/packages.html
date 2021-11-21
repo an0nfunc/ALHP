@@ -67,7 +67,9 @@
                         <tbody>
                         {{range $pkg := $repo.Packages}}
                         <tr class="{{$pkg.Class}}" id="{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}">
-                            <td>{{$pkg.Pkgbase}}</td>
+                            <td>{{$pkg.Pkgbase}} <a class="text-muted small text-decoration-none"
+                                                    href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}"><sup>AW</sup></a>
+                            </td>
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
                             <td class="text-center">
