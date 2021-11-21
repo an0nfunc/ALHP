@@ -1,4 +1,6 @@
-# alhp
+# ALHP
+
+![](https://img.shields.io/badge/license-GPL-blue) ![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay)
 
 Build script for archlinux instructionset enabled repos. All packages are build with `-march=<cpu-set> -O3`. Some
 packages will fail to build, they will just be provided from the official repos as usual.
@@ -149,4 +151,4 @@ so, [see this issue for how to become one](https://git.harting.dev/anonfunc/ALHP
 I appreciate any money you want to throw my way, but donations are strictly optional. Also
 consider [donating to the Archlinux Team](https://archlinux.org/donate/), without their work ALHP would not be possible.
 
-[Donate on LiberaPay](https://liberapay.com/anonfunc/)
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/anonfunc/)
