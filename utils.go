@@ -78,7 +78,7 @@ type Conf struct {
 	Build struct {
 		Worker int
 		Makej  int
-		Checks string
+		Checks bool
 	}
 	Logging struct {
 		Level string
@@ -692,7 +692,7 @@ func setupMakepkg(march string) error {
 	makepkgStr := string(t)
 
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	if strings.ToLower(conf.Build.Checks) != "true" {
+	if conf.Build.Checks {
 		makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
 	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
