@@ -664,7 +664,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		// compare db-version with repo version
 		repoVer, err := pkg.repoVersion()
 		if err != nil {
-			log.Infof("[HK/%s/%s] package not present on disk", pkg.FullRepo, pkg.Pkgbase)
+			log.Infof("[HK/%s/%s] package not present on disk (%v)", pkg.FullRepo, pkg.Pkgbase, err)
 			// error means package was not found -> delete version & hash from db so rebuild can happen
 			err := pkg.DbPackage.Update().ClearStatus().ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {

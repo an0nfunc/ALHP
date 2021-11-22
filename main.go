@@ -615,6 +615,9 @@ func main() {
 	killSignals := make(chan os.Signal, 1)
 	signal.Notify(killSignals, syscall.SIGINT, syscall.SIGTERM)
 
+	reloadSignals := make(chan os.Signal, 1)
+	signal.Notify(reloadSignals, syscall.SIGUSR1)
+
 	flag.Parse()
 
 	confStr, err := os.ReadFile("config.yaml")
@@ -680,7 +683,29 @@ func main() {
 	go buildManager.syncWorker()
 	go buildManager.htmlWorker()
 
-	<-killSignals
+killLoop:
+	for {
+		select {
+		case <-killSignals:
+			break killLoop
+		case <-reloadSignals:
+			confStr, err := os.ReadFile("config.yaml")
+			if err != nil {
+				log.Fatalf("Unable to open config: %v", err)
+			}
+
+			err = yaml.Unmarshal(confStr, &conf)
+			if err != nil {
+				log.Fatalf("Unable to parse config: %v", err)
+			}
+
+			lvl, err := log.ParseLevel(conf.Logging.Level)
+			if err != nil {
+				log.Fatalf("Failure setting logging level: %v", err)
+			}
+			log.SetLevel(lvl)
+		}
+	}
 
 	buildManager.exit = true
 	buildManager.buildProcMutex.RLock()
