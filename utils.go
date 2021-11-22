@@ -300,11 +300,11 @@ func (p *BuildPackage) prepareKernelPatches() error {
 	// enable config option
 	switch {
 	case strings.Contains(p.March, "v4"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU4=y >> .config\nmake olddefconfig\n", 1)
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU4=y >> .config\nmake olddefconfig\n", 1)
 	case strings.Contains(p.March, "v3"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU3=y >> .config\nmake olddefconfig\n", 1)
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU3=y >> .config\nmake olddefconfig\n", 1)
 	case strings.Contains(p.March, "v2"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo GENERIC_CPU2=y >> .config\nmake olddefconfig\n", 1)
+		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU2=y >> .config\nmake olddefconfig\n", 1)
 	}
 
 	// empty file before writing
@@ -663,14 +663,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		// compare db-version with repo version
 		repoVer, err := pkg.repoVersion()
-		if err != nil {
-			log.Infof("[HK/%s/%s] package not present on disk (%v)", pkg.FullRepo, pkg.Pkgbase, err)
-			// error means package was not found -> delete version & hash from db so rebuild can happen
-			err := pkg.DbPackage.Update().ClearStatus().ClearHash().ClearRepoVersion().Exec(context.Background())
-			if err != nil {
-				return err
-			}
-		} else if alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
+		if err == nil && alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
 			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
 			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).Save(context.Background())
 			if err != nil {
