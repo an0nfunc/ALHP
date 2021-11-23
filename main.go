@@ -704,6 +704,7 @@ killLoop:
 				log.Fatalf("Failure setting logging level: %v", err)
 			}
 			log.SetLevel(lvl)
+			log.Infof("Config reloaded")
 		}
 	}
 
