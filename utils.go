@@ -322,8 +322,6 @@ func (p *BuildPackage) prepareKernelPatches() error {
 		return err
 	}
 
-	log.Debug(newPKGBUILD)
-
 	return nil
 }
 

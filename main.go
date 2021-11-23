@@ -337,6 +337,9 @@ func (b *BuildManager) htmlWorker() {
 	type tpl struct {
 		March     []March
 		Generated string
+		Latest    int
+		Failed    int
+		Skipped   int
 	}
 
 	for {
@@ -400,6 +403,24 @@ func (b *BuildManager) htmlWorker() {
 		}
 
 		gen.Generated = time.Now().UTC().Format(time.RFC1123)
+
+		var v []struct {
+			Status dbpackage.Status `json:"status"`
+			Count  int              `json:"count"`
+		}
+
+		db.DbPackage.Query().GroupBy(dbpackage.FieldStatus).Aggregate(ent.Count()).ScanX(context.Background(), &v)
+
+		for _, c := range v {
+			switch c.Status {
+			case dbpackage.StatusFailed:
+				gen.Failed = c.Count
+			case dbpackage.StatusSkipped:
+				gen.Skipped = c.Count
+			case dbpackage.StatusLatest:
+				gen.Latest = c.Count
+			}
+		}
 
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		check(err)

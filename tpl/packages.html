@@ -109,9 +109,11 @@
     {{end}}
 </div>
 
-<footer class="text-center text-lg-start bg-dark text-muted mt-3 fixed-bottom">
-    <div class="text-center p-2" style="background-color: rgba(0, 0, 0, 0.05)">
-        {{.Generated}}
+<footer class="text-center text-lg-start bg-dark mt-3 fixed-bottom">
+    <div class="p-2 text-center">
+        {{.Latest}} <span class="text-primary">build</span> {{.Skipped}} <span
+            class="text-secondary">skipped</span> {{.Failed}} <span class="text-danger">failed</span> || <span
+            class="text-muted">{{.Generated}}</span>
     </div>
 </footer>
 
