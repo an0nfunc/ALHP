@@ -275,7 +275,7 @@ func (p *BuildPackage) prepareKernelPatches() error {
 	// TODO: support all sums that makepkg also supports
 	// get sum
 	resp, err := http.Get(conf.KernelPatches[curVer])
-	if err != nil {
+	if err != nil || resp.StatusCode != 200 {
 		return err
 	}
 	h := sha256.New()
