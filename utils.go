@@ -250,52 +250,60 @@ func (p *BuildPackage) prepareKernelPatches() error {
 	// choose best suited patch based on kernel version
 	var curVer string
 	for k := range conf.KernelPatches {
+		if k == p.Pkgbase {
+			curVer = k
+			break
+		}
 		if alpm.VerCmp(p.Srcinfo.Pkgver, k) >= 0 && alpm.VerCmp(k, curVer) >= 0 {
 			curVer = k
 		}
 	}
-	log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
 
-	if curVer == "none" {
+	newPKGBUILD := string(fStr)
+	if conf.KernelPatches[curVer] == "none" {
 		return fmt.Errorf("no patch available")
+	} else if conf.KernelPatches[curVer] == "skip" {
+		log.Debugf("[KP] skipped patching for %s", p.Pkgbase)
+	} else {
+		log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
+
+		// add patch to source-array
+		orgSource := rePkgSource.FindStringSubmatch(newPKGBUILD)
+		if orgSource == nil || len(orgSource) < 1 {
+			return fmt.Errorf("no source=() found")
+		}
+
+		sources := strings.Split(orgSource[1], "\n")
+		sources = append(sources, fmt.Sprintf("\"%s\"", conf.KernelPatches[curVer]))
+
+		newPKGBUILD = rePkgSource.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("source=(%s)", strings.Join(sources, "\n")))
+
+		// add patch sha256 to sha256sums-array (yes, hardcoded to sha256)
+		// TODO: support all sums that makepkg also supports
+		// get sum
+		resp, err := http.Get(conf.KernelPatches[curVer])
+		if err != nil || resp.StatusCode != 200 {
+			return err
+		}
+		h := sha256.New()
+		_, err = io.Copy(h, resp.Body)
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		orgSums := rePkgSum.FindStringSubmatch(newPKGBUILD)
+		if orgSums == nil || len(orgSums) < 1 {
+			return fmt.Errorf("no sha256sums=() found")
+		}
+
+		sums := strings.Split(orgSums[1], "\n")
+		sums = append(sums, fmt.Sprintf("'%s'", hex.EncodeToString(h.Sum(nil))))
+
+		newPKGBUILD = rePkgSum.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("sha256sums=(\n%s\n)", strings.Join(sums, "\n")))
 	}
-
-	// add patch to source-array
-	orgSource := rePkgSource.FindStringSubmatch(string(fStr))
-	if orgSource == nil || len(orgSource) < 1 {
-		return fmt.Errorf("no source=() found")
-	}
-
-	sources := strings.Split(orgSource[1], "\n")
-	sources = append(sources, fmt.Sprintf("\"%s\"", conf.KernelPatches[curVer]))
-
-	newPKGBUILD := rePkgSource.ReplaceAllLiteralString(string(fStr), fmt.Sprintf("source=(%s)", strings.Join(sources, "\n")))
-
-	// add patch sha256 to sha256sums-array (yes, hardcoded to sha256)
-	// TODO: support all sums that makepkg also supports
-	// get sum
-	resp, err := http.Get(conf.KernelPatches[curVer])
-	if err != nil || resp.StatusCode != 200 {
-		return err
-	}
-	h := sha256.New()
-	_, err = io.Copy(h, resp.Body)
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	orgSums := rePkgSum.FindStringSubmatch(newPKGBUILD)
-	if orgSums == nil || len(orgSums) < 1 {
-		return fmt.Errorf("no sha256sums=() found")
-	}
-
-	sums := strings.Split(orgSums[1], "\n")
-	sums = append(sums, fmt.Sprintf("'%s'", hex.EncodeToString(h.Sum(nil))))
-
-	newPKGBUILD = rePkgSum.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("sha256sums=(\n%s\n)", strings.Join(sums, "\n")))
 
 	// enable config option
 	switch {
