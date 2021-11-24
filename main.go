@@ -340,6 +340,7 @@ func (b *BuildManager) htmlWorker() {
 		Latest    int
 		Failed    int
 		Skipped   int
+		Queued    int
 	}
 
 	for {
@@ -419,6 +420,8 @@ func (b *BuildManager) htmlWorker() {
 				gen.Skipped = c.Count
 			case dbpackage.StatusLatest:
 				gen.Latest = c.Count
+			case dbpackage.StatusQueued:
+				gen.Queued = c.Count
 			}
 		}
 
