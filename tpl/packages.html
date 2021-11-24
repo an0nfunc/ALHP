@@ -20,6 +20,11 @@
         .accordion:last-child {
             padding-bottom: 8vh;
         }
+
+        .info-box {
+            overflow: hidden;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -86,7 +91,7 @@
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
-                            <td class="text-end">
+                            <td class="text-end info-box">
                                 {{with $pkg.Log}}<a href="{{.}}"
                             ><i class="bi bi-file-text-fill"></i></a
                             >{{end}}
