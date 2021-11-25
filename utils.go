@@ -803,6 +803,7 @@ func setupMakepkg(march string) error {
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
+	makepkgStr = strings.ReplaceAll(makepkgStr, "#PACKAGER=\"John Doe <john@doe.com>\"", "PACKAGER=\"ALHP "+march+" <alhp@harting.dev>\"")
 
 	// write non-lto makepkg
 	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
