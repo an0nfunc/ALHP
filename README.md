@@ -68,10 +68,10 @@ Include = /etc/pacman.d/mirrorlist
 ```
 
 Replace `x86-64-v3` with your x86-64 feature level.
-> ALHP only builds for `x86-64-v3` at to moment (list is subject to change). You can see all available repositories [here](https://alhp.harting.dev/).
+> ALHP only builds for `x86-64-v3` at the moment (list is subject to change). You can see all available repositories
+> [here](https://alhp.harting.dev/).
 
 Update package database and upgrade:
-
 ```
 pacman -Suy
 ```
@@ -81,7 +81,6 @@ pacman -Suy
 To disable ALHP remove all *x86-64-vX* entries in `/etc/pacman.conf` and remove `alhp-keyring` and `alhp-mirrorlist`.
 
 After that you can refresh pacmans databases and downgrade all packages like:
-
 ```
 pacman -Suuy
 ```
