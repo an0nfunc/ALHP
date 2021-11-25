@@ -114,10 +114,16 @@
 
 <footer class="text-center text-lg-start bg-dark mt-3 fixed-bottom">
     <div class="p-2 text-center">
-        {{.Latest}} <span class="text-primary">build</span> {{.Queued}} <span class="text-warning">queued</span>
-        {{.Skipped}} <span
-            class="text-secondary">skipped</span> {{.Failed}} <span class="text-danger">failed</span> || <span
-            class="text-muted">{{.Generated}}</span>
+        {{.Latest}} <span class="text-primary">build</span>
+        {{.Queued}} <span class="text-warning">queued</span>
+        {{.Skipped}} <span class="text-secondary">skipped</span>
+        {{.Failed}} <span class="text-danger">failed</span>
+        ||
+        LTO: {{.LTOEnabled}} <span class="text-success">enabled</span>
+        {{.LTODisabled}} <span class="text-danger">disabled</span>
+        {{.LTOUnknown}} <span class="text-secondary">unknown</span>
+        ||
+        <span class="text-muted">{{.Generated}}</span>
     </div>
 </footer>
 

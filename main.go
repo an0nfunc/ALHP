@@ -345,12 +345,15 @@ func (b *BuildManager) htmlWorker() {
 	}
 
 	type tpl struct {
-		March     []March
-		Generated string
-		Latest    int
-		Failed    int
-		Skipped   int
-		Queued    int
+		March       []March
+		Generated   string
+		Latest      int
+		Failed      int
+		Skipped     int
+		Queued      int
+		LTOEnabled  int
+		LTOUnknown  int
+		LTODisabled int
 	}
 
 	for {
@@ -434,6 +437,24 @@ func (b *BuildManager) htmlWorker() {
 				gen.Latest = c.Count
 			case dbpackage.StatusQueued:
 				gen.Queued = c.Count
+			}
+		}
+
+		var v2 []struct {
+			Status dbpackage.Lto `json:"lto"`
+			Count  int           `json:"count"`
+		}
+
+		db.DbPackage.Query().GroupBy(dbpackage.FieldLto).Aggregate(ent.Count()).ScanX(context.Background(), &v2)
+
+		for _, c := range v2 {
+			switch c.Status {
+			case dbpackage.LtoUnknown:
+				gen.LTOUnknown = c.Count
+			case dbpackage.LtoDisabled, dbpackage.LtoAutoDisabled:
+				gen.LTODisabled += c.Count
+			case dbpackage.LtoEnabled:
+				gen.LTOEnabled = c.Count
 			}
 		}
 
