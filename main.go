@@ -61,7 +61,7 @@ func (b *BuildManager) buildWorker(id int) {
 			pkg.toDbPackage(true)
 			pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(context.Background())
 
-			err := importKeys(pkg)
+			err := pkg.importKeys()
 			if err != nil {
 				log.Warningf("[%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, err)
 			}
@@ -84,15 +84,12 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 
 			pkg.PkgFiles = []string{}
-			ltoDisabled := false
 
 			// default to LTO
 			makepkgFile := "makepkg-%s-lto.conf"
-			if contains(conf.Blacklist.LTO, pkg.Pkgbase) {
+			if pkg.DbPackage.Lto == dbpackage.LtoDisabled || pkg.DbPackage.Lto == dbpackage.LtoAutoDisabled {
 				// use non-lto makepkg.conf if LTO is blacklisted for this package
 				makepkgFile = "makepkg-%s.conf"
-				ltoDisabled = true
-				pkg.DbPackage.Update().SetLto(dbpackage.LtoDisabled).ExecX(context.Background())
 			}
 			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
@@ -120,6 +117,14 @@ func (b *BuildManager) buildWorker(id int) {
 
 			if err != nil {
 				if b.exit {
+					b.buildWG.Done()
+					continue
+				}
+
+				if pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled && pkg.DbPackage.Lto != dbpackage.LtoDisabled && reLdError.Match(out.Bytes()) {
+					log.Infof("[%s/%s] ld error detected, disabling LTO", pkg.FullRepo, pkg.Pkgbase)
+					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(context.Background())
+					gitClean(pkg)
 					b.buildWG.Done()
 					continue
 				}
@@ -181,10 +186,10 @@ func (b *BuildManager) buildWorker(id int) {
 				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
 			}
 
-			if !ltoDisabled {
+			if pkg.DbPackage.Lto != dbpackage.LtoDisabled && pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled {
 				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 			} else {
-				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoDisabled).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 			}
 
 			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
@@ -241,14 +246,18 @@ func (b *BuildManager) parseWorker() {
 			}
 
 			if skipping {
-				pkg.DbPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).
+				pkg.DbPackage = pkg.DbPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).
 					SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetStatus(pkg.DbPackage.Status).
-					SetSkipReason(pkg.DbPackage.SkipReason).SetHash(pkg.Hash).ExecX(context.Background())
+					SetSkipReason(pkg.DbPackage.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
 				b.repoPurge[pkg.FullRepo] <- pkg
 				b.parseWG.Done()
 				continue
 			} else {
 				pkg.DbPackage = pkg.DbPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetVersion(pkg.Version).SaveX(context.Background())
+			}
+
+			if contains(conf.Blacklist.LTO, pkg.Pkgbase) {
+				pkg.DbPackage = pkg.DbPackage.Update().SetLto(dbpackage.LtoDisabled).SaveX(context.Background())
 			}
 
 			repoVer, err := pkg.repoVersion()
@@ -309,19 +318,20 @@ func (b *BuildManager) parseWorker() {
 
 func (b *BuildManager) htmlWorker() {
 	type Pkg struct {
-		Pkgbase        string
-		Status         string
-		Class          string
-		Skip           string
-		Version        string
-		Svn2GitVersion string
-		BuildDate      string
-		BuildDuration  time.Duration
-		Checked        string
-		Log            string
-		LTO            bool
-		LTOUnknown     bool
-		LTODisabled    bool
+		Pkgbase         string
+		Status          string
+		Class           string
+		Skip            string
+		Version         string
+		Svn2GitVersion  string
+		BuildDate       string
+		BuildDuration   time.Duration
+		Checked         string
+		Log             string
+		LTO             bool
+		LTOUnknown      bool
+		LTODisabled     bool
+		LTOAutoDisabled bool
 	}
 
 	type Repo struct {
@@ -394,6 +404,8 @@ func (b *BuildManager) htmlWorker() {
 						addPkg.LTO = true
 					case dbpackage.LtoDisabled:
 						addPkg.LTODisabled = true
+					case dbpackage.LtoAutoDisabled:
+						addPkg.LTOAutoDisabled = true
 					}
 
 					addRepo.Packages = append(addRepo.Packages, addPkg)

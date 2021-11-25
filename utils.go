@@ -39,6 +39,7 @@ var (
 	rePkgSource = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
 	rePkgSum    = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
 	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
+	reLdError   = regexp.MustCompile(`(?mi)^\s*collect2: error: ld returned (\d+) exit status$`)
 )
 
 type BuildPackage struct {
@@ -354,10 +355,10 @@ func packages2slice(pkgs interface{}) []string {
 	}
 }
 
-func importKeys(pkg *BuildPackage) error {
-	if pkg.Srcinfo.ValidPGPKeys != nil {
+func (p *BuildPackage) importKeys() error {
+	if p.Srcinfo.ValidPGPKeys != nil {
 		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
-		args = append(args, pkg.Srcinfo.ValidPGPKeys...)
+		args = append(args, p.Srcinfo.ValidPGPKeys...)
 		cmd := exec.Command("gpg", args...)
 		_, err := cmd.CombinedOutput()
 

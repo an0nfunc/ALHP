@@ -82,6 +82,9 @@
                                                   title="build with LTO"></i>{{end}}
                                 {{if $pkg.LTODisabled}}<i class="fa fa-times" style="color: var(--bs-danger)"
                                                           title="LTO explicitly disabled"></i>{{end}}
+                                {{if $pkg.LTOAutoDisabled}}<i class="fa fa-times-circle-o"
+                                                              style="color: var(--bs-danger)"
+                                                              title="LTO automatically disabled"></i>{{end}}
                                 {{if $pkg.LTOUnknown}}<i class="fa fa-hourglass-o" title="not build with LTO yet"></i>{{end}}
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>

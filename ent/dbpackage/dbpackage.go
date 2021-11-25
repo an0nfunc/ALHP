@@ -140,9 +140,10 @@ const DefaultLto = LtoUnknown
 
 // Lto values.
 const (
-	LtoEnabled  Lto = "enabled"
-	LtoUnknown  Lto = "unknown"
-	LtoDisabled Lto = "disabled"
+	LtoEnabled      Lto = "enabled"
+	LtoUnknown      Lto = "unknown"
+	LtoDisabled     Lto = "disabled"
+	LtoAutoDisabled Lto = "auto_disabled"
 )
 
 func (l Lto) String() string {
@@ -152,7 +153,7 @@ func (l Lto) String() string {
 // LtoValidator is a validator for the "lto" field enum values. It is called by the builders before save.
 func LtoValidator(l Lto) error {
 	switch l {
-	case LtoEnabled, LtoUnknown, LtoDisabled:
+	case LtoEnabled, LtoUnknown, LtoDisabled, LtoAutoDisabled:
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for lto field: %q", l)
