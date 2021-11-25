@@ -445,7 +445,7 @@ func (b *BuildManager) htmlWorker() {
 			Count  int           `json:"count"`
 		}
 
-		db.DbPackage.Query().GroupBy(dbpackage.FieldLto).Aggregate(ent.Count()).ScanX(context.Background(), &v2)
+		db.DbPackage.Query().Where(dbpackage.StatusNEQ(dbpackage.StatusSkipped)).GroupBy(dbpackage.FieldLto).Aggregate(ent.Count()).ScanX(context.Background(), &v2)
 
 		for _, c := range v2 {
 			switch c.Status {
