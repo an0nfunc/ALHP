@@ -39,7 +39,7 @@ var (
 	rePkgSource = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
 	rePkgSum    = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
 	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
-	reLdError   = regexp.MustCompile(`(?mi)^\s*collect2: error: ld returned (\d+) exit status$`)
+	reLdError   = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
 )
 
 type BuildPackage struct {
