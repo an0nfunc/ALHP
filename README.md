@@ -110,8 +110,8 @@ ALHP provides patched kernels (except `linux-zen`) that build with `-march=x86-6
 ### Directly linked kernel modules
 
 **Above-mentioned patching breaks all directly linked modules** like `nvidia` (not `nvidia-dkms`) or
-`virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). Their respective `dkms`-variant is not affected. This issue
-is being tracked in #68, a solution is being worked on.
+`virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). **Their respective `dkms`-variant is not affected**. This
+issue is being tracked in #68, a solution is being worked on.
 
 ### Mirrors
 
