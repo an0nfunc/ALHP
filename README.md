@@ -6,6 +6,9 @@ Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
+> ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
+> [FAQ about Linux kernel modules](https://git.harting.dev/ALHP/ALHP.GO#directly-linked-kernel-modules) ⚠️
+
 ## Check your system for support
 
 **Important**: Before you enable any of these repos, check if your system supports the feature level you want to enable
@@ -39,7 +42,7 @@ Edit `/etc/pacman.d/alhp-mirrorlist` and comment out/in mirrors you want to have
 is a cloudflare-based mirror which
 [*should* provide decent speed worldwide](https://git.harting.dev/ALHP/ALHP.GO/issues/38#issuecomment-891).
 > Note: Only `alhp.harting.dev` is hosted by ALHP directly. If you have problems with one mirror,
-> open an issue at [alhp-mirrorlist](https://git.harting.dev/ALHP/alhp-mirrorlist).
+> open an issue at [ALHP mirrorlist](https://git.harting.dev/ALHP/alhp-mirrorlist)
 
 ### Modify /etc/pacman.conf
 
@@ -98,6 +101,17 @@ Also [package status page](https://alhp.anonfunc.dev/packages.html).
 Enabled for all packages build after 04 Nov 2021 12:07:00
 UTC. [More details.](https://git.harting.dev/anonfunc/ALHP.GO/issues/52)
 LTO status is visible per package on the package status page.
+
+### Linux Kernel
+
+ALHP provides patched kernels (except `linux-zen`) that build with `-march=x86-64-vN`. Thanks to
+[graysky](https://github.com/graysky2) for providing [these patches](https://github.com/graysky2/kernel_compiler_patch).
+
+### Directly linked kernel modules
+
+**Above-mentioned patching breaks all directly linked modules** like `nvidia` (not `nvidia-dkms`) or
+`virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). Their respective `dkms`-variant is not affected. This issue
+is being tracked in #68, a solution is being worked on.
 
 ### Mirrors
 
