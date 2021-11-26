@@ -81,27 +81,28 @@
                             <td>{{$pkg.Status}}</td>
                             <td>{{$pkg.Skip}}</td>
                             <td class="text-center fs-6">
-                                {{if $pkg.LTO}}<i class="fa fa-check" style="color: var(--bs-success)"
+                                {{if $pkg.LTO}}<i class="fa fa-check fa-lg" style="color: var(--bs-success)"
                                                   title="build with LTO"></i>{{end}}
-                                {{if $pkg.LTODisabled}}<i class="fa fa-times" style="color: var(--bs-danger)"
+                                {{if $pkg.LTODisabled}}<i class="fa fa-times fa-lg" style="color: var(--bs-danger)"
                                                           title="LTO explicitly disabled"></i>{{end}}
-                                {{if $pkg.LTOAutoDisabled}}<i class="fa fa-times-circle-o"
+                                {{if $pkg.LTOAutoDisabled}}<i class="fa fa-times-circle-o fa-lg"
                                                               style="color: var(--bs-danger)"
                                                               title="LTO automatically disabled"></i>{{end}}
-                                {{if $pkg.LTOUnknown}}<i class="fa fa-hourglass-o" title="not build with LTO yet"></i>{{end}}
+                                {{if $pkg.LTOUnknown}}<i class="fa fa-hourglass-o fa-lg"
+                                                         title="not build with LTO yet"></i>{{end}}
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>
                             <td class="text-end info-box">
                                 {{with $pkg.Log}}<a href="{{.}}" title="build log"
-                            ><i class="fa fa-file-text"></i></a
+                            ><i class="fa fa-file-text fa-lg"></i></a
                             >{{end}}
                                 <a class="text-decoration-none fw-bold"
-                                   href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}" title="Archweb">AW</a>
+                                   href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}" title="ArchWeb">AW</a>
                                 <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
                                    href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
                                    title="{{if $pkg.BuildDate}}Build on {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}Build duration: {{$pkg.BuildDuration}}&#10;{{end}}Last checked on {{$pkg.Checked}}">
-                                    <i class="fa fa-info-circle"></i></a>
+                                    <i class="fa fa-info-circle fa-lg"></i></a>
                             </td>
                         </tr>
                         {{end}}

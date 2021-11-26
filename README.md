@@ -7,7 +7,7 @@ Buildbot for Archlinux-based repos build with different
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
-> [FAQ about Linux kernel modules](https://git.harting.dev/ALHP/ALHP.GO#directly-linked-kernel-modules) ⚠️
+> [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
 
 ## Check your system for support
 
