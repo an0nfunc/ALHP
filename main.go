@@ -67,8 +67,8 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 
 			buildNo := 1
-			if pkg.DbPackage.LastVersionBuild == pkg.Version {
-				versionSlice := strings.Split(pkg.DbPackage.LastVersionBuild, ".")
+			versionSlice := strings.Split(pkg.DbPackage.LastVersionBuild, ".")
+			if strings.Join(versionSlice[:len(versionSlice)-2], ".") == pkg.Version {
 				buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
 				if err != nil {
 					log.Errorf("[%s/%s] Failed to read build from pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
