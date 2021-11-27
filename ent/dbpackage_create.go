@@ -170,6 +170,20 @@ func (dpc *DbPackageCreate) SetNillableLto(d *dbpackage.Lto) *DbPackageCreate {
 	return dpc
 }
 
+// SetLastVersionBuild sets the "last_version_build" field.
+func (dpc *DbPackageCreate) SetLastVersionBuild(s string) *DbPackageCreate {
+	dpc.mutation.SetLastVersionBuild(s)
+	return dpc
+}
+
+// SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableLastVersionBuild(s *string) *DbPackageCreate {
+	if s != nil {
+		dpc.SetLastVersionBuild(*s)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -417,6 +431,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldLto,
 		})
 		_node.Lto = value
+	}
+	if value, ok := dpc.mutation.LastVersionBuild(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldLastVersionBuild,
+		})
+		_node.LastVersionBuild = value
 	}
 	return _node, _spec
 }

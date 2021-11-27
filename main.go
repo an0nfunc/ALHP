@@ -66,7 +66,19 @@ func (b *BuildManager) buildWorker(id int) {
 				log.Warningf("[%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, err)
 			}
 
-			err = pkg.increasePkgRel()
+			buildNo := 1
+			if pkg.DbPackage.LastVersionBuild == pkg.Version {
+				versionSlice := strings.Split(pkg.DbPackage.LastVersionBuild, ".")
+				buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
+				if err != nil {
+					log.Errorf("[%s/%s] Failed to read build from pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
+					b.buildWG.Done()
+					continue
+				}
+				buildNo++
+			}
+
+			err = pkg.increasePkgRel(buildNo)
 			if err != nil {
 				log.Errorf("[%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
 				b.buildWG.Done()
@@ -93,7 +105,7 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
-					"--config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf(makepkgFile, pkg.March)))
+					"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf(makepkgFile, pkg.March)))
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			cmd.Stderr = &out
@@ -187,12 +199,12 @@ func (b *BuildManager) buildWorker(id int) {
 			}
 
 			if pkg.DbPackage.Lto != dbpackage.LtoDisabled && pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled {
-				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeStart(start).SetLastVersionBuild(pkg.Version).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
 			} else {
-				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetLastVersionBuild(pkg.Version).ExecX(context.Background())
 			}
 
-			log.Infof("[%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, time.Now().Sub(start))
+			log.Infof("[%s/%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, time.Since(start))
 			b.repoAdd[pkg.FullRepo] <- pkg
 
 			gitClean(pkg)

@@ -155,6 +155,13 @@ func Hash(v string) predicate.DbPackage {
 	})
 }
 
+// LastVersionBuild applies equality check predicate on the "last_version_build" field. It's identical to LastVersionBuildEQ.
+func LastVersionBuild(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldLastVersionBuild), v))
+	})
+}
+
 // PkgbaseEQ applies the EQ predicate on the "pkgbase" field.
 func PkgbaseEQ(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -1330,6 +1337,131 @@ func LtoIsNil() predicate.DbPackage {
 func LtoNotNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.NotNull(s.C(FieldLto)))
+	})
+}
+
+// LastVersionBuildEQ applies the EQ predicate on the "last_version_build" field.
+func LastVersionBuildEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildNEQ applies the NEQ predicate on the "last_version_build" field.
+func LastVersionBuildNEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildIn applies the In predicate on the "last_version_build" field.
+func LastVersionBuildIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldLastVersionBuild), v...))
+	})
+}
+
+// LastVersionBuildNotIn applies the NotIn predicate on the "last_version_build" field.
+func LastVersionBuildNotIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldLastVersionBuild), v...))
+	})
+}
+
+// LastVersionBuildGT applies the GT predicate on the "last_version_build" field.
+func LastVersionBuildGT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildGTE applies the GTE predicate on the "last_version_build" field.
+func LastVersionBuildGTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildLT applies the LT predicate on the "last_version_build" field.
+func LastVersionBuildLT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildLTE applies the LTE predicate on the "last_version_build" field.
+func LastVersionBuildLTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildContains applies the Contains predicate on the "last_version_build" field.
+func LastVersionBuildContains(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildHasPrefix applies the HasPrefix predicate on the "last_version_build" field.
+func LastVersionBuildHasPrefix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildHasSuffix applies the HasSuffix predicate on the "last_version_build" field.
+func LastVersionBuildHasSuffix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildIsNil applies the IsNil predicate on the "last_version_build" field.
+func LastVersionBuildIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldLastVersionBuild)))
+	})
+}
+
+// LastVersionBuildNotNil applies the NotNil predicate on the "last_version_build" field.
+func LastVersionBuildNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldLastVersionBuild)))
+	})
+}
+
+// LastVersionBuildEqualFold applies the EqualFold predicate on the "last_version_build" field.
+func LastVersionBuildEqualFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVersionBuildContainsFold applies the ContainsFold predicate on the "last_version_build" field.
+func LastVersionBuildContainsFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldLastVersionBuild), v))
 	})
 }
 

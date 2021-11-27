@@ -29,26 +29,27 @@ const (
 // DbPackageMutation represents an operation that mutates the DbPackage nodes in the graph.
 type DbPackageMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *int
-	pkgbase          *string
-	packages         *[]string
-	status           *dbpackage.Status
-	skip_reason      *string
-	repository       *dbpackage.Repository
-	march            *string
-	version          *string
-	repo_version     *string
-	build_time_start *time.Time
-	build_time_end   *time.Time
-	updated          *time.Time
-	hash             *string
-	lto              *dbpackage.Lto
-	clearedFields    map[string]struct{}
-	done             bool
-	oldValue         func(context.Context) (*DbPackage, error)
-	predicates       []predicate.DbPackage
+	op                 Op
+	typ                string
+	id                 *int
+	pkgbase            *string
+	packages           *[]string
+	status             *dbpackage.Status
+	skip_reason        *string
+	repository         *dbpackage.Repository
+	march              *string
+	version            *string
+	repo_version       *string
+	build_time_start   *time.Time
+	build_time_end     *time.Time
+	updated            *time.Time
+	hash               *string
+	lto                *dbpackage.Lto
+	last_version_build *string
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*DbPackage, error)
+	predicates         []predicate.DbPackage
 }
 
 var _ ent.Mutation = (*DbPackageMutation)(nil)
@@ -728,6 +729,55 @@ func (m *DbPackageMutation) ResetLto() {
 	delete(m.clearedFields, dbpackage.FieldLto)
 }
 
+// SetLastVersionBuild sets the "last_version_build" field.
+func (m *DbPackageMutation) SetLastVersionBuild(s string) {
+	m.last_version_build = &s
+}
+
+// LastVersionBuild returns the value of the "last_version_build" field in the mutation.
+func (m *DbPackageMutation) LastVersionBuild() (r string, exists bool) {
+	v := m.last_version_build
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastVersionBuild returns the old "last_version_build" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldLastVersionBuild(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, fmt.Errorf("OldLastVersionBuild is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, fmt.Errorf("OldLastVersionBuild requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastVersionBuild: %w", err)
+	}
+	return oldValue.LastVersionBuild, nil
+}
+
+// ClearLastVersionBuild clears the value of the "last_version_build" field.
+func (m *DbPackageMutation) ClearLastVersionBuild() {
+	m.last_version_build = nil
+	m.clearedFields[dbpackage.FieldLastVersionBuild] = struct{}{}
+}
+
+// LastVersionBuildCleared returns if the "last_version_build" field was cleared in this mutation.
+func (m *DbPackageMutation) LastVersionBuildCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldLastVersionBuild]
+	return ok
+}
+
+// ResetLastVersionBuild resets all changes to the "last_version_build" field.
+func (m *DbPackageMutation) ResetLastVersionBuild() {
+	m.last_version_build = nil
+	delete(m.clearedFields, dbpackage.FieldLastVersionBuild)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -747,7 +797,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -787,6 +837,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.lto != nil {
 		fields = append(fields, dbpackage.FieldLto)
 	}
+	if m.last_version_build != nil {
+		fields = append(fields, dbpackage.FieldLastVersionBuild)
+	}
 	return fields
 }
 
@@ -821,6 +874,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.Hash()
 	case dbpackage.FieldLto:
 		return m.Lto()
+	case dbpackage.FieldLastVersionBuild:
+		return m.LastVersionBuild()
 	}
 	return nil, false
 }
@@ -856,6 +911,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldHash(ctx)
 	case dbpackage.FieldLto:
 		return m.OldLto(ctx)
+	case dbpackage.FieldLastVersionBuild:
+		return m.OldLastVersionBuild(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -956,6 +1013,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLto(v)
 		return nil
+	case dbpackage.FieldLastVersionBuild:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastVersionBuild(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1016,6 +1080,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldLto) {
 		fields = append(fields, dbpackage.FieldLto)
 	}
+	if m.FieldCleared(dbpackage.FieldLastVersionBuild) {
+		fields = append(fields, dbpackage.FieldLastVersionBuild)
+	}
 	return fields
 }
 
@@ -1059,6 +1126,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldLto:
 		m.ClearLto()
+		return nil
+	case dbpackage.FieldLastVersionBuild:
+		m.ClearLastVersionBuild()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1106,6 +1176,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldLto:
 		m.ResetLto()
+		return nil
+	case dbpackage.FieldLastVersionBuild:
+		m.ResetLastVersionBuild()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

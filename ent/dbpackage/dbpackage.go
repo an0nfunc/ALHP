@@ -37,6 +37,8 @@ const (
 	FieldHash = "hash"
 	// FieldLto holds the string denoting the lto field in the database.
 	FieldLto = "lto"
+	// FieldLastVersionBuild holds the string denoting the last_version_build field in the database.
+	FieldLastVersionBuild = "last_version_build"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -57,6 +59,7 @@ var Columns = []string{
 	FieldUpdated,
 	FieldHash,
 	FieldLto,
+	FieldLastVersionBuild,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

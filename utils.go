@@ -193,7 +193,7 @@ func gitClean(pkg *BuildPackage) {
 	}
 }
 
-func (p *BuildPackage) increasePkgRel() error {
+func (p *BuildPackage) increasePkgRel(buildNo int) error {
 	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
 	if err != nil {
 		return err
@@ -211,7 +211,7 @@ func (p *BuildPackage) increasePkgRel() error {
 		return err
 	}
 
-	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+".1")
+	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+"."+strconv.Itoa(buildNo))
 	_, err = f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ func (p *BuildPackage) increasePkgRel() error {
 		return err
 	}
 
-	p.Version += ".1"
+	p.Version += "." + strconv.Itoa(buildNo)
 	return nil
 }
 

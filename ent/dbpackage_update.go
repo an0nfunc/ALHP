@@ -231,6 +231,26 @@ func (dpu *DbPackageUpdate) ClearLto() *DbPackageUpdate {
 	return dpu
 }
 
+// SetLastVersionBuild sets the "last_version_build" field.
+func (dpu *DbPackageUpdate) SetLastVersionBuild(s string) *DbPackageUpdate {
+	dpu.mutation.SetLastVersionBuild(s)
+	return dpu
+}
+
+// SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableLastVersionBuild(s *string) *DbPackageUpdate {
+	if s != nil {
+		dpu.SetLastVersionBuild(*s)
+	}
+	return dpu
+}
+
+// ClearLastVersionBuild clears the value of the "last_version_build" field.
+func (dpu *DbPackageUpdate) ClearLastVersionBuild() *DbPackageUpdate {
+	dpu.mutation.ClearLastVersionBuild()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -483,6 +503,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldLto,
 		})
 	}
+	if value, ok := dpu.mutation.LastVersionBuild(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldLastVersionBuild,
+		})
+	}
+	if dpu.mutation.LastVersionBuildCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldLastVersionBuild,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dbpackage.Label}
@@ -703,6 +736,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdat
 // ClearLto clears the value of the "lto" field.
 func (dpuo *DbPackageUpdateOne) ClearLto() *DbPackageUpdateOne {
 	dpuo.mutation.ClearLto()
+	return dpuo
+}
+
+// SetLastVersionBuild sets the "last_version_build" field.
+func (dpuo *DbPackageUpdateOne) SetLastVersionBuild(s string) *DbPackageUpdateOne {
+	dpuo.mutation.SetLastVersionBuild(s)
+	return dpuo
+}
+
+// SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableLastVersionBuild(s *string) *DbPackageUpdateOne {
+	if s != nil {
+		dpuo.SetLastVersionBuild(*s)
+	}
+	return dpuo
+}
+
+// ClearLastVersionBuild clears the value of the "last_version_build" field.
+func (dpuo *DbPackageUpdateOne) ClearLastVersionBuild() *DbPackageUpdateOne {
+	dpuo.mutation.ClearLastVersionBuild()
 	return dpuo
 }
 
@@ -980,6 +1033,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeEnum,
 			Column: dbpackage.FieldLto,
+		})
+	}
+	if value, ok := dpuo.mutation.LastVersionBuild(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldLastVersionBuild,
+		})
+	}
+	if dpuo.mutation.LastVersionBuildCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldLastVersionBuild,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}
