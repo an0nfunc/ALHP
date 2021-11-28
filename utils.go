@@ -629,10 +629,11 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 	for _, path := range packages {
 		pkgfile := PKGFile(path)
+		splitPath := strings.Split(path, string(filepath.Separator))
+
 		dbPkg, err := pkgfile.DBPackage()
 		if err != nil {
 			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
-			splitPath := strings.Split(path, string(filepath.Separator))
 			pkg := &BuildPackage{
 				FullRepo: splitPath[len(splitPath)-4],
 				PkgFiles: []string{path},
@@ -643,8 +644,8 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		pkg := &BuildPackage{
 			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      dbPkg.Repository,
-			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
+			Repo:      dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0]),
+			FullRepo:  splitPath[len(splitPath)-4],
 			DbPackage: dbPkg,
 		}
 
@@ -656,6 +657,25 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			upstream = "upstream-community"
 		}
 		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+
+		// check if package is still part of repo
+		dbs, err := alpmHandle.SyncDBs()
+		if err != nil {
+			return err
+		}
+		buildManager.alpmMutex.Lock()
+		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
+		buildManager.alpmMutex.Unlock()
+		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() {
+			// package not found on mirror/db -> not part of any repo anymore
+			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
+			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
+			if err != nil {
+				return err
+			}
+			continue
+		}
 
 		// check if pkg signature is valid
 		valid, err := pkgfile.isSignatureValid()
@@ -679,25 +699,6 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 
 		// TODO: check split packages
-
-		// check if package is still part of repo
-		dbs, err := alpmHandle.SyncDBs()
-		if err != nil {
-			return err
-		}
-		buildManager.alpmMutex.Lock()
-		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
-		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() {
-			// package not found on mirror/db -> not part of any repo anymore
-			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
-			buildManager.repoPurge[pkg.FullRepo] <- pkg
-			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
-			if err != nil {
-				return err
-			}
-			continue
-		}
 	}
 
 	return nil
