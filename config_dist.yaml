@@ -63,6 +63,7 @@ build:
   worker: 2
   makej: 8
   checks: true
+  batch: 100
 
 logging:
   level: INFO

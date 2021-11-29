@@ -620,9 +620,13 @@ func (b *BuildManager) syncWorker() {
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
 
+		queued := 0
 		for _, pkgbuild := range pkgBuilds {
 			if b.exit {
 				return
+			}
+			if queued >= conf.Build.Batch {
+				break
 			}
 
 			sPkgbuild := strings.Split(pkgbuild, "/")
@@ -657,6 +661,7 @@ func (b *BuildManager) syncWorker() {
 				continue
 			}
 
+			queued++
 			// send to parse
 			for _, march := range conf.March {
 				b.parseWG.Add(1)

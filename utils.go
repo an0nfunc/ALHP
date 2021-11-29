@@ -84,6 +84,7 @@ type Conf struct {
 		Worker int
 		Makej  int
 		Checks bool
+		Batch  int
 	}
 	Logging struct {
 		Level string
