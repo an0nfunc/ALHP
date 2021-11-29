@@ -609,11 +609,11 @@ func setupChroot() error {
 	return nil
 }
 
-func (path PKGFile) DBPackage() (*ent.DbPackage, error) {
+func (path PKGFile) DBPackage(march string) (*ent.DbPackage, error) {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
 	pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
 
-	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.PackagesNotNil()).All(context.Background())
+	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.PackagesNotNil(), dbpackage.March(march))).All(context.Background())
 	if err != nil {
 		switch err.(type) {
 		case *ent.NotFoundError:
@@ -661,13 +661,15 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 	for _, path := range packages {
 		pkgfile := PKGFile(path)
 		splitPath := strings.Split(path, string(filepath.Separator))
+		march := strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
 
-		dbPkg, err := pkgfile.DBPackage()
+		dbPkg, err := pkgfile.DBPackage(march)
 		if err != nil {
 			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
 			pkg := &BuildPackage{
 				FullRepo: splitPath[len(splitPath)-4],
 				PkgFiles: []string{path},
+				March:    march,
 			}
 			buildManager.repoPurge[pkg.FullRepo] <- pkg
 			continue
@@ -678,6 +680,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			Repo:      dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0]),
 			FullRepo:  splitPath[len(splitPath)-4],
 			DbPackage: dbPkg,
+			March:     march,
 		}
 
 		var upstream string
