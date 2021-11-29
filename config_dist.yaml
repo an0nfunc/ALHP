@@ -30,6 +30,7 @@ basedir:
   chroot: /var/lib/alhp/chroot/
   makepkg: /var/lib/alhp/makepkg/
   upstream: /var/lib/alhp/upstream/
+  build: /var/lib/alhp/build/
 
 march:
   - x86-64-v3

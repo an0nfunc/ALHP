@@ -66,12 +66,23 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				log.Warningf("[%s/%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 			}
 
+			buildDir, err := pkg.setupBuildDir()
+			if err != nil {
+				log.Errorf("[%s/%s/%s] Error setting up builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				b.buildWG.Done()
+				continue
+			}
+
 			buildNo := 1
 			versionSlice := strings.Split(pkg.DbPackage.LastVersionBuild, ".")
 			if strings.Join(versionSlice[:len(versionSlice)-1], ".") == pkg.Version {
 				buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
 				if err != nil {
 					log.Errorf("[%s/%s/%s] Failed to read build from pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					err = cleanBuildDir(buildDir)
+					if err != nil {
+						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					}
 					b.buildWG.Done()
 					continue
 				}
@@ -81,6 +92,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			err = pkg.increasePkgRel(buildNo)
 			if err != nil {
 				log.Errorf("[%s/%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				err = cleanBuildDir(buildDir)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 				b.buildWG.Done()
 				continue
 			}
@@ -90,6 +105,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				if err != nil {
 					log.Warningf("[%s/%s/%s] Failed to modify PKGBUILD for kernel patch: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 					pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(pkg.Hash).ExecX(context.Background())
+					err = cleanBuildDir(buildDir)
+					if err != nil {
+						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					}
 					b.buildWG.Done()
 					continue
 				}
@@ -129,6 +148,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 
 			if err != nil {
 				if b.exit {
+					err = cleanBuildDir(buildDir)
+					if err != nil {
+						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					}
 					b.buildWG.Done()
 					continue
 				}
@@ -136,7 +159,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				if pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled && pkg.DbPackage.Lto != dbpackage.LtoDisabled && reLdError.Match(out.Bytes()) {
 					log.Infof("[%s/%s/%s] ld error detected, disabling LTO", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
 					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(context.Background())
-					gitClean(pkg)
+					err = cleanBuildDir(buildDir)
+					if err != nil {
+						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					}
 					b.buildWG.Done()
 					continue
 				}
@@ -151,7 +177,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				// purge failed package from repo
 				b.repoPurge[pkg.FullRepo] <- pkg
 
-				gitClean(pkg)
+				err = cleanBuildDir(buildDir)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 				b.buildWG.Done()
 				continue
 			}
@@ -162,7 +191,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			if len(pkgFiles) == 0 {
 				log.Warningf("No packages found after building %s. Abort build.", pkg.Pkgbase)
 
-				gitClean(pkg)
+				err = cleanBuildDir(buildDir)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 				b.buildWG.Done()
 				continue
 			}
@@ -207,7 +239,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			log.Infof("[%s/%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, time.Since(start))
 			b.repoAdd[pkg.FullRepo] <- pkg
 
-			gitClean(pkg)
+			err = cleanBuildDir(buildDir)
+			if err != nil {
+				log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+			}
 		}
 	}
 }
@@ -568,15 +603,8 @@ func (b *BuildManager) syncWorker() {
 				log.Debug(string(res))
 				check(err)
 			} else if err == nil {
-				cmd := exec.Command("sudo", "git_clean.sh", gitPath)
+				cmd := exec.Command("sh", "-c", "cd "+gitPath+" && git reset --hard")
 				res, err := cmd.CombinedOutput()
-				log.Debug(string(res))
-				if err != nil {
-					log.Warningf("Failed to execute %s: %v", cmd.String(), err)
-				}
-
-				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git reset --hard")
-				res, err = cmd.CombinedOutput()
 				log.Debug(string(res))
 				check(err)
 
@@ -636,34 +664,34 @@ func (b *BuildManager) syncWorker() {
 				continue
 			}
 
-			// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
-			// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
-			dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(
-				dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]),
-				dbpackage.RepositoryEQ(dbpackage.Repository(strings.Split(repo, "-")[0]))),
-			).Only(context.Background())
-
-			if dbErr != nil {
-				switch dbErr.(type) {
-				case *ent.NotFoundError:
-					log.Debugf("[%s/%s] Package not found in database", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4])
-					break
-				default:
-					log.Errorf("[%s/%s] Problem querying db for package: %v", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], dbErr)
-				}
-			}
-
-			b3s, err := b3sum(pkgbuild)
-			check(err)
-
-			if dbPkg != nil && b3s == dbPkg.Hash {
-				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], b3s)
-				continue
-			}
-
-			queued++
-			// send to parse
 			for _, march := range conf.March {
+				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
+				// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
+				dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(
+					dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]),
+					dbpackage.RepositoryEQ(dbpackage.Repository(strings.Split(repo, "-")[0])), dbpackage.March(march)),
+				).Only(context.Background())
+
+				if dbErr != nil {
+					switch dbErr.(type) {
+					case *ent.NotFoundError:
+						log.Debugf("[%s/%s] Package not found in database", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4])
+						break
+					default:
+						log.Errorf("[%s/%s] Problem querying db for package: %v", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], dbErr)
+					}
+				}
+
+				b3s, err := b3sum(pkgbuild)
+				check(err)
+
+				if dbPkg != nil && b3s == dbPkg.Hash {
+					log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], b3s)
+					continue
+				}
+
+				queued++
+				// send to parse
 				b.parseWG.Add(1)
 				b.parse <- &BuildPackage{
 					Pkgbuild: pkgbuild,

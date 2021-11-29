@@ -74,7 +74,7 @@ type Conf struct {
 	Repos, March []string
 	Svn2git      map[string]string
 	Basedir      struct {
-		Repo, Chroot, Makepkg, Upstream string
+		Repo, Chroot, Makepkg, Upstream, Build string
 	}
 	Db struct {
 		Driver    string
@@ -170,6 +170,46 @@ func containsSubStr(str string, subList []string) bool {
 	return false
 }
 
+func cleanBuildDir(dir string) error {
+	if _, err := os.Stat(dir); err == nil {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *BuildPackage) setupBuildDir() (string, error) {
+	buildDir := filepath.Join(conf.Basedir.Build, p.March, p.Pkgbase+"-"+p.Version)
+
+	err := cleanBuildDir(buildDir)
+	if err != nil {
+		return "", fmt.Errorf("removing old builddir failed: %v", err)
+	}
+
+	err = os.MkdirAll(buildDir, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	files, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*"))
+	if err != nil {
+		return "", err
+	}
+
+	for _, file := range files {
+		_, err = copyFile(file, filepath.Join(buildDir, filepath.Base(file)))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
+	return buildDir, nil
+}
+
 func (p *BuildPackage) repoVersion() (string, error) {
 	err := p.findPkgFiles()
 	if err != nil {
@@ -182,16 +222,6 @@ func (p *BuildPackage) repoVersion() (string, error) {
 
 	fNameSplit := strings.Split(p.PkgFiles[0], "-")
 	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2], nil
-}
-
-func gitClean(pkg *BuildPackage) {
-	cmd := exec.Command("sudo", "git_clean.sh", filepath.Dir(pkg.Pkgbuild))
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Warningf("git clean failed with %v:\n%s", err, res)
-	} else {
-		log.Debug(string(res))
-	}
 }
 
 func (p *BuildPackage) increasePkgRel(buildNo int) error {
