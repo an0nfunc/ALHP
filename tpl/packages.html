@@ -23,7 +23,7 @@
     </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg sticky-top navbar-light bg-info mb-5">
+<nav class="navbar navbar-expand-lg sticky-top navbar-light bg-info">
     <div class="container">
         <div class="d-flex justify-content-start">
             <span class="navbar-brand align-middle">ALHP Status</span>
@@ -42,7 +42,7 @@
 
 <div class="container">
     {{range $march := .March}}
-    <h3>{{$march.Name}}</h3>
+    <h3 class="mt-5">{{$march.Name}}</h3>
     <div class="accordion" id="accordion-{{$march.Name}}">
         {{range $repo := $march.Repos}}
         <div class="accordion-item bg-opacity-25">
