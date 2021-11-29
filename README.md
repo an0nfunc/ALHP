@@ -9,17 +9,19 @@ Buildbot for Archlinux-based repos build with different
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
 > [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
 
-## Check your system for support
+## Quickstart
 
-**Important**: Before you enable any of these repos, check if your system supports the feature level you want to enable
-(e.g. `x86-64-v3`). You can do that with
+### 1. Check your system for support
+
+> **Important**: Before you enable any of these repos, check if your system supports the feature level you want to enable
+(e.g. `x86-64-v3`).
+> **If you don't check beforehand, you might be unable to boot your system anymore and need to downgrade any package that you may have upgraded.**
+
+Check which feature-levels your CPU supports with
 
 ```bash
 /lib/ld-linux-x86-64.so.2 --help
 ```
-
-If you don't check beforehand you might be unable to boot your system anymore and need to downgrade any package that you
-may have upgraded.
 
 Example output snippet for a system supporting up to `x86-64-v3`:
 
@@ -30,25 +32,32 @@ Subdirectories of glibc-hwcaps directories, in priority order:
   x86-64-v2 (supported, searched)
 ```
 
-## Enable Repos
+### 2. Install keyring & mirrorlist
 
-To enable these complement repos you need to install [alhp-keyring](https://aur.archlinux.org/packages/alhp-keyring/)
-and [alhp-mirrorlist](https://aur.archlinux.org/packages/alhp-mirrorlist/) from **AUR** and modify `/etc/pacman.conf`
-to add them above your regular repos.
+Install [alhp-keyring](https://aur.archlinux.org/packages/alhp-keyring/)
+and [alhp-mirrorlist](https://aur.archlinux.org/packages/alhp-mirrorlist/) from **AUR**.
 
-### Choose a mirror (optional)
+Example with `yay`:
+
+```bash
+yay -S alhp-keyring alhp-mirrorlist
+```
+
+`alhp-keyring` provides the current signing keys used by ALHP, `alhp-mirrorlist` a selection of mirrors.
+
+### 3. Choose a mirror (optional)
 
 Edit `/etc/pacman.d/alhp-mirrorlist` and comment out/in mirrors you want to have enabled/disabled. Per default selected
 is a cloudflare-based mirror which
 [*should* provide decent speed worldwide](https://git.harting.dev/ALHP/ALHP.GO/issues/38#issuecomment-891).
-> Note: Only `alhp.harting.dev` is hosted by ALHP directly. If you have problems with one mirror,
-> open an issue at [ALHP mirrorlist](https://git.harting.dev/ALHP/alhp-mirrorlist)
+> Note: Only `alhp.harting.dev` is hosted by ALHP directly. If you have problems with a mirror,
+> open an issue at [the mirrorlist repo](https://git.harting.dev/ALHP/alhp-mirrorlist).
 
-### Modify /etc/pacman.conf
+### 4. Modify /etc/pacman.conf
 
 Add the appropriate repos **above** your regular Archlinux repos.
 
-Example for `x86-64-v3`
+Example for `x86-64-v3`:
 
 ```editorconfig
 [core-x86-64-v3]
@@ -74,12 +83,12 @@ Replace `x86-64-v3` with your x86-64 feature level.
 > ALHP only builds for `x86-64-v3` at the moment (list is subject to change). You can see all available repositories
 > [here](https://alhp.harting.dev/).
 
-Update package database and upgrade:
+### 5. Update package database and upgrade:
 ```
 pacman -Suy
 ```
 
-## Remove Repos
+## How to disable
 
 To disable ALHP remove all *x86-64-vX* entries in `/etc/pacman.conf` and remove `alhp-keyring` and `alhp-mirrorlist`.
 
@@ -87,12 +96,6 @@ After that you can refresh pacmans databases and downgrade all packages like:
 ```
 pacman -Suuy
 ```
-
-## Package eligibility
-
-Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
-from building (besides all 'any' architecture packages) are being listed in issue #16.
-Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
 ## FAQ
 
@@ -117,6 +120,12 @@ issue is being tracked in #68, a solution is being worked on.
 
 You want to mirror ALHP? You are welcome to do
 so, [see alhp-mirrorlist for how to become one](https://git.harting.dev/ALHP/alhp-mirrorlist#how-to-become-a-mirror).
+
+### What packages are built
+
+Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
+from building (besides all 'any' architecture packages) are being listed in issue #16.
+Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
 ## Donations
 
