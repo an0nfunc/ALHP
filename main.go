@@ -38,17 +38,17 @@ var (
 	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
 )
 
-func (b *BuildManager) buildWorker(id int) {
+func (b *BuildManager) buildWorker(id int, march string) {
 	err := syscall.Setpriority(syscall.PRIO_PROCESS, 0, 18)
 	if err != nil {
-		log.Warningf("[worker-%d] Failed to drop priority: %v", id, err)
+		log.Warningf("[%s/worker-%d] Failed to drop priority: %v", march, id, err)
 	}
 
 	for {
 		select {
-		case pkg := <-b.build:
+		case pkg := <-b.build[march]:
 			if b.exit {
-				log.Infof("Worker %d exited...", id)
+				log.Infof("Worker %s/%d exited...", march, id)
 				return
 			} else {
 				b.buildWG.Add(1)
@@ -56,14 +56,14 @@ func (b *BuildManager) buildWorker(id int) {
 
 			start := time.Now().UTC()
 
-			log.Infof("[%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase)
+			log.Infof("[%s/%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
 
 			pkg.toDbPackage(true)
 			pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(context.Background())
 
 			err := pkg.importKeys()
 			if err != nil {
-				log.Warningf("[%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, err)
+				log.Warningf("[%s/%s/%s] Failed to import pgp keys: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 			}
 
 			buildNo := 1
@@ -71,7 +71,7 @@ func (b *BuildManager) buildWorker(id int) {
 			if strings.Join(versionSlice[:len(versionSlice)-1], ".") == pkg.Version {
 				buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
 				if err != nil {
-					log.Errorf("[%s/%s] Failed to read build from pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
+					log.Errorf("[%s/%s/%s] Failed to read build from pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 					b.buildWG.Done()
 					continue
 				}
@@ -80,7 +80,7 @@ func (b *BuildManager) buildWorker(id int) {
 
 			err = pkg.increasePkgRel(buildNo)
 			if err != nil {
-				log.Errorf("[%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, err)
+				log.Errorf("[%s/%s/%s] Failed to increase pkgrel: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 				b.buildWG.Done()
 				continue
 			}
@@ -88,7 +88,7 @@ func (b *BuildManager) buildWorker(id int) {
 			if contains(conf.KernelToPatch, pkg.Pkgbase) {
 				err = pkg.prepareKernelPatches()
 				if err != nil {
-					log.Warningf("[%s/%s] Failed to modify PKGBUILD for kernel patch: %v", pkg.FullRepo, pkg.Pkgbase, err)
+					log.Warningf("[%s/%s/%s] Failed to modify PKGBUILD for kernel patch: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 					pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(pkg.Hash).ExecX(context.Background())
 					b.buildWG.Done()
 					continue
@@ -104,7 +104,7 @@ func (b *BuildManager) buildWorker(id int) {
 				makepkgFile = "makepkg-%s.conf"
 			}
 			cmd := exec.Command("sh", "-c",
-				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
+				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+march+"-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
 					"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf(makepkgFile, pkg.March)))
 			var out bytes.Buffer
 			cmd.Stdout = &out
@@ -134,14 +134,14 @@ func (b *BuildManager) buildWorker(id int) {
 				}
 
 				if pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled && pkg.DbPackage.Lto != dbpackage.LtoDisabled && reLdError.Match(out.Bytes()) {
-					log.Infof("[%s/%s] ld error detected, disabling LTO", pkg.FullRepo, pkg.Pkgbase)
+					log.Infof("[%s/%s/%s] ld error detected, disabling LTO", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
 					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(context.Background())
 					gitClean(pkg)
 					b.buildWG.Done()
 					continue
 				}
 
-				log.Warningf("[%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, cmd.ProcessState.ExitCode())
+				log.Warningf("[%s/%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, cmd.ProcessState.ExitCode())
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
 				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
@@ -323,7 +323,7 @@ func (b *BuildManager) parseWorker() {
 			}
 
 			b.parseWG.Done()
-			b.build <- pkg
+			b.build[pkg.March] <- pkg
 		}
 	}
 }
@@ -552,10 +552,6 @@ func (b *BuildManager) repoWorker(repo string) {
 func (b *BuildManager) syncWorker() {
 	check(os.MkdirAll(conf.Basedir.Upstream, 0755))
 
-	for i := 0; i < conf.Build.Worker; i++ {
-		go b.buildWorker(i)
-	}
-
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go b.parseWorker()
 	}
@@ -733,7 +729,7 @@ func main() {
 	}
 
 	buildManager = &BuildManager{
-		build:     make(chan *BuildPackage, 10000),
+		build:     make(map[string]chan *BuildPackage),
 		parse:     make(chan *BuildPackage, 10000),
 		repoPurge: make(map[string]chan *BuildPackage),
 		repoAdd:   make(map[string]chan *BuildPackage),

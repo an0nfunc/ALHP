@@ -56,7 +56,7 @@ type BuildPackage struct {
 }
 
 type BuildManager struct {
-	build          chan *BuildPackage
+	build          map[string]chan *BuildPackage
 	parse          chan *BuildPackage
 	repoPurge      map[string]chan *BuildPackage
 	repoAdd        map[string]chan *BuildPackage
@@ -753,8 +753,14 @@ func syncMarchs() {
 	for _, march := range conf.March {
 		err := setupMakepkg(march)
 		if err != nil {
-			log.Errorf("Can't generate makepkg for %s: %v", march, err)
+			log.Fatalf("Can't generate makepkg for %s: %v", march, err)
 		}
+
+		buildManager.build[march] = make(chan *BuildPackage, 10000)
+		for i := 0; i < conf.Build.Worker; i++ {
+			go buildManager.buildWorker(i, march)
+		}
+
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)

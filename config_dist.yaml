@@ -59,7 +59,8 @@ status:
     unknown: "dark"
 
 build:
-  worker: 4
+  # number of worker per march (e.g. x86-64-v3)
+  worker: 2
   makej: 8
   checks: true
 
