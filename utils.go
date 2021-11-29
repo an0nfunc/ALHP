@@ -732,7 +732,7 @@ func (p *BuildPackage) findPkgFiles() error {
 }
 
 func (p *BuildPackage) toDbPackage(create bool) {
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.Pkgbase(p.Pkgbase)).Only(context.Background())
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Only(context.Background())
 	if err != nil && create {
 		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())
 	}

@@ -143,8 +143,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 
 				log.Warningf("[%s/%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, cmd.ProcessState.ExitCode())
 
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, "logs"), 0755))
-				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log"), out.Bytes(), 0644))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, march), 0755))
+				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log"), out.Bytes(), 0644))
 
 				pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(pkg.Hash).ExecX(context.Background())
 
@@ -194,8 +194,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				}
 			}
 
-			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")); err == nil {
-				check(os.Remove(filepath.Join(conf.Basedir.Repo, "logs", pkg.Pkgbase+".log")))
+			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log")); err == nil {
+				check(os.Remove(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log")))
 			}
 
 			if pkg.DbPackage.Lto != dbpackage.LtoDisabled && pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled {
@@ -407,7 +407,7 @@ func (b *BuildManager) htmlWorker() {
 					}
 
 					if pkg.Status == dbpackage.StatusFailed {
-						addPkg.Log = fmt.Sprintf("logs/%s.log", pkg.Pkgbase)
+						addPkg.Log = fmt.Sprintf("%s/%s/%s.log", logDir, pkg.March, pkg.Pkgbase)
 					}
 
 					switch pkg.Lto {
