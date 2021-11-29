@@ -85,12 +85,6 @@ func (dpu *DbPackageUpdate) SetRepository(d dbpackage.Repository) *DbPackageUpda
 	return dpu
 }
 
-// SetMarch sets the "march" field.
-func (dpu *DbPackageUpdate) SetMarch(s string) *DbPackageUpdate {
-	dpu.mutation.SetMarch(s)
-	return dpu
-}
-
 // SetVersion sets the "version" field.
 func (dpu *DbPackageUpdate) SetVersion(s string) *DbPackageUpdate {
 	dpu.mutation.SetVersion(s)
@@ -328,11 +322,6 @@ func (dpu *DbPackageUpdate) check() error {
 			return &ValidationError{Name: "repository", err: fmt.Errorf("ent: validator failed for field \"repository\": %w", err)}
 		}
 	}
-	if v, ok := dpu.mutation.March(); ok {
-		if err := dbpackage.MarchValidator(v); err != nil {
-			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
-		}
-	}
 	if v, ok := dpu.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
 			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
@@ -403,13 +392,6 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldRepository,
-		})
-	}
-	if value, ok := dpu.mutation.March(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldMarch,
 		})
 	}
 	if value, ok := dpu.mutation.Version(); ok {
@@ -590,12 +572,6 @@ func (dpuo *DbPackageUpdateOne) ClearSkipReason() *DbPackageUpdateOne {
 // SetRepository sets the "repository" field.
 func (dpuo *DbPackageUpdateOne) SetRepository(d dbpackage.Repository) *DbPackageUpdateOne {
 	dpuo.mutation.SetRepository(d)
-	return dpuo
-}
-
-// SetMarch sets the "march" field.
-func (dpuo *DbPackageUpdateOne) SetMarch(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetMarch(s)
 	return dpuo
 }
 
@@ -843,11 +819,6 @@ func (dpuo *DbPackageUpdateOne) check() error {
 			return &ValidationError{Name: "repository", err: fmt.Errorf("ent: validator failed for field \"repository\": %w", err)}
 		}
 	}
-	if v, ok := dpuo.mutation.March(); ok {
-		if err := dbpackage.MarchValidator(v); err != nil {
-			return &ValidationError{Name: "march", err: fmt.Errorf("ent: validator failed for field \"march\": %w", err)}
-		}
-	}
 	if v, ok := dpuo.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
 			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
@@ -935,13 +906,6 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 			Type:   field.TypeEnum,
 			Value:  value,
 			Column: dbpackage.FieldRepository,
-		})
-	}
-	if value, ok := dpuo.mutation.March(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldMarch,
 		})
 	}
 	if value, ok := dpuo.mutation.Version(); ok {

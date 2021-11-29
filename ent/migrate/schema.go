@@ -11,7 +11,7 @@ var (
 	// DbPackagesColumns holds the columns for the "db_packages" table.
 	DbPackagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "pkgbase", Type: field.TypeString, Unique: true},
+		{Name: "pkgbase", Type: field.TypeString},
 		{Name: "packages", Type: field.TypeJSON, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Nullable: true, Enums: []string{"skipped", "failed", "build", "queued", "building", "latest", "signing", "unknown"}, Default: "unknown"},
 		{Name: "skip_reason", Type: field.TypeString, Nullable: true},
