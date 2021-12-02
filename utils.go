@@ -67,6 +67,8 @@ type BuildManager struct {
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
 	alpmMutex      sync.RWMutex
+	queued         map[string]int
+	queuedLock     sync.RWMutex
 }
 
 type Conf struct {

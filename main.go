@@ -358,6 +358,16 @@ func (b *BuildManager) parseWorker() {
 			}
 
 			b.parseWG.Done()
+
+			b.queuedLock.RLock()
+			if b.queued[pkg.March] >= conf.Build.Batch {
+				b.queuedLock.RUnlock()
+				continue
+			}
+			b.queuedLock.Lock()
+			b.queued[pkg.March]++
+			b.queuedLock.Unlock()
+
 			b.build[pkg.March] <- pkg
 		}
 	}
@@ -645,10 +655,14 @@ func (b *BuildManager) syncWorker() {
 		check(err)
 		b.alpmMutex.Unlock()
 
+		// clear batch limits
+		b.queuedLock.Lock()
+		b.queued = map[string]int{}
+		b.queuedLock.Unlock()
+
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
 
-		queued := map[string]int{}
 		for _, pkgbuild := range pkgBuilds {
 			if b.exit {
 				return
@@ -687,11 +701,6 @@ func (b *BuildManager) syncWorker() {
 					continue
 				}
 
-				if queued[march] >= conf.Build.Batch {
-					continue
-				}
-
-				queued[march]++
 				// send to parse
 				b.parseWG.Add(1)
 				b.parse <- &BuildPackage{
