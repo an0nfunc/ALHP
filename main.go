@@ -364,6 +364,7 @@ func (b *BuildManager) parseWorker() {
 				b.queuedLock.RUnlock()
 				continue
 			}
+			b.queuedLock.RUnlock()
 			b.queuedLock.Lock()
 			b.queued[pkg.March]++
 			b.queuedLock.Unlock()
