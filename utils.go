@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -615,7 +617,13 @@ func (path PKGFile) DBPackage(march string) (*ent.DbPackage, error) {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
 	pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
 
-	dbPkgs, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.PackagesNotNil(), dbpackage.March(march))).All(context.Background())
+	dbPkg, err := db.DbPackage.Query().Where(func(s *sql.Selector) {
+		s.Where(
+			sql.And(
+				sqljson.ValueContains(dbpackage.FieldPackages, pkgname),
+				sql.EQ(dbpackage.FieldMarch, march)),
+		)
+	}).Only(context.Background())
 	if err != nil {
 		switch err.(type) {
 		case *ent.NotFoundError:
@@ -624,17 +632,8 @@ func (path PKGFile) DBPackage(march string) (*ent.DbPackage, error) {
 		default:
 			return nil, err
 		}
-	} else if len(dbPkgs) == 0 {
-		return nil, fmt.Errorf("package not found in DB: %s", pkgname)
-	} else {
-		for _, dbPkg := range dbPkgs {
-			if contains(dbPkg.Packages, pkgname) {
-				return dbPkg, nil
-			}
-		}
 	}
-
-	return nil, fmt.Errorf("package not found in DB: %s", pkgname)
+	return dbPkg, nil
 }
 
 func (path PKGFile) isSignatureValid() (bool, error) {
