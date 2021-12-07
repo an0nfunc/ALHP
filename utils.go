@@ -613,7 +613,7 @@ func setupChroot() error {
 	return nil
 }
 
-func (path PKGFile) DBPackage(march string) (*ent.DbPackage, error) {
+func (path PKGFile) DBPackage(march string, repo dbpackage.Repository) (*ent.DbPackage, error) {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
 	pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
 
@@ -621,7 +621,8 @@ func (path PKGFile) DBPackage(march string) (*ent.DbPackage, error) {
 		s.Where(
 			sql.And(
 				sqljson.ValueContains(dbpackage.FieldPackages, pkgname),
-				sql.EQ(dbpackage.FieldMarch, march)),
+				sql.EQ(dbpackage.FieldMarch, march),
+				sql.EQ(dbpackage.FieldRepository, repo)),
 		)
 	}).Only(context.Background())
 	if err != nil {
@@ -663,8 +664,9 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		pkgfile := PKGFile(path)
 		splitPath := strings.Split(path, string(filepath.Separator))
 		march := strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
+		mRepo := dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0])
 
-		dbPkg, err := pkgfile.DBPackage(march)
+		dbPkg, err := pkgfile.DBPackage(march, mRepo)
 		if err != nil {
 			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
 			pkg := &BuildPackage{
@@ -678,7 +680,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		pkg := &BuildPackage{
 			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0]),
+			Repo:      mRepo,
 			FullRepo:  splitPath[len(splitPath)-4],
 			DbPackage: dbPkg,
 			March:     march,
@@ -766,7 +768,7 @@ func (p *BuildPackage) findPkgFiles() error {
 }
 
 func (p *BuildPackage) toDbPackage(create bool) {
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Only(context.Background())
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March), dbpackage.RepositoryEQ(p.Repo))).Only(context.Background())
 	if err != nil && create {
 		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())
 	}
