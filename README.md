@@ -79,11 +79,12 @@ Include = /etc/pacman.d/mirrorlist
 Include = /etc/pacman.d/mirrorlist
 ```
 
-Replace `x86-64-v3` with your x86-64 feature level.
-> ALHP only builds for `x86-64-v3` at the moment (list is subject to change). You can see all available repositories
+Replace `x86-64-v3` with the x86-64 feature level you want to enable.
+> ALHP only builds for `x86-64-v3` and `x86-64-v2` at the moment (list is subject to change). You can see all available repositories
 > [here](https://alhp.harting.dev/).
 
 ### 5. Update package database and upgrade:
+
 ```
 pacman -Suy
 ```
