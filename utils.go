@@ -111,7 +111,8 @@ type Conf struct {
 }
 
 type Globs []string
-type PKGFile string
+type Package string
+type PKGBUILD string
 
 type MultiplePKGBUILDError struct {
 	error
@@ -126,8 +127,42 @@ func check(e error) {
 	}
 }
 
+func (p PKGBUILD) FullRepo() string {
+	sPkgbuild := strings.Split(string(p), string(filepath.Separator))
+	return sPkgbuild[len(sPkgbuild)-2]
+}
+
+func (p PKGBUILD) Repo() string {
+	return strings.Split(p.FullRepo(), "-")[0]
+}
+
+func (p PKGBUILD) PkgBase() string {
+	sPkgbuild := strings.Split(string(p), string(filepath.Separator))
+	return sPkgbuild[len(sPkgbuild)-4]
+}
+
 func updateLastUpdated() {
 	check(os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644))
+}
+
+func (path Package) Name() string {
+	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
+	return strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
+}
+
+func (path Package) MArch() string {
+	splitPath := strings.Split(string(path), string(filepath.Separator))
+	return strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
+}
+
+func (path Package) Repo() dbpackage.Repository {
+	splitPath := strings.Split(string(path), string(filepath.Separator))
+	return dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0])
+}
+
+func (path Package) FullRepo() string {
+	splitPath := strings.Split(string(path), string(filepath.Separator))
+	return splitPath[len(splitPath)-4]
 }
 
 func statusId2string(s dbpackage.Status) string {
@@ -480,10 +515,8 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 
 	var fPkgbuilds []string
 	for _, pkgbuild := range pkgBuilds {
-		sPkgbuild := strings.Split(pkgbuild, string(filepath.Separator))
-		repo := sPkgbuild[len(sPkgbuild)-2]
-
-		if repo == "trunk" || containsSubStr(repo, conf.Blacklist.Repo) {
+		mPkgbuild := PKGBUILD(pkgbuild)
+		if mPkgbuild.FullRepo() == "trunk" || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
 			continue
 		}
 
@@ -613,23 +646,20 @@ func setupChroot() error {
 	return nil
 }
 
-func (path PKGFile) DBPackage(march string, repo dbpackage.Repository) (*ent.DbPackage, error) {
-	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
-	pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
-
+func (path *Package) DBPackage() (*ent.DbPackage, error) {
 	dbPkg, err := db.DbPackage.Query().Where(func(s *sql.Selector) {
 		s.Where(
 			sql.And(
-				sqljson.ValueContains(dbpackage.FieldPackages, pkgname),
-				sql.EQ(dbpackage.FieldMarch, march),
-				sql.EQ(dbpackage.FieldRepository, repo)),
+				sqljson.ValueContains(dbpackage.FieldPackages, path.Name()),
+				sql.EQ(dbpackage.FieldMarch, path.MArch()),
+				sql.EQ(dbpackage.FieldRepository, path.Repo())),
 		)
 	}).Only(context.Background())
 	if err != nil {
 		switch err.(type) {
 		case *ent.NotFoundError:
-			log.Debugf("Not found in database: %s", pkgname)
-			return nil, fmt.Errorf("package not found in DB: %s", pkgname)
+			log.Debugf("Not found in database: %s", path.Name())
+			return nil, fmt.Errorf("package not found in DB: %s", path.Name())
 		default:
 			return nil, err
 		}
@@ -637,7 +667,7 @@ func (path PKGFile) DBPackage(march string, repo dbpackage.Repository) (*ent.DbP
 	return dbPkg, nil
 }
 
-func (path PKGFile) isSignatureValid() (bool, error) {
+func (path Package) hasValidSignature() (bool, error) {
 	cmd := exec.Command("gpg", "--verify", string(path)+".sig")
 	res, err := cmd.CombinedOutput()
 	log.Debug(string(res))
@@ -661,18 +691,15 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 	}
 
 	for _, path := range packages {
-		pkgfile := PKGFile(path)
-		splitPath := strings.Split(path, string(filepath.Separator))
-		march := strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
-		mRepo := dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0])
+		mPackage := Package(path)
 
-		dbPkg, err := pkgfile.DBPackage(march, mRepo)
+		dbPkg, err := mPackage.DBPackage()
 		if err != nil {
 			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
 			pkg := &BuildPackage{
-				FullRepo: splitPath[len(splitPath)-4],
+				FullRepo: mPackage.FullRepo(),
 				PkgFiles: []string{path},
-				March:    march,
+				March:    mPackage.MArch(),
 			}
 			buildManager.repoPurge[pkg.FullRepo] <- pkg
 			continue
@@ -680,10 +707,10 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		pkg := &BuildPackage{
 			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      mRepo,
-			FullRepo:  splitPath[len(splitPath)-4],
+			Repo:      mPackage.Repo(),
+			FullRepo:  mPackage.FullRepo(),
 			DbPackage: dbPkg,
-			March:     march,
+			March:     mPackage.MArch(),
 		}
 
 		var upstream string
@@ -715,7 +742,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 
 		// check if pkg signature is valid
-		valid, err := pkgfile.isSignatureValid()
+		valid, err := mPackage.hasValidSignature()
 		if err != nil {
 			return err
 		}
@@ -736,6 +763,30 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 
 		// TODO: check split packages
+	}
+
+	// check all dbpackages for existence
+	dbpackages, err := db.DbPackage.Query().All(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, dbpkg := range dbpackages {
+		pkg := &BuildPackage{
+			Pkgbase:   dbpkg.Pkgbase,
+			Repo:      dbpkg.Repository,
+			March:     dbpkg.March,
+			FullRepo:  dbpkg.Repository.String() + "-" + dbpkg.March,
+			DbPackage: dbpkg,
+		}
+
+		if !pkg.isAvailable(alpmHandle) {
+			log.Infof("[HK/%s/%s] not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
+			err = db.DbPackage.DeleteOne(dbpkg).Exec(context.Background())
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

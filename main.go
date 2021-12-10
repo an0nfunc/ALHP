@@ -574,9 +574,7 @@ func (b *BuildManager) repoWorker(repo string) {
 
 			var realPkgs []string
 			for _, filePath := range pkg.PkgFiles {
-				fNameSplit := strings.Split(filepath.Base(filePath), "-")
-				pkgname := strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
-				realPkgs = append(realPkgs, pkgname)
+				realPkgs = append(realPkgs, Package(filePath).Name())
 			}
 
 			b.repoWG.Add(1)
@@ -677,36 +675,37 @@ func (b *BuildManager) syncWorker() {
 				return
 			}
 
-			sPkgbuild := strings.Split(pkgbuild, "/")
-			repo := sPkgbuild[len(sPkgbuild)-2]
-
-			if repo == "trunk" || !contains(conf.Repos, strings.Split(repo, "-")[0]) || containsSubStr(repo, conf.Blacklist.Repo) {
+			mPkgbuild := PKGBUILD(pkgbuild)
+			if mPkgbuild.FullRepo() == "trunk" || !contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
 				continue
 			}
 
 			for _, march := range conf.March {
-				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
-				// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
-				dbPkg, dbErr := db.DbPackage.Query().Where(dbpackage.And(
-					dbpackage.Pkgbase(sPkgbuild[len(sPkgbuild)-4]),
-					dbpackage.RepositoryEQ(dbpackage.Repository(strings.Split(repo, "-")[0])), dbpackage.March(march)),
+				dbPkg, dbErr := db.DbPackage.Query().Where(
+					dbpackage.And(
+						dbpackage.Pkgbase(mPkgbuild.PkgBase()),
+						dbpackage.RepositoryEQ(dbpackage.Repository(mPkgbuild.Repo())),
+						dbpackage.March(march),
+					),
 				).Only(context.Background())
 
 				if dbErr != nil {
 					switch dbErr.(type) {
 					case *ent.NotFoundError:
-						log.Debugf("[%s/%s] Package not found in database", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4])
+						log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
 						break
 					default:
-						log.Errorf("[%s/%s] Problem querying db for package: %v", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], dbErr)
+						log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
 					}
 				}
 
+				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
+				// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
 				b3s, err := b3sum(pkgbuild)
 				check(err)
 
 				if dbPkg != nil && b3s == dbPkg.Hash {
-					log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", strings.Split(repo, "-")[0], sPkgbuild[len(sPkgbuild)-4], b3s)
+					log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
 					continue
 				}
 
@@ -714,10 +713,10 @@ func (b *BuildManager) syncWorker() {
 				b.parseWG.Add(1)
 				b.parse <- &BuildPackage{
 					Pkgbuild: pkgbuild,
-					Pkgbase:  sPkgbuild[len(sPkgbuild)-4],
-					Repo:     dbpackage.Repository(strings.Split(repo, "-")[0]),
+					Pkgbase:  mPkgbuild.PkgBase(),
+					Repo:     dbpackage.Repository(mPkgbuild.Repo()),
 					March:    march,
-					FullRepo: strings.Split(repo, "-")[0] + "-" + march,
+					FullRepo: mPkgbuild.Repo() + "-" + march,
 					Hash:     b3s,
 				}
 			}
