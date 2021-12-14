@@ -492,7 +492,12 @@ func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
 	}
 
 	buildManager.alpmMutex.Lock()
-	pkg, err := dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
+	var pkg alpm.IPackage
+	if p.Srcinfo != nil {
+		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
+	} else {
+		pkg, err = dbs.FindSatisfier(p.DbPackage.Packages[0])
+	}
 	buildManager.alpmMutex.Unlock()
 	if err != nil {
 		return false
