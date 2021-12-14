@@ -16,6 +16,7 @@ import (
 	"github.com/wercker/journalhook"
 	"gopkg.in/yaml.v2"
 	"html/template"
+	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -669,6 +670,10 @@ func (b *BuildManager) syncWorker() {
 
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
 		check(err)
+
+		// Shuffle pkgbuilds to spread out long-running builds, otherwise pkgBuilds is alphabetically-sorted
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(pkgBuilds), func(i, j int) { pkgBuilds[i], pkgBuilds[j] = pkgBuilds[j], pkgBuilds[i] })
 
 		for _, pkgbuild := range pkgBuilds {
 			if b.exit {
