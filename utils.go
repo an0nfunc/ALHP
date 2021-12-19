@@ -40,14 +40,15 @@ const (
 )
 
 var (
-	reMarch     = regexp.MustCompile(`(-march=)(.+?) `)
-	rePkgRel    = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgSource = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
-	rePkgSum    = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
-	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
-	reLdError   = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
-	reDepError  = regexp.MustCompile(`(?m)^error: could not rename .+$`)
-	rePortError = regexp.MustCompile(`(?m)^OSError: \[Errno 98] Address already in use$`)
+	reMarch         = regexp.MustCompile(`(-march=)(.+?) `)
+	rePkgRel        = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
+	rePkgSource     = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
+	rePkgSum        = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
+	rePkgFile       = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
+	reLdError       = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
+	reDownloadError = regexp.MustCompile(`(?m)^error: could not rename .+$`)
+	rePortError     = regexp.MustCompile(`(?m)^OSError: \[Errno 98] Address already in use$`)
+	reSigError      = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
 )
 
 type BuildPackage struct {

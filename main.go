@@ -168,19 +168,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 					continue
 				}
 
-				if reDepError.Match(out.Bytes()) {
-					log.Infof("[%s/%s/%s] dep. error detected, rebuilding later", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
-					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(context.Background())
-					err = cleanBuildDir(buildDir)
-					if err != nil {
-						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
-					}
-					b.buildWG.Done()
-					continue
-				}
-
-				if rePortError.Match(out.Bytes()) {
-					log.Infof("[%s/%s/%s] port already used (firefox?) error detected, rebuilding later", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
+				if reDownloadError.Match(out.Bytes()) || rePortError.Match(out.Bytes()) || reSigError.Match(out.Bytes()) {
+					log.Infof("[%s/%s/%s] detected fixable error, rebuilding later", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
 					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(context.Background())
 					err = cleanBuildDir(buildDir)
 					if err != nil {
