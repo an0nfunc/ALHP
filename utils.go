@@ -32,7 +32,11 @@ const (
 	makepkgConf    = "/usr/share/devtools/makepkg-x86_64.conf"
 	logDir         = "logs"
 	pristineChroot = "root"
+	buildDir       = "build"
 	lastUpdate     = "lastupdate"
+	upstreamDir    = "upstream"
+	chrootDir      = "chroot"
+	makepkgDir     = "makepkg"
 )
 
 var (
@@ -78,7 +82,7 @@ type Conf struct {
 	Repos, March []string
 	Svn2git      map[string]string
 	Basedir      struct {
-		Repo, Chroot, Makepkg, Upstream, Build string
+		Repo, Work string
 	}
 	Db struct {
 		Driver    string
@@ -221,7 +225,7 @@ func cleanBuildDir(dir string) error {
 }
 
 func (p *BuildPackage) setupBuildDir() (string, error) {
-	buildDir := filepath.Join(conf.Basedir.Build, p.March, p.Pkgbase+"-"+p.Version)
+	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
 	err := cleanBuildDir(buildDir)
 	if err != nil {
@@ -516,7 +520,7 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 	}
 
 	// upstream/upstream-core-extra/extra-cmake-modules/repos/extra-any/PKGBUILD
-	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Upstream, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
+	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
 
 	var fPkgbuilds []string
 	for _, pkgbuild := range pkgBuilds {
@@ -569,7 +573,7 @@ func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 		}
 		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
 	} else if len(fPkgbuilds) == 0 {
-		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Upstream, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
+		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}
 
 	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(fPkgbuilds[0])+"&&"+"makepkg --printsrcinfo")
@@ -627,19 +631,19 @@ func (p *BuildPackage) genSrcinfo() error {
 }
 
 func setupChroot() error {
-	if _, err := os.Stat(filepath.Join(conf.Basedir.Chroot, pristineChroot)); err == nil {
+	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot)); err == nil {
 		//goland:noinspection SpellCheckingInspection
-		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Chroot, pristineChroot), "pacman", "-Syuu", "--noconfirm")
+		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
 			return fmt.Errorf("Unable to update chroot: %v\n%s", err, string(res))
 		}
 	} else if os.IsNotExist(err) {
-		err := os.MkdirAll(conf.Basedir.Chroot, 0755)
+		err := os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0755)
 		check(err)
 
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Chroot, pristineChroot), "base-devel")
+		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
@@ -725,7 +729,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		case dbpackage.RepositoryCommunity:
 			upstream = "upstream-community"
 		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Upstream, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 
 		// check if package is still part of repo
 		dbs, err := alpmHandle.SyncDBs()
@@ -882,10 +886,10 @@ func syncMarchs() {
 
 //goland:noinspection SpellCheckingInspection
 func setupMakepkg(march string) error {
-	lMakepkg := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s.conf", march))
-	lMakepkgLTO := filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf("makepkg-%s-lto.conf", march))
+	lMakepkg := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf("makepkg-%s.conf", march))
+	lMakepkgLTO := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf("makepkg-%s-lto.conf", march))
 
-	err := os.MkdirAll(conf.Basedir.Makepkg, 0755)
+	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, makepkgDir), 0755)
 	if err != nil {
 		return err
 	}

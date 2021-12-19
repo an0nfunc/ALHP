@@ -124,8 +124,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				makepkgFile = "makepkg-%s.conf"
 			}
 			cmd := exec.Command("sh", "-c",
-				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+conf.Basedir.Makepkg+" -l worker-"+march+"-"+strconv.Itoa(id)+" -r "+conf.Basedir.Chroot+" -- "+
-					"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Makepkg, fmt.Sprintf(makepkgFile, pkg.March)))
+				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+filepath.Join(conf.Basedir.Work, makepkgDir)+" -l worker-"+march+"-"+strconv.Itoa(id)+" -r "+filepath.Join(conf.Basedir.Work, chrootDir)+" -- "+
+					"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, pkg.March)))
 			var out bytes.Buffer
 			cmd.Stdout = &out
 			cmd.Stderr = &out
@@ -603,7 +603,7 @@ func (b *BuildManager) repoWorker(repo string) {
 }
 
 func (b *BuildManager) syncWorker() {
-	check(os.MkdirAll(conf.Basedir.Upstream, 0755))
+	check(os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0755))
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go b.parseWorker()
@@ -613,7 +613,7 @@ func (b *BuildManager) syncWorker() {
 		b.buildWG.Wait()
 
 		for gitDir, gitURL := range conf.Svn2git {
-			gitPath := filepath.Join(conf.Basedir.Upstream, gitDir)
+			gitPath := filepath.Join(conf.Basedir.Work, upstreamDir, gitDir)
 
 			if _, err := os.Stat(gitPath); os.IsNotExist(err) {
 				cmd := exec.Command("git", "clone", "--depth=1", gitURL, gitPath)
@@ -659,7 +659,7 @@ func (b *BuildManager) syncWorker() {
 			err = setupChroot()
 		}
 
-		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
+		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 		check(err)
 		b.alpmMutex.Unlock()
 
@@ -668,7 +668,7 @@ func (b *BuildManager) syncWorker() {
 		b.queued = map[string]int{}
 		b.queuedLock.Unlock()
 
-		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Upstream, "/**/PKGBUILD"))
+		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		check(err)
 
 		// Shuffle pkgbuilds to spread out long-running builds, otherwise pkgBuilds is alphabetically-sorted
@@ -798,7 +798,7 @@ func main() {
 	}
 	syncMarchs()
 
-	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Chroot, pristineChroot), filepath.Join(conf.Basedir.Chroot, pristineChroot, "/var/lib/pacman"))
+	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 	check(err)
 
 	go buildManager.syncWorker()

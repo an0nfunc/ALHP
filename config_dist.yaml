@@ -27,10 +27,7 @@ db:
 
 basedir:
   repo: /var/lib/alhp/repo/
-  chroot: /var/lib/alhp/chroot/
-  makepkg: /var/lib/alhp/makepkg/
-  upstream: /var/lib/alhp/upstream/
-  build: /var/lib/alhp/build/
+  work: /var/lib/alhp/chroot/
 
 march:
   - x86-64-v3
