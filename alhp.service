@@ -12,6 +12,10 @@ TimeoutStopSec=5min
 MemoryHigh=30G
 CPUQuota=700%
 Nice=15
+CPUSchedulingPolicy=batch
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+IOWeight=100
 
 [Install]
 WantedBy=multi-user.target
