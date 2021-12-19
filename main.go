@@ -168,6 +168,17 @@ func (b *BuildManager) buildWorker(id int, march string) {
 					continue
 				}
 
+				if reDepError.Match(out.Bytes()) {
+					log.Infof("[%s/%s/%s] dep. error detected, rebuilding later", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
+					pkg.DbPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(context.Background())
+					err = cleanBuildDir(buildDir)
+					if err != nil {
+						log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+					}
+					b.buildWG.Done()
+					continue
+				}
+
 				log.Warningf("[%s/%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, cmd.ProcessState.ExitCode())
 
 				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, march), 0755))

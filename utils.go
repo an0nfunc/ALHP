@@ -46,6 +46,7 @@ var (
 	rePkgSum    = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
 	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	reLdError   = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
+	reDepError  = regexp.MustCompile(`(?m)^error: could not rename .+$`)
 )
 
 type BuildPackage struct {
