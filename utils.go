@@ -73,8 +73,6 @@ type BuildManager struct {
 	buildProcesses []*os.Process
 	buildProcMutex sync.RWMutex
 	alpmMutex      sync.RWMutex
-	queued         map[string]int
-	queuedLock     sync.RWMutex
 }
 
 type Conf struct {
@@ -92,7 +90,6 @@ type Conf struct {
 		Worker int
 		Makej  int
 		Checks bool
-		Batch  int
 	}
 	Logging struct {
 		Level string

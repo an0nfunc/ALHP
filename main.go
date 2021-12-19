@@ -367,17 +367,6 @@ func (b *BuildManager) parseWorker() {
 			}
 
 			b.parseWG.Done()
-
-			b.queuedLock.RLock()
-			if b.queued[pkg.March] >= conf.Build.Batch {
-				b.queuedLock.RUnlock()
-				continue
-			}
-			b.queuedLock.RUnlock()
-			b.queuedLock.Lock()
-			b.queued[pkg.March]++
-			b.queuedLock.Unlock()
-
 			b.build[pkg.March] <- pkg
 		}
 	}
@@ -662,11 +651,6 @@ func (b *BuildManager) syncWorker() {
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 		check(err)
 		b.alpmMutex.Unlock()
-
-		// clear batch limits
-		b.queuedLock.Lock()
-		b.queued = map[string]int{}
-		b.queuedLock.Unlock()
 
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		check(err)
