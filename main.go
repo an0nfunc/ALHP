@@ -539,11 +539,11 @@ func (b *BuildManager) htmlWorker() {
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		check(err)
 
-		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0644)
+		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		check(statusTpl.Execute(f, gen))
 		check(f.Close())
 
-		time.Sleep(time.Minute)
+		time.Sleep(time.Minute * 5)
 	}
 }
 
