@@ -47,6 +47,7 @@ var (
 	rePkgFile   = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	reLdError   = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
 	reDepError  = regexp.MustCompile(`(?m)^error: could not rename .+$`)
+	rePortError = regexp.MustCompile(`(?m)^OSError: \[Errno 98] Address already in use$`)
 )
 
 type BuildPackage struct {
