@@ -37,6 +37,7 @@ const (
 	upstreamDir    = "upstream"
 	chrootDir      = "chroot"
 	makepkgDir     = "makepkg"
+	waitingDir     = "to_be_moved"
 )
 
 var (
@@ -167,6 +168,11 @@ func (path Package) Repo() dbpackage.Repository {
 func (path Package) FullRepo() string {
 	splitPath := strings.Split(string(path), string(filepath.Separator))
 	return splitPath[len(splitPath)-4]
+}
+
+func (path Package) Version() string {
+	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
+	return strings.Join(fNameSplit[len(fNameSplit)-3:len(fNameSplit)-2], "-")
 }
 
 func statusId2string(s dbpackage.Status) string {
@@ -405,6 +411,42 @@ func (p *BuildPackage) prepareKernelPatches() error {
 		return err
 	}
 
+	return nil
+}
+
+func movePackagesLive(fullRepo string) error {
+	pkgFiles, err := filepath.Glob(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo, "*.pkg.tar.zst"))
+	if err != nil {
+		return err
+	}
+
+	toAdd := make([]*BuildPackage, 0)
+
+	for _, file := range pkgFiles {
+		pkg := Package(file)
+		dbpkg, err := pkg.DBPackage()
+		if err != nil {
+			return err
+		}
+
+		err = os.Rename(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
+		if err != nil {
+			return err
+		}
+		err = os.Rename(file+".sig", filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)+".sig"))
+		if err != nil {
+			return err
+		}
+
+		toAdd = append(toAdd, &BuildPackage{
+			DbPackage: dbpkg,
+			Pkgbase:   dbpkg.Pkgbase,
+			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
+			Version:   pkg.Version(),
+		})
+	}
+
+	buildManager.repoAdd[fullRepo] <- toAdd
 	return nil
 }
 
@@ -828,6 +870,10 @@ func (p *BuildPackage) findPkgFiles() error {
 }
 
 func (p *BuildPackage) toDbPackage(create bool) {
+	if p.DbPackage != nil {
+		return
+	}
+
 	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March), dbpackage.RepositoryEQ(p.Repo))).Only(context.Background())
 	if err != nil && create {
 		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())

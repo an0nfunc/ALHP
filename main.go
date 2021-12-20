@@ -228,7 +228,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			check(err)
 
 			for _, file := range copyFiles {
-				_, err = copyFile(file, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, filepath.Base(file)))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo), 755))
+				_, err = copyFile(file, filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo, filepath.Base(file)))
 				if err != nil {
 					check(err)
 					b.buildWG.Done()
@@ -236,7 +237,7 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				}
 
 				if filepath.Ext(file) != ".sig" {
-					pkg.PkgFiles = append(pkg.PkgFiles, filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, filepath.Base(file)))
+					pkg.PkgFiles = append(pkg.PkgFiles, filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo, filepath.Base(file)))
 				}
 			}
 
@@ -245,18 +246,30 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			}
 
 			if pkg.DbPackage.Lto != dbpackage.LtoDisabled && pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled {
-				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetLto(dbpackage.LtoEnabled).SetBuildTimeStart(start).SetLastVersionBuild(pkg.Version).SetBuildTimeEnd(time.Now().UTC()).ExecX(context.Background())
+				pkg.DbPackage.Update().
+					SetStatus(dbpackage.StatusBuild).
+					SetLto(dbpackage.LtoEnabled).
+					SetBuildTimeStart(start).
+					SetLastVersionBuild(pkg.Version).
+					SetBuildTimeEnd(time.Now().UTC()).
+					SetHash(pkg.Hash).
+					ExecX(context.Background())
 			} else {
-				pkg.DbPackage.Update().SetStatus(dbpackage.StatusBuild).SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetLastVersionBuild(pkg.Version).ExecX(context.Background())
+				pkg.DbPackage.Update().
+					SetStatus(dbpackage.StatusBuild).
+					SetBuildTimeStart(start).
+					SetBuildTimeEnd(time.Now().UTC()).
+					SetLastVersionBuild(pkg.Version).
+					SetHash(pkg.Hash).ExecX(context.Background())
 			}
 
 			log.Infof("[%s/%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, time.Since(start))
-			b.repoAdd[pkg.FullRepo] <- []*BuildPackage{pkg}
 
 			err = cleanBuildDir(buildDir)
 			if err != nil {
 				log.Warningf("[%s/%s/%s] Error removing builddir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 			}
+			b.buildWG.Done()
 		}
 	}
 }
@@ -542,28 +555,30 @@ func (b *BuildManager) repoWorker(repo string) {
 	for {
 		select {
 		case pkgL := <-b.repoAdd[repo]:
+			toAdd := make([]string, 0)
 			for _, pkg := range pkgL {
-				args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
-				args = append(args, pkg.PkgFiles...)
-				cmd := exec.Command("repo-add", args...)
-				res, err := cmd.CombinedOutput()
-				log.Debug(string(res))
-				if err != nil && cmd.ProcessState.ExitCode() != 1 {
-					log.Panicf("%s while repo-add: %v", string(res), err)
-				}
+				toAdd = append(toAdd, pkg.PkgFiles...)
+			}
 
+			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch, repo) + ".db.tar.xz"}
+			args = append(args, toAdd...)
+			cmd := exec.Command("repo-add", args...)
+			res, err := cmd.CombinedOutput()
+			log.Debug(string(res))
+			if err != nil && cmd.ProcessState.ExitCode() != 1 {
+				log.Panicf("%s while repo-add: %v", string(res), err)
+			}
+
+			for _, pkg := range pkgL {
 				pkg.toDbPackage(true)
 				pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
-
-				cmd = exec.Command("paccache",
-					"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
-					"-k", "1")
-				res, err = cmd.CombinedOutput()
-				log.Debug(string(res))
-				check(err)
-				updateLastUpdated()
-				b.buildWG.Done()
 			}
+
+			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1")
+			res, err = cmd.CombinedOutput()
+			log.Debug(string(res))
+			check(err)
+			updateLastUpdated()
 		case pkgL := <-b.repoPurge[repo]:
 			for _, pkg := range pkgL {
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
@@ -616,8 +631,6 @@ func (b *BuildManager) syncWorker() {
 	}
 
 	for {
-		b.buildWG.Wait()
-
 		for gitDir, gitURL := range conf.Svn2git {
 			gitPath := filepath.Join(conf.Basedir.Work, upstreamDir, gitDir)
 
@@ -729,6 +742,15 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		b.parseWG.Wait()
+		b.buildWG.Wait()
+
+		for _, repo := range repos {
+			err = movePackagesLive(repo)
+			if err != nil {
+				log.Errorf("[%s] Error moving packages live: %v", repo, err)
+			}
+		}
+
 		time.Sleep(time.Duration(*checkInterval) * time.Minute)
 	}
 }
