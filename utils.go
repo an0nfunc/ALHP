@@ -67,8 +67,8 @@ type BuildPackage struct {
 type BuildManager struct {
 	build          map[string]chan *BuildPackage
 	parse          chan *BuildPackage
-	repoPurge      map[string]chan *BuildPackage
-	repoAdd        map[string]chan *BuildPackage
+	repoPurge      map[string]chan []*BuildPackage
+	repoAdd        map[string]chan []*BuildPackage
 	exit           bool
 	buildWG        sync.WaitGroup
 	parseWG        sync.WaitGroup
@@ -710,7 +710,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 				PkgFiles: []string{path},
 				March:    mPackage.MArch(),
 			}
-			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 			continue
 		}
 
@@ -742,7 +742,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
-			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
 			if err != nil {
 				return err
@@ -757,7 +757,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 		if !valid {
 			log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
-			buildManager.repoPurge[pkg.FullRepo] <- pkg
+			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 			continue
 		}
 
@@ -861,8 +861,8 @@ func syncMarchs() {
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
-			buildManager.repoAdd[fRepo] = make(chan *BuildPackage, conf.Build.Worker)
-			buildManager.repoPurge[fRepo] = make(chan *BuildPackage, 10000)
+			buildManager.repoAdd[fRepo] = make(chan []*BuildPackage, conf.Build.Worker)
+			buildManager.repoPurge[fRepo] = make(chan []*BuildPackage, 10000)
 			go buildManager.repoWorker(fRepo)
 
 			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))); os.IsNotExist(err) {

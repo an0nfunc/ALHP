@@ -189,7 +189,7 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(pkg.Hash).ExecX(context.Background())
 
 				// purge failed package from repo
-				b.repoPurge[pkg.FullRepo] <- pkg
+				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 
 				err = cleanBuildDir(buildDir)
 				if err != nil {
@@ -251,7 +251,7 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			}
 
 			log.Infof("[%s/%s/%s] Build successful (%s)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, time.Since(start))
-			b.repoAdd[pkg.FullRepo] <- pkg
+			b.repoAdd[pkg.FullRepo] <- []*BuildPackage{pkg}
 
 			err = cleanBuildDir(buildDir)
 			if err != nil {
@@ -318,7 +318,7 @@ func (b *BuildManager) parseWorker() {
 				pkg.DbPackage = pkg.DbPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).
 					SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetStatus(pkg.DbPackage.Status).
 					SetSkipReason(pkg.DbPackage.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
-				b.repoPurge[pkg.FullRepo] <- pkg
+				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 				b.parseWG.Done()
 				continue
 			} else {
@@ -347,13 +347,13 @@ func (b *BuildManager) parseWorker() {
 				case MultiplePKGBUILDError:
 					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", pkg.Srcinfo.Pkgbase, err)
 					pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
-					b.repoPurge[pkg.FullRepo] <- pkg
+					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 					b.parseWG.Done()
 					continue
 				case UnableToSatisfyError:
 					log.Infof("Skipped %s: unable to resolve dependencies: %v", pkg.Srcinfo.Pkgbase, err)
 					pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
-					b.repoPurge[pkg.FullRepo] <- pkg
+					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 					b.parseWG.Done()
 					continue
 				}
@@ -374,7 +374,7 @@ func (b *BuildManager) parseWorker() {
 				// Worst case would be clients downloading a package update twice, once from their official mirror,
 				// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
 				// in an outdated version.
-				b.repoPurge[pkg.FullRepo] <- pkg
+				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 				b.parseWG.Done()
 				continue
 			}
@@ -541,65 +541,69 @@ func (b *BuildManager) htmlWorker() {
 func (b *BuildManager) repoWorker(repo string) {
 	for {
 		select {
-		case pkg := <-b.repoAdd[repo]:
-			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
-			args = append(args, pkg.PkgFiles...)
-			cmd := exec.Command("repo-add", args...)
-			res, err := cmd.CombinedOutput()
-			log.Debug(string(res))
-			if err != nil && cmd.ProcessState.ExitCode() != 1 {
-				log.Panicf("%s while repo-add: %v", string(res), err)
-			}
+		case pkgL := <-b.repoAdd[repo]:
+			for _, pkg := range pkgL {
+				args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
+				args = append(args, pkg.PkgFiles...)
+				cmd := exec.Command("repo-add", args...)
+				res, err := cmd.CombinedOutput()
+				log.Debug(string(res))
+				if err != nil && cmd.ProcessState.ExitCode() != 1 {
+					log.Panicf("%s while repo-add: %v", string(res), err)
+				}
 
-			pkg.toDbPackage(true)
-			pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
+				pkg.toDbPackage(true)
+				pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
 
-			cmd = exec.Command("paccache",
-				"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
-				"-k", "1")
-			res, err = cmd.CombinedOutput()
-			log.Debug(string(res))
-			check(err)
-			updateLastUpdated()
-			b.buildWG.Done()
-		case pkg := <-b.repoPurge[repo]:
-			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
-				continue
+				cmd = exec.Command("paccache",
+					"-rc", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch),
+					"-k", "1")
+				res, err = cmd.CombinedOutput()
+				log.Debug(string(res))
+				check(err)
+				updateLastUpdated()
+				b.buildWG.Done()
 			}
-			if len(pkg.PkgFiles) == 0 {
-				if err := pkg.findPkgFiles(); err != nil {
-					log.Warningf("[%s/%s] Unable to find files: %v", pkg.FullRepo, pkg.Pkgbase, err)
-					continue
-				} else if len(pkg.PkgFiles) == 0 {
+		case pkgL := <-b.repoPurge[repo]:
+			for _, pkg := range pkgL {
+				if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
 					continue
 				}
-			}
+				if len(pkg.PkgFiles) == 0 {
+					if err := pkg.findPkgFiles(); err != nil {
+						log.Warningf("[%s/%s] Unable to find files: %v", pkg.FullRepo, pkg.Pkgbase, err)
+						continue
+					} else if len(pkg.PkgFiles) == 0 {
+						continue
+					}
+				}
 
-			var realPkgs []string
-			for _, filePath := range pkg.PkgFiles {
-				realPkgs = append(realPkgs, Package(filePath).Name())
-			}
+				var realPkgs []string
+				for _, filePath := range pkg.PkgFiles {
+					realPkgs = append(realPkgs, Package(filePath).Name())
+				}
 
-			b.repoWG.Add(1)
-			args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
-			args = append(args, realPkgs...)
-			cmd := exec.Command("repo-remove", args...)
-			res, err := cmd.CombinedOutput()
-			log.Debug(string(res))
-			if err != nil && cmd.ProcessState.ExitCode() == 1 {
-				log.Warningf("Error while deleting package %s: %s", pkg.Pkgbase, string(res))
-			}
+				b.repoWG.Add(1)
+				args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
+				args = append(args, realPkgs...)
+				cmd := exec.Command("repo-remove", args...)
+				res, err := cmd.CombinedOutput()
+				log.Debug(string(res))
+				if err != nil && cmd.ProcessState.ExitCode() == 1 {
+					log.Warningf("Error while deleting package %s: %s", pkg.Pkgbase, string(res))
+				}
 
-			if pkg.DbPackage != nil {
-				_ = pkg.DbPackage.Update().ClearRepoVersion().Exec(context.Background())
-			}
+				if pkg.DbPackage != nil {
+					_ = pkg.DbPackage.Update().ClearRepoVersion().Exec(context.Background())
+				}
 
-			for _, file := range pkg.PkgFiles {
-				_ = os.Remove(file)
-				_ = os.Remove(file + ".sig")
+				for _, file := range pkg.PkgFiles {
+					_ = os.Remove(file)
+					_ = os.Remove(file + ".sig")
+				}
+				updateLastUpdated()
+				b.repoWG.Done()
 			}
-			updateLastUpdated()
-			b.repoWG.Done()
 		}
 	}
 }
@@ -784,8 +788,8 @@ func main() {
 	buildManager = &BuildManager{
 		build:     make(map[string]chan *BuildPackage),
 		parse:     make(chan *BuildPackage, 10000),
-		repoPurge: make(map[string]chan *BuildPackage),
-		repoAdd:   make(map[string]chan *BuildPackage),
+		repoPurge: make(map[string]chan []*BuildPackage),
+		repoAdd:   make(map[string]chan []*BuildPackage),
 		exit:      false,
 	}
 
