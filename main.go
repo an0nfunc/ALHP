@@ -55,6 +55,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 				b.buildWG.Add(1)
 			}
 
+			rand.Seed(time.Now().UnixNano())
+			time.Sleep(time.Duration(rand.Float32()*60) * time.Second)
 			start := time.Now().UTC()
 
 			log.Infof("[%s/%s/%s] Build starting", pkg.FullRepo, pkg.Pkgbase, pkg.Version)
