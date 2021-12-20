@@ -415,6 +415,15 @@ func (p *BuildPackage) prepareKernelPatches() error {
 }
 
 func movePackagesLive(fullRepo string) error {
+	// make sure no old builds get moved
+	cmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Work, waitingDir, fullRepo), "-k", "1")
+	res, err := cmd.CombinedOutput()
+	log.Debug(string(res))
+	check(err)
+
+	march := strings.Join(strings.Split(fullRepo, "-")[1:], "-")
+	repo := strings.Split(fullRepo, "-")[0]
+
 	pkgFiles, err := filepath.Glob(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo, "*.pkg.tar.zst"))
 	if err != nil {
 		return err
@@ -424,7 +433,7 @@ func movePackagesLive(fullRepo string) error {
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
-		dbpkg, err := pkg.DBPackage()
+		dbpkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
 		if err != nil {
 			return err
 		}
@@ -698,12 +707,16 @@ func setupChroot() error {
 }
 
 func (path *Package) DBPackage() (*ent.DbPackage, error) {
+	return path.DBPackageIsolated(path.MArch(), path.Repo())
+}
+
+func (path *Package) DBPackageIsolated(march string, repo dbpackage.Repository) (*ent.DbPackage, error) {
 	dbPkg, err := db.DbPackage.Query().Where(func(s *sql.Selector) {
 		s.Where(
 			sql.And(
 				sqljson.ValueContains(dbpackage.FieldPackages, path.Name()),
-				sql.EQ(dbpackage.FieldMarch, path.MArch()),
-				sql.EQ(dbpackage.FieldRepository, path.Repo())),
+				sql.EQ(dbpackage.FieldMarch, march),
+				sql.EQ(dbpackage.FieldRepository, repo)),
 		)
 	}).Only(context.Background())
 	if err != nil {
@@ -807,7 +820,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		repoVer, err := pkg.repoVersion()
 		if err == nil && alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
 			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).Save(context.Background())
+			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
 			if err != nil {
 				return err
 			}

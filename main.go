@@ -216,9 +216,8 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			for _, file := range pkgFiles {
 				cmd = exec.Command("gpg", "--batch", "--detach-sign", file)
 				res, err := cmd.CombinedOutput()
-				log.Debug(string(res))
 				if err != nil {
-					log.Warningf("Failed to sign %s: %s", pkg.Pkgbase, err)
+					log.Warningf("Failed to sign %s (%s): %s", pkg.Pkgbase, err, string(res))
 					b.buildWG.Done()
 					continue
 				}
@@ -228,7 +227,7 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			check(err)
 
 			for _, file := range copyFiles {
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo), 755))
+				check(os.MkdirAll(filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo), 0755))
 				_, err = copyFile(file, filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo, filepath.Base(file)))
 				if err != nil {
 					check(err)
@@ -744,10 +743,12 @@ func (b *BuildManager) syncWorker() {
 		b.parseWG.Wait()
 		b.buildWG.Wait()
 
-		for _, repo := range repos {
-			err = movePackagesLive(repo)
-			if err != nil {
-				log.Errorf("[%s] Error moving packages live: %v", repo, err)
+		if !b.exit {
+			for _, repo := range repos {
+				err = movePackagesLive(repo)
+				if err != nil {
+					log.Errorf("[%s] Error moving packages live: %v", repo, err)
+				}
 			}
 		}
 
