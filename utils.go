@@ -415,6 +415,12 @@ func (p *BuildPackage) prepareKernelPatches() error {
 }
 
 func movePackagesLive(fullRepo string) error {
+	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo)); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
 	// make sure no old builds get moved
 	cmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Work, waitingDir, fullRepo), "-k", "1")
 	res, err := cmd.CombinedOutput()
