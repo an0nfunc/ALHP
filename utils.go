@@ -820,7 +820,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		// compare db-version with repo version
 		repoVer, err := pkg.repoVersion()
-		if err == nil && alpm.VerCmp(repoVer, dbPkg.RepoVersion) != 0 {
+		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
 			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
 			if err != nil {
