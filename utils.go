@@ -172,7 +172,7 @@ func (path Package) FullRepo() string {
 
 func (path Package) Version() string {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
-	return strings.Join(fNameSplit[len(fNameSplit)-3:len(fNameSplit)-2], "-")
+	return strings.Join(fNameSplit[len(fNameSplit)-3:len(fNameSplit)-1], "-")
 }
 
 func statusId2string(s dbpackage.Status) string {
