@@ -421,12 +421,6 @@ func movePackagesLive(fullRepo string) error {
 		return err
 	}
 
-	// make sure no old builds get moved
-	cmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Work, waitingDir, fullRepo), "-k", "1")
-	res, err := cmd.CombinedOutput()
-	log.Debug(string(res))
-	check(err)
-
 	march := strings.Join(strings.Split(fullRepo, "-")[1:], "-")
 	repo := strings.Split(fullRepo, "-")[0]
 
@@ -460,6 +454,8 @@ func movePackagesLive(fullRepo string) error {
 			Version:   pkg.Version(),
 		})
 	}
+
+	log.Infof("[%s] Adding %d packages", fullRepo, len(toAdd))
 
 	buildManager.repoAdd[fullRepo] <- toAdd
 	return nil
