@@ -120,10 +120,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			pkg.PkgFiles = []string{}
 
 			// default to LTO
-			makepkgFile := "makepkg-%s-lto.conf"
+			makepkgFile := makepkg
 			if pkg.DbPackage.Lto == dbpackage.LtoDisabled || pkg.DbPackage.Lto == dbpackage.LtoAutoDisabled {
 				// use non-lto makepkg.conf if LTO is blacklisted for this package
-				makepkgFile = "makepkg-%s.conf"
+				makepkgFile = makepkgLTO
 			}
 			cmd := exec.Command("sh", "-c",
 				"cd "+filepath.Dir(pkg.Pkgbuild)+"&&makechrootpkg -c -D "+filepath.Join(conf.Basedir.Work, makepkgDir)+" -l worker-"+march+"-"+strconv.Itoa(id)+" -r "+filepath.Join(conf.Basedir.Work, chrootDir)+" -- "+
