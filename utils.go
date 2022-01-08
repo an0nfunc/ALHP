@@ -276,6 +276,17 @@ func (p *BuildPackage) repoVersion() (string, error) {
 }
 
 func (p *BuildPackage) increasePkgRel(buildNo int) error {
+	if p.Srcinfo == nil {
+		err := p.genSrcinfo()
+		if err != nil {
+			return fmt.Errorf("error generating srcinfo: %v", err)
+		}
+	}
+
+	if p.Version == "" {
+		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+	}
+
 	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
 	if err != nil {
 		return err
@@ -670,10 +681,10 @@ func (p *BuildPackage) genSrcinfo() error {
 		return nil
 	}
 
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo")
-	res, err := cmd.Output()
+	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo -p "+filepath.Base(p.Pkgbuild))
+	res, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
+		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %v (%s)", p.Pkgbuild, err, string(res))
 	}
 
 	info, err := srcinfo.Parse(string(res))
