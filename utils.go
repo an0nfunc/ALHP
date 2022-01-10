@@ -448,7 +448,7 @@ func movePackagesLive(fullRepo string) error {
 		pkg := Package(file)
 		dbpkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
 		if err != nil {
-			log.Errorf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
+			log.Warningf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
 			_ = os.Remove(file)
 			_ = os.Remove(file + ".sig")
 		}
