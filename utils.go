@@ -58,6 +58,7 @@ type BuildPackage struct {
 	Pkgbase   string
 	Pkgbuild  string
 	Srcinfo   *srcinfo.Srcinfo
+	Arch      string
 	PkgFiles  []string
 	Repo      dbpackage.Repository
 	March     string
@@ -175,6 +176,12 @@ func (path Package) FullRepo() string {
 func (path Package) Version() string {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
 	return strings.Join(fNameSplit[len(fNameSplit)-3:len(fNameSplit)-1], "-")
+}
+
+func (path Package) Arch() string {
+	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
+	fNameSplit = strings.Split(fNameSplit[len(fNameSplit)-1], ".")
+	return fNameSplit[0]
 }
 
 func statusId2string(s dbpackage.Status) string {
@@ -579,6 +586,10 @@ func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
 		return false
 	}
 
+	if p.Srcinfo != nil && p.Srcinfo.Arch[0] != pkg.Architecture() {
+		return false
+	}
+
 	return true
 }
 
@@ -792,6 +803,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			FullRepo:  mPackage.FullRepo(),
 			DbPackage: dbPkg,
 			March:     mPackage.MArch(),
+			Arch:      mPackage.Arch(),
 		}
 
 		var upstream string
@@ -811,7 +823,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		buildManager.alpmMutex.Lock()
 		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
 		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() {
+		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() || pkgResolved.Architecture() != pkg.Arch {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
 			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}

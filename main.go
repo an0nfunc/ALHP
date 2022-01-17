@@ -289,14 +289,6 @@ func (b *BuildManager) parseWorker() {
 
 			if !pkg.isAvailable(alpmHandle) {
 				log.Debugf("[%s/%s] Not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
-				pkg.toDbPackage(false)
-				if pkg.DbPackage != nil {
-					err := pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("package not present on mirror").Exec(context.Background())
-					if err != nil {
-						log.Warningf("Error updating package %s: %v", pkg.Pkgbase, err)
-					}
-				}
-
 				b.parseWG.Done()
 				continue
 			}
