@@ -46,6 +46,7 @@ type DbPackageMutation struct {
 	hash               *string
 	lto                *dbpackage.Lto
 	last_version_build *string
+	last_verified      *time.Time
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DbPackage, error)
@@ -778,6 +779,55 @@ func (m *DbPackageMutation) ResetLastVersionBuild() {
 	delete(m.clearedFields, dbpackage.FieldLastVersionBuild)
 }
 
+// SetLastVerified sets the "last_verified" field.
+func (m *DbPackageMutation) SetLastVerified(t time.Time) {
+	m.last_verified = &t
+}
+
+// LastVerified returns the value of the "last_verified" field in the mutation.
+func (m *DbPackageMutation) LastVerified() (r time.Time, exists bool) {
+	v := m.last_verified
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastVerified returns the old "last_verified" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldLastVerified(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, fmt.Errorf("OldLastVerified is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, fmt.Errorf("OldLastVerified requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastVerified: %w", err)
+	}
+	return oldValue.LastVerified, nil
+}
+
+// ClearLastVerified clears the value of the "last_verified" field.
+func (m *DbPackageMutation) ClearLastVerified() {
+	m.last_verified = nil
+	m.clearedFields[dbpackage.FieldLastVerified] = struct{}{}
+}
+
+// LastVerifiedCleared returns if the "last_verified" field was cleared in this mutation.
+func (m *DbPackageMutation) LastVerifiedCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldLastVerified]
+	return ok
+}
+
+// ResetLastVerified resets all changes to the "last_verified" field.
+func (m *DbPackageMutation) ResetLastVerified() {
+	m.last_verified = nil
+	delete(m.clearedFields, dbpackage.FieldLastVerified)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -797,7 +847,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -840,6 +890,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.last_version_build != nil {
 		fields = append(fields, dbpackage.FieldLastVersionBuild)
 	}
+	if m.last_verified != nil {
+		fields = append(fields, dbpackage.FieldLastVerified)
+	}
 	return fields
 }
 
@@ -876,6 +929,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.Lto()
 	case dbpackage.FieldLastVersionBuild:
 		return m.LastVersionBuild()
+	case dbpackage.FieldLastVerified:
+		return m.LastVerified()
 	}
 	return nil, false
 }
@@ -913,6 +968,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldLto(ctx)
 	case dbpackage.FieldLastVersionBuild:
 		return m.OldLastVersionBuild(ctx)
+	case dbpackage.FieldLastVerified:
+		return m.OldLastVerified(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1020,6 +1077,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastVersionBuild(v)
 		return nil
+	case dbpackage.FieldLastVerified:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastVerified(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1083,6 +1147,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldLastVersionBuild) {
 		fields = append(fields, dbpackage.FieldLastVersionBuild)
 	}
+	if m.FieldCleared(dbpackage.FieldLastVerified) {
+		fields = append(fields, dbpackage.FieldLastVerified)
+	}
 	return fields
 }
 
@@ -1129,6 +1196,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldLastVersionBuild:
 		m.ClearLastVersionBuild()
+		return nil
+	case dbpackage.FieldLastVerified:
+		m.ClearLastVerified()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1179,6 +1249,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldLastVersionBuild:
 		m.ResetLastVersionBuild()
+		return nil
+	case dbpackage.FieldLastVerified:
+		m.ResetLastVerified()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

@@ -45,6 +45,8 @@ type DbPackage struct {
 	Lto dbpackage.Lto `json:"lto,omitempty"`
 	// LastVersionBuild holds the value of the "last_version_build" field.
 	LastVersionBuild string `json:"last_version_build,omitempty"`
+	// LastVerified holds the value of the "last_verified" field.
+	LastVerified time.Time `json:"last_verified,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -58,7 +60,7 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new(sql.NullInt64)
 		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild:
 			values[i] = new(sql.NullString)
-		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated:
+		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type DbPackage", columns[i])
@@ -167,6 +169,12 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.LastVersionBuild = value.String
 			}
+		case dbpackage.FieldLastVerified:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_verified", values[i])
+			} else if value.Valid {
+				dp.LastVerified = value.Time
+			}
 		}
 	}
 	return nil
@@ -223,6 +231,8 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(fmt.Sprintf("%v", dp.Lto))
 	builder.WriteString(", last_version_build=")
 	builder.WriteString(dp.LastVersionBuild)
+	builder.WriteString(", last_verified=")
+	builder.WriteString(dp.LastVerified.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

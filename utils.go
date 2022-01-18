@@ -834,15 +834,21 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			continue
 		}
 
-		// check if pkg signature is valid
-		valid, err := mPackage.hasValidSignature()
-		if err != nil {
-			return err
-		}
-		if !valid {
-			log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
-			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
-			continue
+		if pkg.DbPackage.LastVerified.Before(pkg.DbPackage.BuildTimeStart) {
+			err := pkg.DbPackage.Update().SetLastVerified(time.Now().UTC()).Exec(context.Background())
+			if err != nil {
+				return err
+			}
+			// check if pkg signature is valid
+			valid, err := mPackage.hasValidSignature()
+			if err != nil {
+				return err
+			}
+			if !valid {
+				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
+				buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+				continue
+			}
 		}
 
 		// compare db-version with repo version

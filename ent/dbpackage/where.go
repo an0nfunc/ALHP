@@ -162,6 +162,13 @@ func LastVersionBuild(v string) predicate.DbPackage {
 	})
 }
 
+// LastVerified applies equality check predicate on the "last_verified" field. It's identical to LastVerifiedEQ.
+func LastVerified(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldLastVerified), v))
+	})
+}
+
 // PkgbaseEQ applies the EQ predicate on the "pkgbase" field.
 func PkgbaseEQ(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -1462,6 +1469,96 @@ func LastVersionBuildEqualFold(v string) predicate.DbPackage {
 func LastVersionBuildContainsFold(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldLastVersionBuild), v))
+	})
+}
+
+// LastVerifiedEQ applies the EQ predicate on the "last_verified" field.
+func LastVerifiedEQ(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedNEQ applies the NEQ predicate on the "last_verified" field.
+func LastVerifiedNEQ(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedIn applies the In predicate on the "last_verified" field.
+func LastVerifiedIn(vs ...time.Time) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldLastVerified), v...))
+	})
+}
+
+// LastVerifiedNotIn applies the NotIn predicate on the "last_verified" field.
+func LastVerifiedNotIn(vs ...time.Time) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldLastVerified), v...))
+	})
+}
+
+// LastVerifiedGT applies the GT predicate on the "last_verified" field.
+func LastVerifiedGT(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedGTE applies the GTE predicate on the "last_verified" field.
+func LastVerifiedGTE(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedLT applies the LT predicate on the "last_verified" field.
+func LastVerifiedLT(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedLTE applies the LTE predicate on the "last_verified" field.
+func LastVerifiedLTE(v time.Time) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldLastVerified), v))
+	})
+}
+
+// LastVerifiedIsNil applies the IsNil predicate on the "last_verified" field.
+func LastVerifiedIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldLastVerified)))
+	})
+}
+
+// LastVerifiedNotNil applies the NotNil predicate on the "last_verified" field.
+func LastVerifiedNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldLastVerified)))
 	})
 }
 

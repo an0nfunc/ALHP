@@ -184,6 +184,20 @@ func (dpc *DbPackageCreate) SetNillableLastVersionBuild(s *string) *DbPackageCre
 	return dpc
 }
 
+// SetLastVerified sets the "last_verified" field.
+func (dpc *DbPackageCreate) SetLastVerified(t time.Time) *DbPackageCreate {
+	dpc.mutation.SetLastVerified(t)
+	return dpc
+}
+
+// SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableLastVerified(t *time.Time) *DbPackageCreate {
+	if t != nil {
+		dpc.SetLastVerified(*t)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -439,6 +453,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldLastVersionBuild,
 		})
 		_node.LastVersionBuild = value
+	}
+	if value, ok := dpc.mutation.LastVerified(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Value:  value,
+			Column: dbpackage.FieldLastVerified,
+		})
+		_node.LastVerified = value
 	}
 	return _node, _spec
 }

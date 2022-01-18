@@ -245,6 +245,26 @@ func (dpu *DbPackageUpdate) ClearLastVersionBuild() *DbPackageUpdate {
 	return dpu
 }
 
+// SetLastVerified sets the "last_verified" field.
+func (dpu *DbPackageUpdate) SetLastVerified(t time.Time) *DbPackageUpdate {
+	dpu.mutation.SetLastVerified(t)
+	return dpu
+}
+
+// SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableLastVerified(t *time.Time) *DbPackageUpdate {
+	if t != nil {
+		dpu.SetLastVerified(*t)
+	}
+	return dpu
+}
+
+// ClearLastVerified clears the value of the "last_verified" field.
+func (dpu *DbPackageUpdate) ClearLastVerified() *DbPackageUpdate {
+	dpu.mutation.ClearLastVerified()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -498,6 +518,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldLastVersionBuild,
 		})
 	}
+	if value, ok := dpu.mutation.LastVerified(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Value:  value,
+			Column: dbpackage.FieldLastVerified,
+		})
+	}
+	if dpu.mutation.LastVerifiedCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Column: dbpackage.FieldLastVerified,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dbpackage.Label}
@@ -732,6 +765,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableLastVersionBuild(s *string) *DbPackag
 // ClearLastVersionBuild clears the value of the "last_version_build" field.
 func (dpuo *DbPackageUpdateOne) ClearLastVersionBuild() *DbPackageUpdateOne {
 	dpuo.mutation.ClearLastVersionBuild()
+	return dpuo
+}
+
+// SetLastVerified sets the "last_verified" field.
+func (dpuo *DbPackageUpdateOne) SetLastVerified(t time.Time) *DbPackageUpdateOne {
+	dpuo.mutation.SetLastVerified(t)
+	return dpuo
+}
+
+// SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableLastVerified(t *time.Time) *DbPackageUpdateOne {
+	if t != nil {
+		dpuo.SetLastVerified(*t)
+	}
+	return dpuo
+}
+
+// ClearLastVerified clears the value of the "last_verified" field.
+func (dpuo *DbPackageUpdateOne) ClearLastVerified() *DbPackageUpdateOne {
+	dpuo.mutation.ClearLastVerified()
 	return dpuo
 }
 
@@ -1010,6 +1063,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldLastVersionBuild,
+		})
+	}
+	if value, ok := dpuo.mutation.LastVerified(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Value:  value,
+			Column: dbpackage.FieldLastVerified,
+		})
+	}
+	if dpuo.mutation.LastVerifiedCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeTime,
+			Column: dbpackage.FieldLastVerified,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}
