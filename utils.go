@@ -477,9 +477,10 @@ func movePackagesLive(fullRepo string) error {
 		})
 	}
 
-	log.Infof("[%s] Adding %d packages", fullRepo, len(toAdd))
-
-	buildManager.repoAdd[fullRepo] <- toAdd
+	if len(toAdd) > 0 {
+		log.Infof("[%s] Adding %d packages", fullRepo, len(toAdd))
+		buildManager.repoAdd[fullRepo] <- toAdd
+	}
 	return nil
 }
 
