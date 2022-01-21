@@ -933,7 +933,6 @@ func logHK() error {
 				log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
 			}
 		} else if reLdError.Match(logContent) {
-			log.Infof("[HK/%s/%s] fixable build-error detected (linker-error), requeueing package", pkg.March, pkg.Pkgbase)
 			rows, err := db.DbPackage.Update().Where(
 				dbpackage.And(
 					dbpackage.Pkgbase(pkg.Pkgbase),
