@@ -909,10 +909,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		if exists, err := pkg.exists(); err != nil {
 			return err
 		} else if !exists {
-			err = os.Remove(logFile)
-			if err != nil {
-				return err
-			}
+			_ = os.Remove(logFile)
 			continue
 		}
 
