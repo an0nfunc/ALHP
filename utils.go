@@ -866,7 +866,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 	}
 
 	// check all dbpackages for existence
-	dbpackages, err := db.DbPackage.Query().All(context.Background())
+	dbpackages, err := db.DbPackage.Query().Where(dbpackage.RepositoryEQ(dbpackage.Repository(repo))).All(context.Background())
 	if err != nil {
 		return err
 	}
@@ -889,6 +889,10 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	return nil
+}
+
+func logHK() error {
 	// check if package for log exists and if error can be fixed by rebuild
 	logFiles, err := Glob(filepath.Join(conf.Basedir.Repo, logDir, "/**/*.log"))
 	if err != nil {
@@ -927,7 +931,6 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			}
 		}
 	}
-
 	return nil
 }
 

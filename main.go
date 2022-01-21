@@ -659,10 +659,15 @@ func (b *BuildManager) syncWorker() {
 		}
 		wg.Wait()
 
+		err := logHK()
+		if err != nil {
+			log.Warningf("log-housekeeping failed: %v", err)
+		}
+
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
 		check(alpmHandle.Release())
-		err := setupChroot()
+		err = setupChroot()
 		for err != nil {
 			log.Warningf("Unable to upgrade chroot, trying again later.")
 			time.Sleep(time.Minute)
