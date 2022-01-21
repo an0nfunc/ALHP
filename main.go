@@ -348,6 +348,9 @@ func (b *BuildManager) parseWorker() {
 				switch err.(type) {
 				default:
 					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, pkg.Srcinfo.Pkgbase, err)
+					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+					b.parseWG.Done()
+					continue
 				case MultiplePKGBUILDError:
 					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", pkg.Srcinfo.Pkgbase, err)
 					pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())

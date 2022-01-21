@@ -1117,9 +1117,11 @@ func (p *BuildPackage) isMirrorLatest(h *alpm.Handle) (bool, alpm.IPackage, stri
 		}).SVN2GITVersion(h)
 		if err != nil {
 			return false, nil, "", err
+		} else if svn2gitVer == "" {
+			return false, nil, "", fmt.Errorf("no svn2git version")
 		}
 
-		if svn2gitVer != "" && alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
+		if alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
 			return false, pkg, svn2gitVer, nil
 		}
 	}
