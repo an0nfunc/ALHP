@@ -922,10 +922,18 @@ func logHK() error {
 			return err
 		}
 
-		if reLdError.Match(logContent) || rePortError.Match(logContent) || reSigError.Match(logContent) || reDownloadError.Match(logContent) {
+		if rePortError.Match(logContent) || reSigError.Match(logContent) || reDownloadError.Match(logContent) {
 			log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package", pkg.March, pkg.Pkgbase)
 			err = db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Exec(context.Background())
+			if err != nil {
+				return err
+			}
+		} else if reLdError.Match(logContent) {
+			log.Infof("[HK/%s/%s] fixable build-error detected (linker-error), requeueing package", pkg.March, pkg.Pkgbase)
+			err = db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).
+				SetLto(dbpackage.LtoAutoDisabled).Exec(context.Background())
 			if err != nil {
 				return err
 			}
