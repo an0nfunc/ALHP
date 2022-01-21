@@ -383,8 +383,8 @@ func (b *BuildManager) parseWorker() {
 				continue
 			}
 
-			b.parseWG.Done()
 			b.build[pkg.March] <- pkg
+			b.parseWG.Done()
 		}
 	}
 }
