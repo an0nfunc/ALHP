@@ -923,23 +923,30 @@ func logHK() error {
 		}
 
 		if rePortError.Match(logContent) || reSigError.Match(logContent) || reDownloadError.Match(logContent) {
-			log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package", pkg.March, pkg.Pkgbase)
-			err = db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Exec(context.Background())
+			rows, err := db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 			if err != nil {
 				return err
 			}
+
+			if rows > 0 {
+				log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
+			}
 		} else if reLdError.Match(logContent) {
 			log.Infof("[HK/%s/%s] fixable build-error detected (linker-error), requeueing package", pkg.March, pkg.Pkgbase)
-			err = db.DbPackage.Update().Where(
+			rows, err := db.DbPackage.Update().Where(
 				dbpackage.And(
 					dbpackage.Pkgbase(pkg.Pkgbase),
 					dbpackage.March(pkg.March),
 					dbpackage.StatusEQ(dbpackage.StatusFailed),
 					dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-				)).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Exec(context.Background())
+				)).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
 			if err != nil {
 				return err
+			}
+
+			if rows > 0 {
+				log.Infof("[HK/%s/%s] fixable build-error detected (linker-error), requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
 			}
 		}
 	}
