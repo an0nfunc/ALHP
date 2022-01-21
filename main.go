@@ -741,6 +741,7 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		b.parseWG.Wait()
+		time.Sleep(time.Second * 70)
 		b.buildWG.Wait()
 
 		if !b.exit {
@@ -752,7 +753,7 @@ func (b *BuildManager) syncWorker() {
 			}
 		}
 
-		time.Sleep(time.Duration(*checkInterval) * time.Minute)
+		time.Sleep(time.Duration(*checkInterval-1) * time.Minute)
 	}
 }
 
