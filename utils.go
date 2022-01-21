@@ -889,6 +889,48 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// check if package for log exists and if error can be fixed by rebuild
+	logFiles, err := Glob(filepath.Join(conf.Basedir.Repo, logDir, "/**/*.log"))
+	if err != nil {
+		return err
+	}
+
+	for _, logFile := range logFiles {
+		pathSplit := strings.Split(logFile, string(filepath.Separator))
+		extSplit := strings.Split(filepath.Base(logFile), ".")
+		pkgbase := strings.Join(extSplit[:len(extSplit)-1], ".")
+		march := pathSplit[len(pathSplit)-2]
+
+		pkg := BuildPackage{
+			Pkgbase: pkgbase,
+			March:   march,
+		}
+
+		if exists, err := pkg.exists(); err != nil {
+			return err
+		} else if !exists {
+			err = os.Remove(logFile)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		logContent, err := os.ReadFile(logFile)
+		if err != nil {
+			return err
+		}
+
+		if reLdError.Match(logContent) || rePortError.Match(logContent) || reSigError.Match(logContent) || reDownloadError.Match(logContent) {
+			log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package", pkg.March, pkg.Pkgbase)
+			err = db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Exec(context.Background())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -929,6 +971,15 @@ func (p *BuildPackage) toDbPackage(create bool) {
 	}
 
 	p.DbPackage = dbPkg
+}
+
+func (p BuildPackage) exists() (bool, error) {
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
+	if err != nil {
+		return false, err
+	}
+
+	return dbPkg, nil
 }
 
 func syncMarchs() {
