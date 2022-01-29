@@ -458,6 +458,7 @@ func movePackagesLive(fullRepo string) error {
 			log.Warningf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
 			_ = os.Remove(file)
 			_ = os.Remove(file + ".sig")
+			continue
 		}
 
 		err = os.Rename(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
