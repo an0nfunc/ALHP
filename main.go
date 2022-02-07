@@ -652,9 +652,10 @@ func (b *BuildManager) syncWorker() {
 		wg := new(sync.WaitGroup)
 		for _, repo := range repos {
 			wg.Add(1)
+			splitRepo := strings.Split(repo, "-")
 			repo := repo
 			go func() {
-				err := housekeeping(repo, wg)
+				err := housekeeping(splitRepo[0], strings.Join(splitRepo[1:], "-"), wg)
 				if err != nil {
 					log.Warningf("[%s] housekeeping failed: %v", repo, err)
 				}

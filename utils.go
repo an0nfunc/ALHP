@@ -773,10 +773,11 @@ func (path Package) hasValidSignature() (bool, error) {
 	return false, nil
 }
 
-func housekeeping(repo string, wg *sync.WaitGroup) error {
+func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 	defer wg.Done()
-	log.Debugf("[%s] Start housekeeping", repo)
-	packages, err := Glob(filepath.Join(conf.Basedir.Repo, repo, "/**/*.pkg.tar.zst"))
+	fullRepo := repo + "-" + march
+	log.Debugf("[%s] Start housekeeping", fullRepo)
+	packages, err := Glob(filepath.Join(conf.Basedir.Repo, fullRepo, "/**/*.pkg.tar.zst"))
 	if err != nil {
 		return err
 	}
@@ -786,7 +787,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 
 		dbPkg, err := mPackage.DBPackage()
 		if ent.IsNotFound(err) {
-			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
+			log.Infof("[HK/%s] removing orphan %s", fullRepo, filepath.Base(path))
 			pkg := &BuildPackage{
 				FullRepo: mPackage.FullRepo(),
 				PkgFiles: []string{path},
@@ -861,30 +862,65 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 				return err
 			}
 		}
-
-		// TODO: check split packages
 	}
 
-	// check all dbpackages for existence
-	dbpackages, err := db.DbPackage.Query().Where(dbpackage.RepositoryEQ(dbpackage.Repository(repo))).All(context.Background())
+	// check all packages from db for existence
+	dbPackages, err := db.DbPackage.Query().Where(
+		dbpackage.And(
+			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
+			dbpackage.March(march),
+		)).All(context.Background())
 	if err != nil {
 		return err
 	}
 
-	for _, dbpkg := range dbpackages {
+	for _, dbPkg := range dbPackages {
 		pkg := &BuildPackage{
-			Pkgbase:   dbpkg.Pkgbase,
-			Repo:      dbpkg.Repository,
-			March:     dbpkg.March,
-			FullRepo:  dbpkg.Repository.String() + "-" + dbpkg.March,
-			DbPackage: dbpkg,
+			Pkgbase:   dbPkg.Pkgbase,
+			Repo:      dbPkg.Repository,
+			March:     dbPkg.March,
+			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
+			DbPackage: dbPkg,
 		}
 
 		if !pkg.isAvailable(alpmHandle) {
 			log.Infof("[HK/%s/%s] not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
-			err = db.DbPackage.DeleteOne(dbpkg).Exec(context.Background())
+			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
 			if err != nil {
-				return err
+				log.Errorf("[HK] Error deleting package %s: %v", dbPkg.Pkgbase, err)
+			}
+			continue
+		}
+
+		if dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "" {
+			missingSplit := false
+			var existingSplits []string
+			for _, splitPkg := range dbPkg.Packages {
+				pkgFile := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch,
+					splitPkg+"-"+dbPkg.RepoVersion+"-"+conf.Arch+".pkg.tar.zst")
+				if _, err := os.Stat(pkgFile); os.IsNotExist(err) {
+					missingSplit = true
+				} else if err != nil {
+					log.Warningf("[HK] error reading package-file %s: %v", splitPkg, err)
+				} else {
+					existingSplits = append(existingSplits, pkgFile)
+				}
+			}
+
+			if missingSplit {
+				log.Infof("[HK] missing split-package for pkgbase %s", dbPkg.Pkgbase)
+				pkg.DbPackage, err = pkg.DbPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+				if err != nil {
+					return err
+				}
+
+				pkg := &BuildPackage{
+					FullRepo:  fullRepo,
+					PkgFiles:  existingSplits,
+					March:     march,
+					DbPackage: dbPkg,
+				}
+				buildManager.repoPurge[fullRepo] <- []*BuildPackage{pkg}
 			}
 		}
 	}
