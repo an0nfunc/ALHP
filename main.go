@@ -707,14 +707,10 @@ func (b *BuildManager) syncWorker() {
 					),
 				).Only(context.Background())
 
-				if dbErr != nil {
-					switch dbErr.(type) {
-					case *ent.NotFoundError:
-						log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
-						break
-					default:
-						log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
-					}
+				if ent.IsNotFound(dbErr) {
+					log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
+				} else if err != nil {
+					log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
 				}
 
 				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs

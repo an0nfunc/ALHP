@@ -244,7 +244,7 @@ func (p *BuildPackage) setupBuildDir() (string, error) {
 
 	err := cleanBuildDir(buildDir)
 	if err != nil {
-		return "", fmt.Errorf("removing old builddir failed: %v", err)
+		return "", fmt.Errorf("removing old builddir failed: %w", err)
 	}
 
 	err = os.MkdirAll(buildDir, 0755)
@@ -286,7 +286,7 @@ func (p *BuildPackage) increasePkgRel(buildNo int) error {
 	if p.Srcinfo == nil {
 		err := p.genSrcinfo()
 		if err != nil {
-			return fmt.Errorf("error generating srcinfo: %v", err)
+			return fmt.Errorf("error generating srcinfo: %w", err)
 		}
 	}
 
@@ -699,7 +699,7 @@ func (p *BuildPackage) genSrcinfo() error {
 	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo -p "+filepath.Base(p.Pkgbuild))
 	res, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %v (%s)", p.Pkgbuild, err, string(res))
+		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %w (%s)", p.Pkgbuild, err, string(res))
 	}
 
 	info, err := srcinfo.Parse(string(res))
@@ -718,7 +718,7 @@ func setupChroot() error {
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("Unable to update chroot: %v\n%s", err, string(res))
+			return fmt.Errorf("Unable to update chroot: %w\n%s", err, string(res))
 		}
 	} else if os.IsNotExist(err) {
 		err := os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0755)
@@ -728,7 +728,7 @@ func setupChroot() error {
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("Unable to create chroot: %v\n%s", err, string(res))
+			return fmt.Errorf("Unable to create chroot: %w\n%s", err, string(res))
 		}
 	} else {
 		return err
@@ -749,14 +749,11 @@ func (path *Package) DBPackageIsolated(march string, repo dbpackage.Repository) 
 				sql.EQ(dbpackage.FieldRepository, repo)),
 		)
 	}).Only(context.Background())
-	if err != nil {
-		switch err.(type) {
-		case *ent.NotFoundError:
-			log.Debugf("Not found in database: %s", path.Name())
-			return nil, fmt.Errorf("package not found in DB: %s", path.Name())
-		default:
-			return nil, err
-		}
+	if ent.IsNotFound(err) {
+		log.Debugf("Not found in database: %s", path.Name())
+		return nil, err
+	} else if err != nil {
+		return nil, err
 	}
 	return dbPkg, nil
 }
@@ -788,7 +785,7 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 		mPackage := Package(path)
 
 		dbPkg, err := mPackage.DBPackage()
-		if err != nil {
+		if ent.IsNotFound(err) {
 			log.Infof("[HK/%s] removing orphan %s", repo, filepath.Base(path))
 			pkg := &BuildPackage{
 				FullRepo: mPackage.FullRepo(),
@@ -797,6 +794,8 @@ func housekeeping(repo string, wg *sync.WaitGroup) error {
 			}
 			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
 			continue
+		} else if err != nil {
+			return err
 		}
 
 		pkg := &BuildPackage{
