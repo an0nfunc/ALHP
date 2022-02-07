@@ -895,11 +895,13 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		if dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "" {
 			missingSplit := false
 			var existingSplits []string
+			var missingSplits []string
 			for _, splitPkg := range dbPkg.Packages {
 				pkgFile := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch,
 					splitPkg+"-"+dbPkg.RepoVersion+"-"+conf.Arch+".pkg.tar.zst")
 				if _, err := os.Stat(pkgFile); os.IsNotExist(err) {
 					missingSplit = true
+					missingSplits = append(missingSplits, splitPkg)
 				} else if err != nil {
 					log.Warningf("[HK] error reading package-file %s: %v", splitPkg, err)
 				} else {
@@ -908,7 +910,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			}
 
 			if missingSplit {
-				log.Infof("[HK] missing split-package for pkgbase %s", dbPkg.Pkgbase)
+				log.Infof("[HK] missing split-package(s) %s for pkgbase %s", missingSplits, dbPkg.Pkgbase)
 				pkg.DbPackage, err = pkg.DbPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 				if err != nil {
 					return err
