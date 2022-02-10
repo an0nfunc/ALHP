@@ -282,37 +282,37 @@ func (dpc *DbPackageCreate) defaults() {
 // check runs all checks and user-defined validators on the builder.
 func (dpc *DbPackageCreate) check() error {
 	if _, ok := dpc.mutation.Pkgbase(); !ok {
-		return &ValidationError{Name: "pkgbase", err: errors.New(`ent: missing required field "pkgbase"`)}
+		return &ValidationError{Name: "pkgbase", err: errors.New(`ent: missing required field "DbPackage.pkgbase"`)}
 	}
 	if v, ok := dpc.mutation.Pkgbase(); ok {
 		if err := dbpackage.PkgbaseValidator(v); err != nil {
-			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "pkgbase": %w`, err)}
+			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "DbPackage.pkgbase": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "status": %w`, err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.Repository(); !ok {
-		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required field "repository"`)}
+		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required field "DbPackage.repository"`)}
 	}
 	if v, ok := dpc.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "repository": %w`, err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.March(); !ok {
-		return &ValidationError{Name: "march", err: errors.New(`ent: missing required field "march"`)}
+		return &ValidationError{Name: "march", err: errors.New(`ent: missing required field "DbPackage.march"`)}
 	}
 	if v, ok := dpc.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
-			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "march": %w`, err)}
+			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "DbPackage.march": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "lto": %w`, err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
 		}
 	}
 	return nil

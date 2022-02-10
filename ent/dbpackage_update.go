@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -334,17 +335,17 @@ func (dpu *DbPackageUpdate) ExecX(ctx context.Context) {
 func (dpu *DbPackageUpdate) check() error {
 	if v, ok := dpu.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
 		}
 	}
 	if v, ok := dpu.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf("ent: validator failed for field \"repository\": %w", err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
 		}
 	}
 	if v, ok := dpu.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
 		}
 	}
 	return nil
@@ -864,17 +865,17 @@ func (dpuo *DbPackageUpdateOne) ExecX(ctx context.Context) {
 func (dpuo *DbPackageUpdateOne) check() error {
 	if v, ok := dpuo.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
 		}
 	}
 	if v, ok := dpuo.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf("ent: validator failed for field \"repository\": %w", err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
 		}
 	}
 	if v, ok := dpuo.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf("ent: validator failed for field \"lto\": %w", err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
 		}
 	}
 	return nil
@@ -893,7 +894,7 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	}
 	id, ok := dpuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing DbPackage.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DbPackage.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
 	if fields := dpuo.fields; len(fields) > 0 {

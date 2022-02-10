@@ -343,6 +343,10 @@ func (dpq *DbPackageQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(dpq.modifiers) > 0 {
 		_spec.Modifiers = dpq.modifiers
 	}
+	_spec.Node.Columns = dpq.fields
+	if len(dpq.fields) > 0 {
+		_spec.Unique = dpq.unique != nil && *dpq.unique
+	}
 	return sqlgraph.CountNodes(ctx, dpq.driver, _spec)
 }
 
@@ -413,6 +417,9 @@ func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if dpq.sql != nil {
 		selector = dpq.sql
 		selector.Select(selector.Columns(columns...)...)
+	}
+	if dpq.unique != nil && *dpq.unique {
+		selector.Distinct()
 	}
 	for _, m := range dpq.modifiers {
 		m(selector)
@@ -701,9 +708,7 @@ func (dpgb *DbPackageGroupBy) sqlQuery() *sql.Selector {
 		for _, f := range dpgb.fields {
 			columns = append(columns, selector.C(f))
 		}
-		for _, c := range aggregation {
-			columns = append(columns, c)
-		}
+		columns = append(columns, aggregation...)
 		selector.Select(columns...)
 	}
 	return selector.GroupBy(selector.Columns(dpgb.fields...)...)
