@@ -588,7 +588,7 @@ func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
 		return false
 	}
 
-	if p.Srcinfo != nil && p.Srcinfo.Arch[0] != pkg.Architecture() || p.Srcinfo.Pkgbase != pkg.Base() {
+	if p.Srcinfo != nil && (p.Srcinfo.Arch[0] != pkg.Architecture() || p.Srcinfo.Pkgbase != pkg.Base()) {
 		return false
 	}
 
