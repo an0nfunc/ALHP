@@ -5,7 +5,7 @@ package dbpackage
 import (
 	"time"
 
-	"ALHP.go/ent/predicate"
+	"ALHP.GO/ent/predicate"
 	"entgo.io/ent/dialect/sql"
 )
 

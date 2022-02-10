@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"ALHP.go/ent/migrate"
+	"ALHP.GO/ent/migrate"
 
-	"ALHP.go/ent/dbpackage"
+	"ALHP.GO/ent/dbpackage"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"

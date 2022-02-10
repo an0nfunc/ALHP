@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"ALHP.go/ent"
+	"ALHP.GO/ent"
 )
 
 // The DbPackageFunc type is an adapter to allow the use of ordinary

@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"ALHP.go/ent/dbpackage"
-	"ALHP.go/ent/schema"
+	"ALHP.GO/ent/dbpackage"
+	"ALHP.GO/ent/schema"
 )
 
 // The init function reads all schema descriptors with runtime code

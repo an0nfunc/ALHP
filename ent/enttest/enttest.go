@@ -5,9 +5,9 @@ package enttest
 import (
 	"context"
 
-	"ALHP.go/ent"
+	"ALHP.GO/ent"
 	// required by schema hooks.
-	_ "ALHP.go/ent/runtime"
+	_ "ALHP.GO/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
 )

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"ALHP.go/ent/dbpackage"
+	"ALHP.GO/ent/dbpackage"
 	"entgo.io/ent/dialect/sql"
 )
 

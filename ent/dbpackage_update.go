@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"ALHP.go/ent/dbpackage"
-	"ALHP.go/ent/predicate"
+	"ALHP.GO/ent/dbpackage"
+	"ALHP.GO/ent/predicate"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"

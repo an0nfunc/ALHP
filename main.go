@@ -1,9 +1,9 @@
 package main
 
 import (
-	"ALHP.go/ent"
-	"ALHP.go/ent/dbpackage"
-	"ALHP.go/ent/migrate"
+	"ALHP.GO/ent"
+	"ALHP.GO/ent/dbpackage"
+	"ALHP.GO/ent/migrate"
 	"bytes"
 	"context"
 	"entgo.io/ent/dialect"

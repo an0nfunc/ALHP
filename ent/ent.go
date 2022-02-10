@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"ALHP.go/ent/dbpackage"
+	"ALHP.GO/ent/dbpackage"
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 )

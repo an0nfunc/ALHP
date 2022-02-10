@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ALHP.go/ent"
-	"ALHP.go/ent/dbpackage"
+	"ALHP.GO/ent"
+	"ALHP.GO/ent/dbpackage"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"

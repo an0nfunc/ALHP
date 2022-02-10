@@ -1,4 +1,4 @@
-module ALHP.go
+module ALHP.GO
 
 go 1.16
 
