@@ -584,7 +584,7 @@ func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
 		return false
 	}
 
-	if pkg.DB().Name() != p.Repo.String() {
+	if pkg.DB().Name() != p.Repo.String() || pkg.Base() != p.Pkgbase {
 		return false
 	}
 
