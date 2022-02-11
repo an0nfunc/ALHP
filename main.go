@@ -1,15 +1,15 @@
 package main
 
 import (
-	"ALHP.GO/ent"
-	"ALHP.GO/ent/dbpackage"
-	"ALHP.GO/ent/migrate"
 	"bytes"
 	"context"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"flag"
 	"fmt"
+	"git.harting.dev/ALHP/ALHP.GO/ent"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"git.harting.dev/ALHP/ALHP.GO/ent/migrate"
 	"github.com/Jguer/go-alpm/v2"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	log "github.com/sirupsen/logrus"

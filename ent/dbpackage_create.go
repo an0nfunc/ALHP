@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"ALHP.GO/ent/dbpackage"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
 // DbPackageCreate is the builder for creating a DbPackage entity.

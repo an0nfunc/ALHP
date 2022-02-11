@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"ALHP.GO/ent/dbpackage"
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
 // ent aliases to avoid import conflicts in user's code.

@@ -2,7 +2,7 @@
 
 package runtime
 
-// The schema-stitching logic is generated in ALHP.GO/ent/runtime.go
+// The schema-stitching logic is generated in git.harting.dev/ALHP/ALHP.GO/ent/runtime.go
 
 const (
 	Version = "v0.10.0"                                         // Version of ent codegen.

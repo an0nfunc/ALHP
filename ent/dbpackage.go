@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"ALHP.GO/ent/dbpackage"
 	"entgo.io/ent/dialect/sql"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
 // DbPackage is the model entity for the DbPackage schema.

@@ -1,4 +1,4 @@
-module ALHP.GO
+module git.harting.dev/ALHP/ALHP.GO
 
 go 1.16
 

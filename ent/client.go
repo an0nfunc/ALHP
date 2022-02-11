@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"ALHP.GO/ent/migrate"
+	"git.harting.dev/ALHP/ALHP.GO/ent/migrate"
 
-	"ALHP.GO/ent/dbpackage"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"

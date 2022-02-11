@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"ALHP.GO/ent/dbpackage"
-	"ALHP.GO/ent/predicate"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
 
 	"entgo.io/ent"
 )

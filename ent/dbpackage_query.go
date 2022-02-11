@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"math"
 
-	"ALHP.GO/ent/dbpackage"
-	"ALHP.GO/ent/predicate"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // DbPackageQuery is the builder for querying DbPackage entities.

@@ -1,14 +1,14 @@
 package main
 
 import (
-	"ALHP.GO/ent"
-	"ALHP.GO/ent/dbpackage"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
+	"git.harting.dev/ALHP/ALHP.GO/ent"
+	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
 	"github.com/Morganamilo/go-srcinfo"

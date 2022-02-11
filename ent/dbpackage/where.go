@@ -5,8 +5,8 @@ package dbpackage
 import (
 	"time"
 
-	"ALHP.GO/ent/predicate"
 	"entgo.io/ent/dialect/sql"
+	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.
