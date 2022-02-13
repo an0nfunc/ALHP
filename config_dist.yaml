@@ -27,7 +27,8 @@ db:
 
 basedir:
   repo: /var/lib/alhp/repo/
-  work: /var/lib/alhp/chroot/
+  work: /var/lib/alhp/workspace/
+  debug: /var/lib/alhp/debug/
 
 march:
   - x86-64-v3

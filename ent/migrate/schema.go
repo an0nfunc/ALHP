@@ -26,6 +26,7 @@ var (
 		{Name: "lto", Type: field.TypeEnum, Nullable: true, Enums: []string{"enabled", "unknown", "disabled", "auto_disabled"}, Default: "unknown"},
 		{Name: "last_version_build", Type: field.TypeString, Nullable: true},
 		{Name: "last_verified", Type: field.TypeTime, Nullable: true},
+		{Name: "debug_symbols", Type: field.TypeEnum, Nullable: true, Enums: []string{"available", "unknown", "not_available"}, Default: "unknown"},
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{

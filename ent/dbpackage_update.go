@@ -266,6 +266,26 @@ func (dpu *DbPackageUpdate) ClearLastVerified() *DbPackageUpdate {
 	return dpu
 }
 
+// SetDebugSymbols sets the "debug_symbols" field.
+func (dpu *DbPackageUpdate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageUpdate {
+	dpu.mutation.SetDebugSymbols(ds)
+	return dpu
+}
+
+// SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageUpdate {
+	if ds != nil {
+		dpu.SetDebugSymbols(*ds)
+	}
+	return dpu
+}
+
+// ClearDebugSymbols clears the value of the "debug_symbols" field.
+func (dpu *DbPackageUpdate) ClearDebugSymbols() *DbPackageUpdate {
+	dpu.mutation.ClearDebugSymbols()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -346,6 +366,11 @@ func (dpu *DbPackageUpdate) check() error {
 	if v, ok := dpu.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
 			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+		}
+	}
+	if v, ok := dpu.mutation.DebugSymbols(); ok {
+		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
@@ -530,6 +555,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Column: dbpackage.FieldLastVerified,
+		})
+	}
+	if value, ok := dpu.mutation.DebugSymbols(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldDebugSymbols,
+		})
+	}
+	if dpu.mutation.DebugSymbolsCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Column: dbpackage.FieldDebugSymbols,
 		})
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
@@ -789,6 +827,26 @@ func (dpuo *DbPackageUpdateOne) ClearLastVerified() *DbPackageUpdateOne {
 	return dpuo
 }
 
+// SetDebugSymbols sets the "debug_symbols" field.
+func (dpuo *DbPackageUpdateOne) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageUpdateOne {
+	dpuo.mutation.SetDebugSymbols(ds)
+	return dpuo
+}
+
+// SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageUpdateOne {
+	if ds != nil {
+		dpuo.SetDebugSymbols(*ds)
+	}
+	return dpuo
+}
+
+// ClearDebugSymbols clears the value of the "debug_symbols" field.
+func (dpuo *DbPackageUpdateOne) ClearDebugSymbols() *DbPackageUpdateOne {
+	dpuo.mutation.ClearDebugSymbols()
+	return dpuo
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpuo *DbPackageUpdateOne) Mutation() *DbPackageMutation {
 	return dpuo.mutation
@@ -876,6 +934,11 @@ func (dpuo *DbPackageUpdateOne) check() error {
 	if v, ok := dpuo.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
 			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+		}
+	}
+	if v, ok := dpuo.mutation.DebugSymbols(); ok {
+		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
@@ -1077,6 +1140,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
 			Column: dbpackage.FieldLastVerified,
+		})
+	}
+	if value, ok := dpuo.mutation.DebugSymbols(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldDebugSymbols,
+		})
+	}
+	if dpuo.mutation.DebugSymbolsCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Column: dbpackage.FieldDebugSymbols,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}

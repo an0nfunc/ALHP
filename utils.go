@@ -87,7 +87,7 @@ type Conf struct {
 	Repos, March []string
 	Svn2git      map[string]string
 	Basedir      struct {
-		Repo, Work string
+		Repo, Work, Debug string
 	}
 	Db struct {
 		Driver    string
@@ -153,6 +153,7 @@ func updateLastUpdated() {
 	check(os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644))
 }
 
+// Name returns the name from Package
 func (path Package) Name() string {
 	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
 	return strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
@@ -453,8 +454,25 @@ func movePackagesLive(fullRepo string) error {
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
-		dbpkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
+		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
 		if err != nil {
+			if strings.HasSuffix(pkg.Name(), "-debug") {
+				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 755)
+				if mkErr != nil {
+					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
+				}
+				forPackage := strings.TrimSuffix(pkg.Name(), "-debug")
+				log.Infof("[MOVE] Found debug package for package %s: %s", forPackage, pkg.Name())
+
+				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
+					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+				} else {
+					err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+					_ = os.Remove(file + ".sig")
+					continue
+				}
+			}
+
 			log.Warningf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
 			_ = os.Remove(file)
 			_ = os.Remove(file + ".sig")
@@ -471,10 +489,11 @@ func movePackagesLive(fullRepo string) error {
 		}
 
 		toAdd = append(toAdd, &BuildPackage{
-			DbPackage: dbpkg,
-			Pkgbase:   dbpkg.Pkgbase,
+			DbPackage: dbPkg,
+			Pkgbase:   dbPkg.Pkgbase,
 			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
 			Version:   pkg.Version(),
+			March:     march,
 		})
 	}
 

@@ -198,6 +198,20 @@ func (dpc *DbPackageCreate) SetNillableLastVerified(t *time.Time) *DbPackageCrea
 	return dpc
 }
 
+// SetDebugSymbols sets the "debug_symbols" field.
+func (dpc *DbPackageCreate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageCreate {
+	dpc.mutation.SetDebugSymbols(ds)
+	return dpc
+}
+
+// SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageCreate {
+	if ds != nil {
+		dpc.SetDebugSymbols(*ds)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -277,6 +291,10 @@ func (dpc *DbPackageCreate) defaults() {
 		v := dbpackage.DefaultLto
 		dpc.mutation.SetLto(v)
 	}
+	if _, ok := dpc.mutation.DebugSymbols(); !ok {
+		v := dbpackage.DefaultDebugSymbols
+		dpc.mutation.SetDebugSymbols(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -313,6 +331,11 @@ func (dpc *DbPackageCreate) check() error {
 	if v, ok := dpc.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
 			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+		}
+	}
+	if v, ok := dpc.mutation.DebugSymbols(); ok {
+		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
@@ -461,6 +484,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldLastVerified,
 		})
 		_node.LastVerified = value
+	}
+	if value, ok := dpc.mutation.DebugSymbols(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeEnum,
+			Value:  value,
+			Column: dbpackage.FieldDebugSymbols,
+		})
+		_node.DebugSymbols = value
 	}
 	return _node, _spec
 }

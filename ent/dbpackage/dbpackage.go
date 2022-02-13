@@ -41,6 +41,8 @@ const (
 	FieldLastVersionBuild = "last_version_build"
 	// FieldLastVerified holds the string denoting the last_verified field in the database.
 	FieldLastVerified = "last_verified"
+	// FieldDebugSymbols holds the string denoting the debug_symbols field in the database.
+	FieldDebugSymbols = "debug_symbols"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -63,6 +65,7 @@ var Columns = []string{
 	FieldLto,
 	FieldLastVersionBuild,
 	FieldLastVerified,
+	FieldDebugSymbols,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -163,5 +166,32 @@ func LtoValidator(l Lto) error {
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for lto field: %q", l)
+	}
+}
+
+// DebugSymbols defines the type for the "debug_symbols" enum field.
+type DebugSymbols string
+
+// DebugSymbolsUnknown is the default value of the DebugSymbols enum.
+const DefaultDebugSymbols = DebugSymbolsUnknown
+
+// DebugSymbols values.
+const (
+	DebugSymbolsAvailable    DebugSymbols = "available"
+	DebugSymbolsUnknown      DebugSymbols = "unknown"
+	DebugSymbolsNotAvailable DebugSymbols = "not_available"
+)
+
+func (ds DebugSymbols) String() string {
+	return string(ds)
+}
+
+// DebugSymbolsValidator is a validator for the "debug_symbols" field enum values. It is called by the builders before save.
+func DebugSymbolsValidator(ds DebugSymbols) error {
+	switch ds {
+	case DebugSymbolsAvailable, DebugSymbolsUnknown, DebugSymbolsNotAvailable:
+		return nil
+	default:
+		return fmt.Errorf("dbpackage: invalid enum value for debug_symbols field: %q", ds)
 	}
 }

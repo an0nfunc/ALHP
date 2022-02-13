@@ -394,20 +394,23 @@ func (b *BuildManager) parseWorker() {
 
 func (b *BuildManager) htmlWorker() {
 	type Pkg struct {
-		Pkgbase         string
-		Status          string
-		Class           string
-		Skip            string
-		Version         string
-		Svn2GitVersion  string
-		BuildDate       string
-		BuildDuration   time.Duration
-		Checked         string
-		Log             string
-		LTO             bool
-		LTOUnknown      bool
-		LTODisabled     bool
-		LTOAutoDisabled bool
+		Pkgbase              string
+		Status               string
+		Class                string
+		Skip                 string
+		Version              string
+		Svn2GitVersion       string
+		BuildDate            string
+		BuildDuration        time.Duration
+		Checked              string
+		Log                  string
+		LTO                  bool
+		LTOUnknown           bool
+		LTODisabled          bool
+		LTOAutoDisabled      bool
+		DebugSym             bool
+		DebugSymNotAvailable bool
+		DebugSymUnknown      bool
 	}
 
 	type Repo struct {
@@ -485,6 +488,17 @@ func (b *BuildManager) htmlWorker() {
 						addPkg.LTODisabled = true
 					case dbpackage.LtoAutoDisabled:
 						addPkg.LTOAutoDisabled = true
+					}
+
+					switch pkg.DebugSymbols {
+					case dbpackage.DebugSymbolsUnknown:
+						if pkg.Status != dbpackage.StatusSkipped && pkg.Status != dbpackage.StatusFailed {
+							addPkg.DebugSymUnknown = true
+						}
+					case dbpackage.DebugSymbolsAvailable:
+						addPkg.DebugSym = true
+					case dbpackage.DebugSymbolsNotAvailable:
+						addPkg.DebugSymNotAvailable = true
 					}
 
 					addRepo.Packages = append(addRepo.Packages, addPkg)
@@ -565,7 +579,23 @@ func (b *BuildManager) repoWorker(repo string) {
 
 			for _, pkg := range pkgL {
 				pkg.toDbPackage(true)
-				pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetRepoVersion(pkg.Version).SetHash(pkg.Hash).SaveX(context.Background())
+				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, pkg.March, pkg.DbPackage.Packages[0]+"-debug-"+pkg.Version+"-"+conf.Arch+".pkg.tar.zst")); err == nil {
+					pkg.DbPackage = pkg.DbPackage.Update().
+						SetStatus(dbpackage.StatusLatest).
+						ClearSkipReason().
+						SetDebugSymbols(dbpackage.DebugSymbolsAvailable).
+						SetRepoVersion(pkg.Version).
+						SetHash(pkg.Hash).
+						SaveX(context.Background())
+				} else {
+					pkg.DbPackage = pkg.DbPackage.Update().
+						SetStatus(dbpackage.StatusLatest).
+						ClearSkipReason().
+						SetDebugSymbols(dbpackage.DebugSymbolsNotAvailable).
+						SetRepoVersion(pkg.Version).
+						SetHash(pkg.Hash).
+						SaveX(context.Background())
+				}
 			}
 
 			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1")

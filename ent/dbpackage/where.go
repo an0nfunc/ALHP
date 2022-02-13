@@ -1562,6 +1562,68 @@ func LastVerifiedNotNil() predicate.DbPackage {
 	})
 }
 
+// DebugSymbolsEQ applies the EQ predicate on the "debug_symbols" field.
+func DebugSymbolsEQ(v DebugSymbols) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldDebugSymbols), v))
+	})
+}
+
+// DebugSymbolsNEQ applies the NEQ predicate on the "debug_symbols" field.
+func DebugSymbolsNEQ(v DebugSymbols) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldDebugSymbols), v))
+	})
+}
+
+// DebugSymbolsIn applies the In predicate on the "debug_symbols" field.
+func DebugSymbolsIn(vs ...DebugSymbols) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldDebugSymbols), v...))
+	})
+}
+
+// DebugSymbolsNotIn applies the NotIn predicate on the "debug_symbols" field.
+func DebugSymbolsNotIn(vs ...DebugSymbols) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldDebugSymbols), v...))
+	})
+}
+
+// DebugSymbolsIsNil applies the IsNil predicate on the "debug_symbols" field.
+func DebugSymbolsIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldDebugSymbols)))
+	})
+}
+
+// DebugSymbolsNotNil applies the NotNil predicate on the "debug_symbols" field.
+func DebugSymbolsNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldDebugSymbols)))
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.DbPackage) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {

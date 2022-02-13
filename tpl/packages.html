@@ -68,6 +68,8 @@
                                 title="link time optimization&#10;does not guarantee that package is actually build with LTO">
                                 LTO
                             </th>
+                            <th class="text-center" scope="col" title="Debugsymbols available via debuginfod">DgbSym
+                            </th>
                             <th scope="col">Archlinux Version</th>
                             <th scope="col">{{$repo.Name}}-{{$march.Name}} Version</th>
                             <th class="text-end" scope="col">Info</th>
@@ -90,6 +92,15 @@
                                                               title="LTO automatically disabled"></i>{{end}}
                                 {{if $pkg.LTOUnknown}}<i class="fa fa-hourglass-o fa-lg"
                                                          title="not build with LTO yet"></i>{{end}}
+                            </td>
+                            <td class="text-center fs-6">
+                                {{if $pkg.DebugSym}}<i class="fa fa-check fa-lg" style="color: var(--bs-success)"
+                                                       title="Debug symbols available"></i>{{end}}
+                                {{if $pkg.DebugSymNotAvailable}}<i class="fa fa-times fa-lg"
+                                                                   style="color: var(--bs-danger)"
+                                                                   title="Not build with debug symbols"></i>{{end}}
+                                {{if $pkg.DebugSymUnknown}}<i class="fa fa-hourglass-o fa-lg"
+                                                              title="Not build yet"></i>{{end}}
                             </td>
                             <td>{{$pkg.Svn2GitVersion}}</td>
                             <td>{{$pkg.Version}}</td>

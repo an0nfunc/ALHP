@@ -47,6 +47,8 @@ type DbPackage struct {
 	LastVersionBuild string `json:"last_version_build,omitempty"`
 	// LastVerified holds the value of the "last_verified" field.
 	LastVerified time.Time `json:"last_verified,omitempty"`
+	// DebugSymbols holds the value of the "debug_symbols" field.
+	DebugSymbols dbpackage.DebugSymbols `json:"debug_symbols,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -58,7 +60,7 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new([]byte)
 		case dbpackage.FieldID:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
@@ -175,6 +177,12 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.LastVerified = value.Time
 			}
+		case dbpackage.FieldDebugSymbols:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field debug_symbols", values[i])
+			} else if value.Valid {
+				dp.DebugSymbols = dbpackage.DebugSymbols(value.String)
+			}
 		}
 	}
 	return nil
@@ -233,6 +241,8 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(dp.LastVersionBuild)
 	builder.WriteString(", last_verified=")
 	builder.WriteString(dp.LastVerified.Format(time.ANSIC))
+	builder.WriteString(", debug_symbols=")
+	builder.WriteString(fmt.Sprintf("%v", dp.DebugSymbols))
 	builder.WriteByte(')')
 	return builder.String()
 }

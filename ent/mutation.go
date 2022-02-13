@@ -48,6 +48,7 @@ type DbPackageMutation struct {
 	lto                *dbpackage.Lto
 	last_version_build *string
 	last_verified      *time.Time
+	debug_symbols      *dbpackage.DebugSymbols
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DbPackage, error)
@@ -848,6 +849,55 @@ func (m *DbPackageMutation) ResetLastVerified() {
 	delete(m.clearedFields, dbpackage.FieldLastVerified)
 }
 
+// SetDebugSymbols sets the "debug_symbols" field.
+func (m *DbPackageMutation) SetDebugSymbols(ds dbpackage.DebugSymbols) {
+	m.debug_symbols = &ds
+}
+
+// DebugSymbols returns the value of the "debug_symbols" field in the mutation.
+func (m *DbPackageMutation) DebugSymbols() (r dbpackage.DebugSymbols, exists bool) {
+	v := m.debug_symbols
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDebugSymbols returns the old "debug_symbols" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldDebugSymbols(ctx context.Context) (v dbpackage.DebugSymbols, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDebugSymbols is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDebugSymbols requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDebugSymbols: %w", err)
+	}
+	return oldValue.DebugSymbols, nil
+}
+
+// ClearDebugSymbols clears the value of the "debug_symbols" field.
+func (m *DbPackageMutation) ClearDebugSymbols() {
+	m.debug_symbols = nil
+	m.clearedFields[dbpackage.FieldDebugSymbols] = struct{}{}
+}
+
+// DebugSymbolsCleared returns if the "debug_symbols" field was cleared in this mutation.
+func (m *DbPackageMutation) DebugSymbolsCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldDebugSymbols]
+	return ok
+}
+
+// ResetDebugSymbols resets all changes to the "debug_symbols" field.
+func (m *DbPackageMutation) ResetDebugSymbols() {
+	m.debug_symbols = nil
+	delete(m.clearedFields, dbpackage.FieldDebugSymbols)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -867,7 +917,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -913,6 +963,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.last_verified != nil {
 		fields = append(fields, dbpackage.FieldLastVerified)
 	}
+	if m.debug_symbols != nil {
+		fields = append(fields, dbpackage.FieldDebugSymbols)
+	}
 	return fields
 }
 
@@ -951,6 +1004,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.LastVersionBuild()
 	case dbpackage.FieldLastVerified:
 		return m.LastVerified()
+	case dbpackage.FieldDebugSymbols:
+		return m.DebugSymbols()
 	}
 	return nil, false
 }
@@ -990,6 +1045,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldLastVersionBuild(ctx)
 	case dbpackage.FieldLastVerified:
 		return m.OldLastVerified(ctx)
+	case dbpackage.FieldDebugSymbols:
+		return m.OldDebugSymbols(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1104,6 +1161,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastVerified(v)
 		return nil
+	case dbpackage.FieldDebugSymbols:
+		v, ok := value.(dbpackage.DebugSymbols)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDebugSymbols(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1170,6 +1234,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldLastVerified) {
 		fields = append(fields, dbpackage.FieldLastVerified)
 	}
+	if m.FieldCleared(dbpackage.FieldDebugSymbols) {
+		fields = append(fields, dbpackage.FieldDebugSymbols)
+	}
 	return fields
 }
 
@@ -1219,6 +1286,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldLastVerified:
 		m.ClearLastVerified()
+		return nil
+	case dbpackage.FieldDebugSymbols:
+		m.ClearDebugSymbols()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1272,6 +1342,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldLastVerified:
 		m.ResetLastVerified()
+		return nil
+	case dbpackage.FieldDebugSymbols:
+		m.ResetDebugSymbols()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
