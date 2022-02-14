@@ -457,7 +457,7 @@ func movePackagesLive(fullRepo string) error {
 		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
 		if err != nil {
 			if strings.HasSuffix(pkg.Name(), "-debug") {
-				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 755)
+				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0755)
 				if mkErr != nil {
 					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
 				}
