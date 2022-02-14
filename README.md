@@ -142,7 +142,7 @@ ALHP provides a debuginfod instance for each CPU-Level it builds for.
 To enable them for your repo (example for `x86-64-v3`):
 
 ```bash
-echo "https://debuginfod-x86-64-v3.harting.dev\n" > /etc/debuginfod/alhp.urls
+echo "https://debuginfod-x86-64-v3.harting.dev" > /etc/debuginfod/alhp.urls
 ```
 
 Be sure to use the correct url for your respective repo mentioned above and have `debuginfod` installed on your system.
