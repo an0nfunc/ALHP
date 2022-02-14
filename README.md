@@ -128,6 +128,21 @@ Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_arch
 from building (besides all 'any' architecture packages) are being listed in issue #16.
 Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
+### Debug symbols
+
+ALHP provides a debuginfod instance for each CPU-Level it builds for.
+
+- `x86-64-v2`: `https://debuginfod-x86-64-v2.harting.dev`
+- `x86-64-v3`: `https://debuginfod-x86-64-v3.harting.dev`
+
+To enable them for your repo (example for `x86-64-v3`):
+
+```bash
+echo "https://debuginfod-x86-64-v3.harting.dev\n" > /etc/debuginfod/alhp.urls
+```
+
+Be sure to use the correct url for your respective repo mentioned above and have `debuginfod` installed on your system.
+
 ## Donations
 
 I appreciate any money you want to throw my way, but donations are strictly optional. Donations are primarily used to
