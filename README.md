@@ -134,18 +134,13 @@ Also [package status page](https://alhp.anonfunc.dev/packages.html).
 
 ### Debug symbols
 
-ALHP provides a debuginfod instance for each CPU-Level it builds for.
+ALHP provides a debuginfod instance under `debuginfod.harting.dev`.
 
-- `x86-64-v2`: `https://debuginfod-x86-64-v2.harting.dev`
-- `x86-64-v3`: `https://debuginfod-x86-64-v3.harting.dev`
-
-To enable them for your repo (example for `x86-64-v3`):
+To use it, have `debuginfod` installed on your system and add it to your `DEBUGINFOD_URLS` with:
 
 ```bash
-echo "https://debuginfod-x86-64-v3.harting.dev" > /etc/debuginfod/alhp.urls
+echo "https://debuginfod.harting.dev" > /etc/debuginfod/alhp.urls
 ```
-
-Be sure to use the correct url for your respective repo mentioned above and have `debuginfod` installed on your system.
 
 ## Donations
 
