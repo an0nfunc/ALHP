@@ -1,6 +1,10 @@
 # ALHP
 
-[![](https://img.shields.io/badge/license-GPL-blue)](https://git.harting.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE) [![](https://img.shields.io/badge/package-status-informational)](https://alhp.anonfunc.dev/packages.html) [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay)](https://liberapay.com/anonfunc/)
+[![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://git.harting.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
+[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://alhp.anonfunc.dev/packages.html)
+[![](https://goreportcard.com/badge/git.harting.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/git.harting.dev/ALHP/ALHP.GO)
+[![](https://pkg.go.dev/badge/git.harting.dev/ALHP/ALHP.GO)](https://pkg.go.dev/git.harting.dev/ALHP/ALHP.GO)
+[![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
 
 Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
