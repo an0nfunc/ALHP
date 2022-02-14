@@ -51,10 +51,9 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			if b.exit {
 				log.Infof("Worker %s/%d exited...", march, id)
 				return
-			} else {
-				b.buildWG.Add(1)
-				b.parseWG.Done()
 			}
+			b.buildWG.Add(1)
+			b.parseWG.Done()
 
 			rand.Seed(time.Now().UnixNano())
 			time.Sleep(time.Duration(rand.Float32()*60) * time.Second)
@@ -552,6 +551,7 @@ func (b *BuildManager) htmlWorker() {
 		check(err)
 
 		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		check(err)
 		check(statusTpl.Execute(f, gen))
 		check(f.Close())
 

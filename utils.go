@@ -468,6 +468,9 @@ func movePackagesLive(fullRepo string) error {
 					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 				} else {
 					err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+					if err != nil {
+						return err
+					}
 					_ = os.Remove(file + ".sig")
 					continue
 				}
@@ -540,9 +543,8 @@ func (p *BuildPackage) importKeys() error {
 func constructVersion(pkgver string, pkgrel string, epoch string) string {
 	if epoch == "" {
 		return pkgver + "-" + pkgrel
-	} else {
-		return epoch + ":" + pkgver + "-" + pkgrel
 	}
+	return epoch + ":" + pkgver + "-" + pkgrel
 }
 
 func initALPM(root string, dbpath string) (*alpm.Handle, error) {
@@ -705,9 +707,8 @@ func isPkgFailed(pkg *BuildPackage) bool {
 
 	if alpm.VerCmp(pkg.DbPackage.Version, pkg.Version) < 0 {
 		return false
-	} else {
-		return pkg.DbPackage.Status == dbpackage.StatusFailed
 	}
+	return pkg.DbPackage.Status == dbpackage.StatusFailed
 }
 
 func (p *BuildPackage) genSrcinfo() error {
