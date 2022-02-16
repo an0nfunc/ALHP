@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
-	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
 	"git.harting.dev/ALHP/ALHP.GO/ent"
 	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
@@ -16,7 +13,6 @@ import (
 	"io"
 	"io/fs"
 	"lukechampine.com/blake3"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,25 +50,11 @@ var (
 	reSigError      = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
 )
 
-type BuildPackage struct {
-	Pkgbase   string
-	Pkgbuild  string
-	Srcinfo   *srcinfo.Srcinfo
-	Arch      string
-	PkgFiles  []string
-	Repo      dbpackage.Repository
-	March     string
-	FullRepo  string
-	Version   string
-	Hash      string
-	DbPackage *ent.DbPackage
-}
-
 type BuildManager struct {
-	build          map[string]chan *BuildPackage
-	parse          chan *BuildPackage
-	repoPurge      map[string]chan []*BuildPackage
-	repoAdd        map[string]chan []*BuildPackage
+	build          map[string]chan *ProtoPackage
+	parse          chan *ProtoPackage
+	repoPurge      map[string]chan []*ProtoPackage
+	repoAdd        map[string]chan []*ProtoPackage
 	exit           bool
 	buildWG        sync.WaitGroup
 	parseWG        sync.WaitGroup
@@ -119,8 +101,6 @@ type Conf struct {
 }
 
 type Globs []string
-type Package string
-type PKGBUILD string
 
 type MultiplePKGBUILDError struct {
 	error
@@ -129,60 +109,12 @@ type UnableToSatisfyError struct {
 	error
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
+func updateLastUpdated() error {
+	err := os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644)
+	if err != nil {
+		return err
 	}
-}
-
-func (p PKGBUILD) FullRepo() string {
-	sPkgbuild := strings.Split(string(p), string(filepath.Separator))
-	return sPkgbuild[len(sPkgbuild)-2]
-}
-
-func (p PKGBUILD) Repo() string {
-	return strings.Split(p.FullRepo(), "-")[0]
-}
-
-func (p PKGBUILD) PkgBase() string {
-	sPkgbuild := strings.Split(string(p), string(filepath.Separator))
-	return sPkgbuild[len(sPkgbuild)-4]
-}
-
-func updateLastUpdated() {
-	check(os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644))
-}
-
-// Name returns the name from Package
-func (path Package) Name() string {
-	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
-	return strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
-}
-
-func (path Package) MArch() string {
-	splitPath := strings.Split(string(path), string(filepath.Separator))
-	return strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
-}
-
-func (path Package) Repo() dbpackage.Repository {
-	splitPath := strings.Split(string(path), string(filepath.Separator))
-	return dbpackage.Repository(strings.Split(splitPath[len(splitPath)-4], "-")[0])
-}
-
-func (path Package) FullRepo() string {
-	splitPath := strings.Split(string(path), string(filepath.Separator))
-	return splitPath[len(splitPath)-4]
-}
-
-func (path Package) Version() string {
-	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
-	return strings.Join(fNameSplit[len(fNameSplit)-3:len(fNameSplit)-1], "-")
-}
-
-func (path Package) Arch() string {
-	fNameSplit := strings.Split(filepath.Base(string(path)), "-")
-	fNameSplit = strings.Split(fNameSplit[len(fNameSplit)-1], ".")
-	return fNameSplit[0]
+	return nil
 }
 
 func statusId2string(s dbpackage.Status) string {
@@ -210,7 +142,7 @@ func b3sum(filePath string) (string, error) {
 		return "", err
 	}
 	defer func(file *os.File) {
-		check(file.Close())
+		_ = file.Close()
 	}(file)
 
 	hash := blake3.New(32, nil)
@@ -240,201 +172,6 @@ func cleanBuildDir(dir string) error {
 	return nil
 }
 
-func (p *BuildPackage) setupBuildDir() (string, error) {
-	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
-
-	err := cleanBuildDir(buildDir)
-	if err != nil {
-		return "", fmt.Errorf("removing old builddir failed: %w", err)
-	}
-
-	err = os.MkdirAll(buildDir, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	files, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*"))
-	if err != nil {
-		return "", err
-	}
-
-	for _, file := range files {
-		_, err = copyFile(file, filepath.Join(buildDir, filepath.Base(file)))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
-	return buildDir, nil
-}
-
-func (p *BuildPackage) repoVersion() (string, error) {
-	err := p.findPkgFiles()
-	if err != nil {
-		return "", err
-	}
-
-	if len(p.PkgFiles) == 0 {
-		return "", fmt.Errorf("not found")
-	}
-
-	fNameSplit := strings.Split(p.PkgFiles[0], "-")
-	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2], nil
-}
-
-func (p *BuildPackage) increasePkgRel(buildNo int) error {
-	if p.Srcinfo == nil {
-		err := p.genSrcinfo()
-		if err != nil {
-			return fmt.Errorf("error generating srcinfo: %w", err)
-		}
-	}
-
-	if p.Version == "" {
-		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
-	}
-
-	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(f)
-
-	fStr, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+"."+strconv.Itoa(buildNo))
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.WriteString(nStr)
-	if err != nil {
-		return err
-	}
-
-	p.Version += "." + strconv.Itoa(buildNo)
-	return nil
-}
-
-func (p *BuildPackage) prepareKernelPatches() error {
-	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(f)
-
-	fStr, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	// choose best suited patch based on kernel version
-	var curVer string
-	for k := range conf.KernelPatches {
-		if k == p.Pkgbase {
-			curVer = k
-			break
-		}
-		if alpm.VerCmp(p.Srcinfo.Pkgver, k) >= 0 && alpm.VerCmp(k, curVer) >= 0 {
-			curVer = k
-		}
-	}
-
-	newPKGBUILD := string(fStr)
-	if conf.KernelPatches[curVer] == "none" {
-		return fmt.Errorf("no patch available")
-	} else if conf.KernelPatches[curVer] == "skip" {
-		log.Debugf("[KP] skipped patching for %s", p.Pkgbase)
-	} else {
-		log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
-
-		// add patch to source-array
-		orgSource := rePkgSource.FindStringSubmatch(newPKGBUILD)
-		if orgSource == nil || len(orgSource) < 1 {
-			return fmt.Errorf("no source=() found")
-		}
-
-		sources := strings.Split(orgSource[1], "\n")
-		sources = append(sources, fmt.Sprintf("\"%s\"", conf.KernelPatches[curVer]))
-
-		newPKGBUILD = rePkgSource.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("source=(%s)", strings.Join(sources, "\n")))
-
-		// add patch sha256 to sha256sums-array (yes, hardcoded to sha256)
-		// TODO: support all sums that makepkg also supports
-		// get sum
-		resp, err := http.Get(conf.KernelPatches[curVer])
-		if err != nil || resp.StatusCode != 200 {
-			return err
-		}
-		h := sha256.New()
-		_, err = io.Copy(h, resp.Body)
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		orgSums := rePkgSum.FindStringSubmatch(newPKGBUILD)
-		if orgSums == nil || len(orgSums) < 1 {
-			return fmt.Errorf("no sha256sums=() found")
-		}
-
-		sums := strings.Split(orgSums[1], "\n")
-		sums = append(sums, fmt.Sprintf("'%s'", hex.EncodeToString(h.Sum(nil))))
-
-		newPKGBUILD = rePkgSum.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("sha256sums=(\n%s\n)", strings.Join(sums, "\n")))
-	}
-
-	// enable config option
-	switch {
-	case strings.Contains(p.March, "v4"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU4=y >> .config\nmake olddefconfig\n", 1)
-	case strings.Contains(p.March, "v3"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU3=y >> .config\nmake olddefconfig\n", 1)
-	case strings.Contains(p.March, "v2"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU2=y >> .config\nmake olddefconfig\n", 1)
-	}
-
-	// empty file before writing
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.WriteString(newPKGBUILD)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func movePackagesLive(fullRepo string) error {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo)); os.IsNotExist(err) {
 		return nil
@@ -450,11 +187,11 @@ func movePackagesLive(fullRepo string) error {
 		return err
 	}
 
-	toAdd := make([]*BuildPackage, 0)
+	toAdd := make([]*ProtoPackage, 0)
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
-		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo))
+		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo), db)
 		if err != nil {
 			if strings.HasSuffix(pkg.Name(), "-debug") {
 				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0755)
@@ -491,7 +228,7 @@ func movePackagesLive(fullRepo string) error {
 			return err
 		}
 
-		toAdd = append(toAdd, &BuildPackage{
+		toAdd = append(toAdd, &ProtoPackage{
 			DbPackage: dbPkg,
 			Pkgbase:   dbPkg.Pkgbase,
 			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
@@ -526,18 +263,6 @@ func packages2slice(pkgs interface{}) []string {
 	default:
 		return []string{}
 	}
-}
-
-func (p *BuildPackage) importKeys() error {
-	if p.Srcinfo.ValidPGPKeys != nil {
-		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
-		args = append(args, p.Srcinfo.ValidPGPKeys...)
-		cmd := exec.Command("gpg", args...)
-		_, err := cmd.CombinedOutput()
-
-		return err
-	}
-	return nil
 }
 
 func constructVersion(pkgver string, pkgrel string, epoch string) string {
@@ -587,150 +312,6 @@ func initALPM(root string, dbpath string) (*alpm.Handle, error) {
 	return h, nil
 }
 
-func (p *BuildPackage) isAvailable(h *alpm.Handle) bool {
-	dbs, err := h.SyncDBs()
-	if err != nil {
-		return false
-	}
-
-	buildManager.alpmMutex.Lock()
-	var pkg alpm.IPackage
-	if p.Srcinfo != nil {
-		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
-	} else {
-		pkg, err = dbs.FindSatisfier(p.DbPackage.Packages[0])
-	}
-	buildManager.alpmMutex.Unlock()
-	if err != nil {
-		return false
-	}
-
-	if pkg.DB().Name() != p.Repo.String() || pkg.Base() != p.Pkgbase {
-		return false
-	}
-
-	if p.Srcinfo != nil && (p.Srcinfo.Arch[0] != pkg.Architecture() || p.Srcinfo.Pkgbase != pkg.Base()) {
-		return false
-	}
-
-	return true
-}
-
-func (p *BuildPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
-	if p.Pkgbuild == "" && p.Pkgbase == "" {
-		return "", fmt.Errorf("invalid arguments")
-	}
-
-	// upstream/upstream-core-extra/extra-cmake-modules/repos/extra-any/PKGBUILD
-	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
-
-	var fPkgbuilds []string
-	for _, pkgbuild := range pkgBuilds {
-		mPkgbuild := PKGBUILD(pkgbuild)
-		if mPkgbuild.FullRepo() == "trunk" || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
-			continue
-		}
-
-		if !contains(fPkgbuilds, pkgbuild) {
-			fPkgbuilds = append(fPkgbuilds, pkgbuild)
-		}
-	}
-
-	if len(fPkgbuilds) > 1 {
-		log.Infof("%s: multiple PKGBUILD found, try resolving from mirror", p.Pkgbase)
-		dbs, err := h.SyncDBs()
-		if err != nil {
-			return "", err
-		}
-
-		buildManager.alpmMutex.Lock()
-		iPackage, err := dbs.FindSatisfier(p.Pkgbase)
-		buildManager.alpmMutex.Unlock()
-		if err != nil {
-			return "", err
-		}
-
-	pkgloop:
-		for _, pkgbuild := range fPkgbuilds {
-			repo := strings.Split(filepath.Base(filepath.Dir(pkgbuild)), "-")[0]
-			upstreamA := strings.Split(filepath.Dir(pkgbuild), "/")
-			upstream := upstreamA[len(upstreamA)-4]
-
-			switch upstream {
-			case "upstream-core-extra":
-				if iPackage.DB().Name() == repo && (repo == "extra" || repo == "core") {
-					fPkgbuilds = []string{pkgbuild}
-					break pkgloop
-				}
-			case "upstream-community":
-				if iPackage.DB().Name() == repo && repo == "community" {
-					fPkgbuilds = []string{pkgbuild}
-					break pkgloop
-				}
-			}
-		}
-
-		if len(fPkgbuilds) > 1 {
-			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", p.Pkgbase, fPkgbuilds)}
-		}
-		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
-	} else if len(fPkgbuilds) == 0 {
-		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
-	}
-
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(fPkgbuilds[0])+"&&"+"makepkg --printsrcinfo")
-	res, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-
-	info, err := srcinfo.Parse(string(res))
-	if err != nil {
-		return "", err
-	}
-
-	return constructVersion(info.Pkgver, info.Pkgrel, info.Epoch), nil
-}
-
-func isPkgFailed(pkg *BuildPackage) bool {
-	if pkg.DbPackage.Version == "" {
-		return false
-	}
-
-	if err := pkg.genSrcinfo(); err != nil {
-		return false
-	}
-
-	if pkg.Version == "" {
-		pkg.Version = constructVersion(pkg.Srcinfo.Pkgver, pkg.Srcinfo.Pkgrel, pkg.Srcinfo.Epoch)
-	}
-
-	if alpm.VerCmp(pkg.DbPackage.Version, pkg.Version) < 0 {
-		return false
-	}
-	return pkg.DbPackage.Status == dbpackage.StatusFailed
-}
-
-func (p *BuildPackage) genSrcinfo() error {
-	if p.Srcinfo != nil {
-		return nil
-	}
-
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo -p "+filepath.Base(p.Pkgbuild))
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %w (%s)", p.Pkgbuild, err, string(res))
-	}
-
-	info, err := srcinfo.Parse(string(res))
-	if err != nil {
-		return err
-	}
-
-	p.Srcinfo = info
-	return nil
-}
-
 func setupChroot() error {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot)); err == nil {
 		//goland:noinspection SpellCheckingInspection
@@ -741,8 +322,10 @@ func setupChroot() error {
 			return fmt.Errorf("Unable to update chroot: %w\n%s", err, string(res))
 		}
 	} else if os.IsNotExist(err) {
-		err := os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0755)
-		check(err)
+		err = os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0755)
+		if err != nil {
+			return err
+		}
 
 		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel")
 		res, err := cmd.CombinedOutput()
@@ -754,43 +337,6 @@ func setupChroot() error {
 		return err
 	}
 	return nil
-}
-
-func (path *Package) DBPackage() (*ent.DbPackage, error) {
-	return path.DBPackageIsolated(path.MArch(), path.Repo())
-}
-
-func (path *Package) DBPackageIsolated(march string, repo dbpackage.Repository) (*ent.DbPackage, error) {
-	dbPkg, err := db.DbPackage.Query().Where(func(s *sql.Selector) {
-		s.Where(
-			sql.And(
-				sqljson.ValueContains(dbpackage.FieldPackages, path.Name()),
-				sql.EQ(dbpackage.FieldMarch, march),
-				sql.EQ(dbpackage.FieldRepository, repo)),
-		)
-	}).Only(context.Background())
-	if ent.IsNotFound(err) {
-		log.Debugf("Not found in database: %s", path.Name())
-		return nil, err
-	} else if err != nil {
-		return nil, err
-	}
-	return dbPkg, nil
-}
-
-func (path Package) hasValidSignature() (bool, error) {
-	cmd := exec.Command("gpg", "--verify", string(path)+".sig")
-	res, err := cmd.CombinedOutput()
-	log.Debug(string(res))
-	if cmd.ProcessState.ExitCode() == 2 || cmd.ProcessState.ExitCode() == 1 {
-		return false, nil
-	} else if cmd.ProcessState.ExitCode() == 0 {
-		return true, nil
-	} else if err != nil {
-		return false, err
-	}
-
-	return false, nil
 }
 
 func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
@@ -805,22 +351,22 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 	for _, path := range packages {
 		mPackage := Package(path)
 
-		dbPkg, err := mPackage.DBPackage()
+		dbPkg, err := mPackage.DBPackage(db)
 		if ent.IsNotFound(err) {
 			log.Infof("[HK/%s] removing orphan %s", fullRepo, filepath.Base(path))
-			pkg := &BuildPackage{
+			pkg := &ProtoPackage{
 				FullRepo: mPackage.FullRepo(),
 				PkgFiles: []string{path},
 				March:    mPackage.MArch(),
 			}
-			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
 		} else if err != nil {
 			log.Warningf("[HK] Problem fetching package from db for %s: %v", path, err)
 			continue
 		}
 
-		pkg := &BuildPackage{
+		pkg := &ProtoPackage{
 			Pkgbase:   dbPkg.Pkgbase,
 			Repo:      mPackage.Repo(),
 			FullRepo:  mPackage.FullRepo(),
@@ -849,7 +395,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() || pkgResolved.Architecture() != pkg.Arch {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
-			buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
 			if err != nil {
 				return err
@@ -863,13 +409,13 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 				return err
 			}
 			// check if pkg signature is valid
-			valid, err := mPackage.hasValidSignature()
+			valid, err := mPackage.HasValidSignature()
 			if err != nil {
 				return err
 			}
 			if !valid {
 				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
-				buildManager.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+				buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 				continue
 			}
 		}
@@ -896,7 +442,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 	}
 
 	for _, dbPkg := range dbPackages {
-		pkg := &BuildPackage{
+		pkg := &ProtoPackage{
 			Pkgbase:   dbPkg.Pkgbase,
 			Repo:      dbPkg.Repository,
 			March:     dbPkg.March,
@@ -935,13 +481,13 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 					return err
 				}
 
-				pkg := &BuildPackage{
+				pkg := &ProtoPackage{
 					FullRepo:  fullRepo,
 					PkgFiles:  existingSplits,
 					March:     march,
 					DbPackage: dbPkg,
 				}
-				buildManager.repoPurge[fullRepo] <- []*BuildPackage{pkg}
+				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 			}
 		}
 	}
@@ -962,7 +508,7 @@ func logHK() error {
 		pkgbase := strings.Join(extSplit[:len(extSplit)-1], ".")
 		march := pathSplit[len(pathSplit)-2]
 
-		pkg := BuildPackage{
+		pkg := ProtoPackage{
 			Pkgbase: pkgbase,
 			March:   march,
 		}
@@ -1009,57 +555,11 @@ func logHK() error {
 	return nil
 }
 
-func (p *BuildPackage) findPkgFiles() error {
-	pkgs, err := os.ReadDir(filepath.Join(conf.Basedir.Repo, p.FullRepo, "os", conf.Arch))
+func syncMarchs() error {
+	files, err := os.ReadDir(conf.Basedir.Repo)
 	if err != nil {
 		return err
 	}
-
-	var realPkgs []string
-	for _, realPkg := range p.DbPackage.Packages {
-		realPkgs = append(realPkgs, realPkg)
-	}
-
-	var fPkg []string
-	for _, file := range pkgs {
-		if !file.IsDir() && !strings.HasSuffix(file.Name(), ".sig") {
-			matches := rePkgFile.FindStringSubmatch(file.Name())
-
-			if len(matches) > 1 && contains(realPkgs, matches[1]) {
-				fPkg = append(fPkg, filepath.Join(conf.Basedir.Repo, p.FullRepo, "os", conf.Arch, file.Name()))
-			}
-		}
-	}
-
-	p.PkgFiles = fPkg
-	return nil
-}
-
-func (p *BuildPackage) toDbPackage(create bool) {
-	if p.DbPackage != nil {
-		return
-	}
-
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March), dbpackage.RepositoryEQ(p.Repo))).Only(context.Background())
-	if err != nil && create {
-		dbPkg = db.DbPackage.Create().SetPkgbase(p.Pkgbase).SetMarch(p.March).SetPackages(packages2slice(p.Srcinfo.Packages)).SetRepository(p.Repo).SaveX(context.Background())
-	}
-
-	p.DbPackage = dbPkg
-}
-
-func (p BuildPackage) exists() (bool, error) {
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
-	if err != nil {
-		return false, err
-	}
-
-	return dbPkg, nil
-}
-
-func syncMarchs() {
-	files, err := os.ReadDir(conf.Basedir.Repo)
-	check(err)
 
 	var eRepos []string
 	for _, file := range files {
@@ -1074,7 +574,7 @@ func syncMarchs() {
 			log.Fatalf("Can't generate makepkg for %s: %v", march, err)
 		}
 
-		buildManager.build[march] = make(chan *BuildPackage, 10000)
+		buildManager.build[march] = make(chan *ProtoPackage, 10000)
 		for i := 0; i < conf.Build.Worker; i++ {
 			go buildManager.buildWorker(i, march)
 		}
@@ -1082,13 +582,16 @@ func syncMarchs() {
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
-			buildManager.repoAdd[fRepo] = make(chan []*BuildPackage, conf.Build.Worker)
-			buildManager.repoPurge[fRepo] = make(chan []*BuildPackage, 10000)
+			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, conf.Build.Worker)
+			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 10000)
 			go buildManager.repoWorker(fRepo)
 
 			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))); os.IsNotExist(err) {
 				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0755))
+				err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0755)
+				if err != nil {
+					return err
+				}
 			}
 
 			if i := find(eRepos, fRepo); i != -1 {
@@ -1101,8 +604,12 @@ func syncMarchs() {
 
 	for _, repo := range eRepos {
 		log.Infof("Removing old repo %s", repo)
-		check(os.RemoveAll(filepath.Join(conf.Basedir.Repo, repo)))
+		err = os.RemoveAll(filepath.Join(conf.Basedir.Repo, repo))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 //goland:noinspection SpellCheckingInspection
@@ -1152,40 +659,6 @@ func setupMakepkg(march string) error {
 	return nil
 }
 
-func (p *BuildPackage) isMirrorLatest(h *alpm.Handle) (bool, alpm.IPackage, string, error) {
-	dbs, err := h.SyncDBs()
-	if err != nil {
-		return false, nil, "", err
-	}
-
-	allDepends := p.Srcinfo.Depends
-	allDepends = append(allDepends, p.Srcinfo.MakeDepends...)
-
-	for _, dep := range allDepends {
-		buildManager.alpmMutex.Lock()
-		pkg, err := dbs.FindSatisfier(dep.Value)
-		buildManager.alpmMutex.Unlock()
-		if err != nil {
-			return false, nil, "", UnableToSatisfyError{err}
-		}
-
-		svn2gitVer, err := (&BuildPackage{
-			Pkgbase: pkg.Base(),
-		}).SVN2GITVersion(h)
-		if err != nil {
-			return false, nil, "", err
-		} else if svn2gitVer == "" {
-			return false, nil, "", fmt.Errorf("no svn2git version")
-		}
-
-		if alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
-			return false, pkg, svn2gitVer, nil
-		}
-	}
-
-	return true, nil, "", nil
-}
-
 func contains(s interface{}, str string) bool {
 	switch v := s.(type) {
 	case []string:
@@ -1233,7 +706,7 @@ func copyFile(src, dst string) (int64, error) {
 		return 0, err
 	}
 	defer func(source *os.File) {
-		check(source.Close())
+		_ = source.Close()
 	}(source)
 
 	destination, err := os.Create(dst)
@@ -1241,7 +714,7 @@ func copyFile(src, dst string) (int64, error) {
 		return 0, err
 	}
 	defer func(destination *os.File) {
-		check(destination.Close())
+		_ = destination.Close()
 	}(destination)
 	nBytes, err := io.Copy(destination, source)
 	return nBytes, err

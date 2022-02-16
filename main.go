@@ -132,7 +132,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			cmd.Stdout = &out
 			cmd.Stderr = &out
 
-			check(cmd.Start())
+			err = cmd.Start()
+			if err != nil {
+				log.Errorf("[%s/%s/%s] Error starting build: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+			}
 
 			b.buildProcMutex.Lock()
 			b.buildProcesses = append(b.buildProcesses, cmd.Process)
@@ -183,13 +186,19 @@ func (b *BuildManager) buildWorker(id int, march string) {
 
 				log.Warningf("[%s/%s/%s] Build failed (%d)", pkg.FullRepo, pkg.Pkgbase, pkg.Version, cmd.ProcessState.ExitCode())
 
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, march), 0755))
-				check(os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log"), out.Bytes(), 0644))
+				err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, march), 0755)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error creating logdir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
+				err = os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log"), out.Bytes(), 0644)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error writing to logdir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 
 				pkg.DbPackage.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(pkg.Hash).ExecX(context.Background())
 
 				// purge failed package from repo
-				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 
 				err = cleanBuildDir(buildDir)
 				if err != nil {
@@ -200,7 +209,9 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			}
 
 			pkgFiles, err := filepath.Glob(filepath.Join(filepath.Dir(pkg.Pkgbuild), "*.pkg.tar.zst"))
-			check(err)
+			if err != nil {
+				log.Warningf("[%s/%s/%s] Error scanning builddir for artifacts: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+			}
 
 			if len(pkgFiles) == 0 {
 				log.Warningf("No packages found after building %s. Abort build.", pkg.Pkgbase)
@@ -224,13 +235,18 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			}
 
 			copyFiles, err := filepath.Glob(filepath.Join(filepath.Dir(pkg.Pkgbuild), "*.pkg.tar.zst*"))
-			check(err)
+			if err != nil {
+				log.Warningf("[%s/%s/%s] Error scanning builddir for artifacts: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+			}
 
 			for _, file := range copyFiles {
-				check(os.MkdirAll(filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo), 0755))
+				err = os.MkdirAll(filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo), 0755)
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error creating holding dir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 				_, err = copyFile(file, filepath.Join(conf.Basedir.Work, waitingDir, pkg.FullRepo, filepath.Base(file)))
 				if err != nil {
-					check(err)
+					log.Warningf("[%s/%s/%s] Error coping file to holding dir: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
 					b.buildWG.Done()
 					continue
 				}
@@ -241,7 +257,10 @@ func (b *BuildManager) buildWorker(id int, march string) {
 			}
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log")); err == nil {
-				check(os.Remove(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log")))
+				err = os.Remove(filepath.Join(conf.Basedir.Repo, logDir, march, pkg.Pkgbase+".log"))
+				if err != nil {
+					log.Warningf("[%s/%s/%s] Error removing log: %v", pkg.FullRepo, pkg.Pkgbase, pkg.Version, err)
+				}
 			}
 
 			if pkg.DbPackage.Lto != dbpackage.LtoDisabled && pkg.DbPackage.Lto != dbpackage.LtoAutoDisabled {
@@ -313,7 +332,7 @@ func (b *BuildManager) parseWorker() {
 				pkg.DbPackage.SkipReason = "blacklisted (haskell)"
 				pkg.DbPackage.Status = dbpackage.StatusSkipped
 				skipping = true
-			} else if isPkgFailed(pkg) {
+			} else if pkg.isPkgFailed() {
 				log.Debugf("Skipped %s: failed build", pkg.Srcinfo.Pkgbase)
 				skipping = true
 			}
@@ -322,7 +341,7 @@ func (b *BuildManager) parseWorker() {
 				pkg.DbPackage = pkg.DbPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).
 					SetPackages(packages2slice(pkg.Srcinfo.Packages)).SetStatus(pkg.DbPackage.Status).
 					SetSkipReason(pkg.DbPackage.SkipReason).SetHash(pkg.Hash).SaveX(context.Background())
-				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 				b.parseWG.Done()
 				continue
 			} else {
@@ -348,19 +367,19 @@ func (b *BuildManager) parseWorker() {
 				switch err.(type) {
 				default:
 					log.Warningf("[%s/%s] Problem solving dependencies: %v", pkg.FullRepo, pkg.Srcinfo.Pkgbase, err)
-					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					b.parseWG.Done()
 					continue
 				case MultiplePKGBUILDError:
 					log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", pkg.Srcinfo.Pkgbase, err)
 					pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(context.Background())
-					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					b.parseWG.Done()
 					continue
 				case UnableToSatisfyError:
 					log.Infof("Skipped %s: unable to resolve dependencies: %v", pkg.Srcinfo.Pkgbase, err)
 					pkg.DbPackage = pkg.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(context.Background())
-					b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					b.parseWG.Done()
 					continue
 				}
@@ -381,7 +400,7 @@ func (b *BuildManager) parseWorker() {
 				// Worst case would be clients downloading a package update twice, once from their official mirror,
 				// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
 				// in an outdated version.
-				b.repoPurge[pkg.FullRepo] <- []*BuildPackage{pkg}
+				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 				b.parseWG.Done()
 				continue
 			}
@@ -548,12 +567,21 @@ func (b *BuildManager) htmlWorker() {
 		}
 
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
-		check(err)
+		if err != nil {
+			log.Warningf("[HTML] Error parsing template file: %v", err)
+			continue
+		}
 
 		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-		check(err)
-		check(statusTpl.Execute(f, gen))
-		check(f.Close())
+		if err != nil {
+			log.Warningf("[HTML] Erro ropening output file: %v", err)
+			continue
+		}
+		err = statusTpl.Execute(f, gen)
+		if err != nil {
+			log.Warningf("[HTML] Error filling template: %v", err)
+		}
+		_ = f.Close()
 
 		time.Sleep(time.Minute * 5)
 	}
@@ -601,8 +629,13 @@ func (b *BuildManager) repoWorker(repo string) {
 			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1")
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
-			check(err)
-			updateLastUpdated()
+			if err != nil {
+				log.Warningf("Error running paccache: %v", err)
+			}
+			err = updateLastUpdated()
+			if err != nil {
+				log.Warningf("Error updating lastupdate: %v", err)
+			}
 		case pkgL := <-b.repoPurge[repo]:
 			for _, pkg := range pkgL {
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
@@ -640,7 +673,10 @@ func (b *BuildManager) repoWorker(repo string) {
 					_ = os.Remove(file)
 					_ = os.Remove(file + ".sig")
 				}
-				updateLastUpdated()
+				err = updateLastUpdated()
+				if err != nil {
+					log.Warningf("Error updating lastupdate: %v", err)
+				}
 				b.repoWG.Done()
 			}
 		}
@@ -648,7 +684,10 @@ func (b *BuildManager) repoWorker(repo string) {
 }
 
 func (b *BuildManager) syncWorker() {
-	check(os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0755))
+	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0755)
+	if err != nil {
+		log.Fatalf("Error creating upstream dir: %v", err)
+	}
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go b.parseWorker()
@@ -662,12 +701,16 @@ func (b *BuildManager) syncWorker() {
 				cmd := exec.Command("git", "clone", "--depth=1", gitURL, gitPath)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
-				check(err)
+				if err != nil {
+					log.Fatalf("Error running git clone: %v", err)
+				}
 			} else if err == nil {
 				cmd := exec.Command("sh", "-c", "cd "+gitPath+" && git reset --hard")
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
-				check(err)
+				if err != nil {
+					log.Fatalf("Error running git reset: %v", err)
+				}
 
 				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git pull")
 				res, err = cmd.CombinedOutput()
@@ -700,7 +743,10 @@ func (b *BuildManager) syncWorker() {
 
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
-		check(alpmHandle.Release())
+		err = alpmHandle.Release()
+		if err != nil {
+			log.Fatalf("Error releasing ALPM handle: %v", err)
+		}
 		err = setupChroot()
 		for err != nil {
 			log.Warningf("Unable to upgrade chroot, trying again later.")
@@ -709,11 +755,15 @@ func (b *BuildManager) syncWorker() {
 		}
 
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
-		check(err)
+		if err != nil {
+			log.Warningf("Error while ALPM-init: %v", err)
+		}
 		b.alpmMutex.Unlock()
 
 		pkgBuilds, err := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
-		check(err)
+		if err != nil {
+			log.Fatalf("Error scanning for PKGBUILDs: %v", err)
+		}
 
 		// Shuffle pkgbuilds to spread out long-running builds, otherwise pkgBuilds is alphabetically-sorted
 		rand.Seed(time.Now().UnixNano())
@@ -747,7 +797,9 @@ func (b *BuildManager) syncWorker() {
 				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
 				// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
 				b3s, err := b3sum(pkgbuild)
-				check(err)
+				if dbErr != nil {
+					log.Fatalf("Error hashing PKGBUILD: %v", err)
+				}
 
 				if dbPkg != nil && b3s == dbPkg.Hash {
 					log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
@@ -756,7 +808,7 @@ func (b *BuildManager) syncWorker() {
 
 				// send to parse
 				b.parseWG.Add(1)
-				b.parse <- &BuildPackage{
+				b.parse <- &ProtoPackage{
 					Pkgbuild: pkgbuild,
 					Pkgbase:  mPkgbuild.PkgBase(),
 					Repo:     dbpackage.Repository(mPkgbuild.Repo()),
@@ -793,13 +845,19 @@ func main() {
 	flag.Parse()
 
 	confStr, err := os.ReadFile("config.yaml")
-	check(err)
+	if err != nil {
+		log.Fatalf("Error reading config file: %v", err)
+	}
 
 	err = yaml.Unmarshal(confStr, &conf)
-	check(err)
+	if err != nil {
+		log.Fatalf("Error parsing config file: %v", err)
+	}
 
 	lvl, err := log.ParseLevel(conf.Logging.Level)
-	check(err)
+	if err != nil {
+		log.Fatalf("Error parsing log level from config: %v", err)
+	}
 	log.SetLevel(lvl)
 	if *journalLog {
 		journalhook.Enable()
@@ -811,7 +869,9 @@ func main() {
 	}
 
 	err = os.MkdirAll(conf.Basedir.Repo, 0755)
-	check(err)
+	if err != nil {
+		log.Fatalf("Error creating repo dir: %v", err)
+	}
 
 	if conf.Db.Driver == "pgx" {
 		pdb, err := sql.Open("pgx", conf.Db.ConnectTo)
@@ -836,10 +896,10 @@ func main() {
 	}
 
 	buildManager = &BuildManager{
-		build:     make(map[string]chan *BuildPackage),
-		parse:     make(chan *BuildPackage, 10000),
-		repoPurge: make(map[string]chan []*BuildPackage),
-		repoAdd:   make(map[string]chan []*BuildPackage),
+		build:     make(map[string]chan *ProtoPackage),
+		parse:     make(chan *ProtoPackage, 10000),
+		repoPurge: make(map[string]chan []*ProtoPackage),
+		repoAdd:   make(map[string]chan []*ProtoPackage),
 		exit:      false,
 	}
 
@@ -847,10 +907,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to setup chroot: %v", err)
 	}
-	syncMarchs()
+	err = syncMarchs()
+	if err != nil {
+		log.Fatalf("Error syncing marchs: %v", err)
+	}
 
 	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
-	check(err)
+	if err != nil {
+		log.Fatalf("Error while ALPM-init: %v", err)
+	}
 
 	go buildManager.syncWorker()
 	go buildManager.htmlWorker()
@@ -884,12 +949,17 @@ killLoop:
 	buildManager.buildProcMutex.RLock()
 	for _, p := range buildManager.buildProcesses {
 		pgid, err := syscall.Getpgid(p.Pid)
-		check(err)
+		if err != nil {
+			log.Warningf("Error getting pgid: %v", err)
+		}
 
-		check(syscall.Kill(-pgid, syscall.SIGTERM))
+		err = syscall.Kill(-pgid, syscall.SIGTERM)
+		if err != nil {
+			log.Warningf("Error killing %d: %v", pgid, err)
+		}
 	}
 	buildManager.buildProcMutex.RUnlock()
 	buildManager.buildWG.Wait()
 	buildManager.repoWG.Wait()
-	check(alpmHandle.Release())
+	_ = alpmHandle.Release()
 }

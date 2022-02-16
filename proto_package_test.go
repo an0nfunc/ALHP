@@ -66,7 +66,7 @@ func TestIncreasePkgRel(t *testing.T) {
 	}
 	_ = pkgbuild.Close()
 
-	buildPkg := &BuildPackage{
+	buildPkg := &ProtoPackage{
 		Pkgbase:  "gnome-todo",
 		Pkgbuild: pkgbuild.Name(),
 	}
