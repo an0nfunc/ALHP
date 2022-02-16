@@ -797,7 +797,7 @@ func (b *BuildManager) syncWorker() {
 				// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
 				// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
 				b3s, err := b3sum(pkgbuild)
-				if dbErr != nil {
+				if err != nil {
 					log.Fatalf("Error hashing PKGBUILD: %v", err)
 				}
 
