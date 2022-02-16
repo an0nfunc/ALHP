@@ -188,6 +188,7 @@ func movePackagesLive(fullRepo string) error {
 	}
 
 	toAdd := make([]*ProtoPackage, 0)
+	debugPkgs := 0
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
@@ -199,7 +200,8 @@ func movePackagesLive(fullRepo string) error {
 					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
 				}
 				forPackage := strings.TrimSuffix(pkg.Name(), "-debug")
-				log.Infof("[MOVE] Found debug package for package %s: %s", forPackage, pkg.Name())
+				log.Debugf("[MOVE] Found debug package for package %s: %s", forPackage, pkg.Name())
+				debugPkgs++
 
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
 					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
@@ -238,7 +240,7 @@ func movePackagesLive(fullRepo string) error {
 	}
 
 	if len(toAdd) > 0 {
-		log.Infof("[%s] Adding %d packages", fullRepo, len(toAdd))
+		log.Infof("[%s] Adding %d (%d with debug) packages", fullRepo, len(toAdd), debugPkgs)
 		buildManager.repoAdd[fullRepo] <- toAdd
 	}
 	return nil
