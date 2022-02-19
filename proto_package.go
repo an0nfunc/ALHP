@@ -37,7 +37,7 @@ type ProtoPackage struct {
 	DbPackage *ent.DbPackage
 }
 
-func (p ProtoPackage) isEligible(ctx context.Context) (bool, error) {
+func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 	if err := p.genSrcinfo(); err != nil {
 		return false, fmt.Errorf("error generating SRCINFO: %w", err)
 	}
@@ -77,7 +77,7 @@ func (p ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).
 			SetPackages(packages2slice(p.Srcinfo.Packages)).SetStatus(p.DbPackage.Status).
 			SetSkipReason(p.DbPackage.SkipReason).SetHash(p.Hash).SaveX(ctx)
-		return false, nil
+		return false, fmt.Errorf("skipped package: %s", p.DbPackage.SkipReason)
 	} else {
 		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
 	}
@@ -300,11 +300,15 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 }
 
 func (p *ProtoPackage) Priority() float64 {
+	if p.DbPackage == nil {
+		return 0
+	}
+
 	if p.DbPackage.BuildTimeEnd.IsZero() {
 		return 0
 	} else {
-		time := p.DbPackage.BuildTimeEnd.Sub(p.DbPackage.BuildTimeStart)
-		return time.Minutes()
+		nTime := p.DbPackage.BuildTimeEnd.Sub(p.DbPackage.BuildTimeStart)
+		return nTime.Minutes()
 	}
 }
 

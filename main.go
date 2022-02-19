@@ -390,6 +390,15 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			var slowQueue []*ProtoPackage
 
 			for _, pkg := range queue {
+				eligible, err := pkg.isEligible(ctx)
+				if err != nil {
+					log.Warningf("Unable to determine package status for package %s: %v", pkg.Pkgbase, err)
+				}
+				if !eligible {
+					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
+					continue
+				}
+
 				if pkg.Priority() >= float64(conf.Build.SlowQueueThreshold) {
 					slowQueue = append(slowQueue, pkg)
 				} else {
@@ -397,7 +406,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 				}
 			}
 
-			if len(fastQueue) == 0 {
+			if len(fastQueue) > 0 && len(slowQueue) > 0 {
 				log.Infof("Skipping slowQueue=%d in favor of fastQueue=%d", len(slowQueue), len(fastQueue))
 				slowQueue = []*ProtoPackage{}
 			}

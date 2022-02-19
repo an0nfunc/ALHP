@@ -168,7 +168,8 @@ func cleanBuildDir(dir string, chrootDir string) error {
 
 	if chrootDir != "" {
 		if stat, err := os.Stat(chrootDir); err == nil && stat.IsDir() {
-			err = os.RemoveAll(chrootDir)
+			rmCmd := exec.Command("rm_chroot.py", chrootDir)
+			_, err := rmCmd.CombinedOutput()
 			if err != nil {
 				return err
 			}
