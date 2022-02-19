@@ -204,6 +204,8 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 			if err != nil {
 				log.Warningf("error building package %s->%s->%s in %s: %s", pkg.March, pkg.FullRepo, pkg.Pkgbase, dur, err)
 				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
+			} else {
+				log.Infof("Build successful: %s (%s)", pkg.Pkgbase, dur)
 			}
 		}(pkg)
 	}
