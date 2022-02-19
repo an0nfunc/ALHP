@@ -58,10 +58,12 @@ status:
     unknown: "dark"
 
 build:
-  # number of worker per march (e.g. x86-64-v3)
-  worker: 2
+  # number of workers total
+  worker: 4
   makej: 8
   checks: true
+  # builds over this threshold are considered slow (in minutes)
+  slow_queue_threshold: 60
 
 logging:
   level: INFO

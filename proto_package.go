@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,14 +10,17 @@ import (
 	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ProtoPackage struct {
@@ -33,10 +37,281 @@ type ProtoPackage struct {
 	DbPackage *ent.DbPackage
 }
 
+func (p ProtoPackage) isEligible(ctx context.Context) (bool, error) {
+	if err := p.genSrcinfo(); err != nil {
+		return false, fmt.Errorf("error generating SRCINFO: %w", err)
+	}
+	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+
+	if !p.isAvailable(alpmHandle) {
+		log.Debugf("[%s/%s] Not available on mirror, skipping build", p.FullRepo, p.Pkgbase)
+		return false, nil
+	}
+
+	p.toDbPackage(true)
+	skipping := false
+	if contains(p.Srcinfo.Arch, "any") {
+		log.Debugf("Skipped %s: any-Package", p.Srcinfo.Pkgbase)
+		p.DbPackage.SkipReason = "arch = any"
+		p.DbPackage.Status = dbpackage.StatusSkipped
+		skipping = true
+	} else if contains(conf.Blacklist.Packages, p.Srcinfo.Pkgbase) {
+		log.Debugf("Skipped %s: blacklisted package", p.Srcinfo.Pkgbase)
+		p.DbPackage.SkipReason = "blacklisted"
+		p.DbPackage.Status = dbpackage.StatusSkipped
+		skipping = true
+	} else if contains(p.Srcinfo.MakeDepends, "ghc") || contains(p.Srcinfo.MakeDepends, "haskell-ghc") || contains(p.Srcinfo.Depends, "ghc") || contains(p.Srcinfo.Depends, "haskell-ghc") {
+		// Skip Haskell packages for now, as we are facing linking problems with them,
+		// most likely caused by not having a dependency check implemented yet and building at random.
+		// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
+		log.Debugf("Skipped %s: haskell package", p.Srcinfo.Pkgbase)
+		p.DbPackage.SkipReason = "blacklisted (haskell)"
+		p.DbPackage.Status = dbpackage.StatusSkipped
+		skipping = true
+	} else if p.isPkgFailed() {
+		log.Debugf("Skipped %s: failed build", p.Srcinfo.Pkgbase)
+		skipping = true
+	}
+
+	if skipping {
+		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).
+			SetPackages(packages2slice(p.Srcinfo.Packages)).SetStatus(p.DbPackage.Status).
+			SetSkipReason(p.DbPackage.SkipReason).SetHash(p.Hash).SaveX(ctx)
+		return false, nil
+	} else {
+		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
+	}
+
+	if contains(conf.Blacklist.LTO, p.Pkgbase) {
+		p.DbPackage = p.DbPackage.Update().SetLto(dbpackage.LtoDisabled).SaveX(ctx)
+	}
+
+	repoVer, err := p.repoVersion()
+	if err != nil {
+		p.DbPackage = p.DbPackage.Update().ClearRepoVersion().SaveX(ctx)
+	} else if err == nil && alpm.VerCmp(repoVer, p.Version) > 0 {
+		log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", p.Srcinfo.Pkgbase, p.Version, repoVer)
+		p.DbPackage = p.DbPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetHash(p.Hash).SaveX(ctx)
+		return false, nil
+	}
+
+	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
+	if err != nil {
+		switch err.(type) {
+		default:
+			return false, fmt.Errorf("error solving deps: %w", err)
+		case MultiplePKGBUILDError:
+			log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
+			p.DbPackage = p.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
+			return false, err
+		case UnableToSatisfyError:
+			log.Infof("Skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
+			p.DbPackage = p.DbPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
+			return false, err
+		}
+	}
+
+	p.DbPackage = p.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SaveX(ctx)
+
+	if !isLatest {
+		if local != nil {
+			log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
+			p.DbPackage.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
+		} else {
+			log.Infof("Delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
+			p.DbPackage.Update().SetSkipReason("waiting for mirror").ExecX(ctx)
+		}
+
+		// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
+		// Worst case would be clients downloading a package update twice, once from their official mirror,
+		// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
+		// in an outdated version.
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep(time.Duration(rand.Float32()*60) * time.Second)
+	start := time.Now().UTC()
+	workerId := uuid.New()
+	chroot := "build_" + workerId.String()
+
+	log.Infof("[%s/%s/%s] Build starting", p.FullRepo, p.Pkgbase, p.Version)
+
+	p.toDbPackage(true)
+	p.DbPackage = p.DbPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
+
+	err := p.importKeys()
+	if err != nil {
+		log.Warningf("[%s/%s/%s] Failed to import pgp keys: %v", p.FullRepo, p.Pkgbase, p.Version, err)
+	}
+
+	buildFolder, err := p.setupBuildDir()
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
+	}
+	defer func() {
+		err := cleanBuildDir(buildFolder, filepath.Join(conf.Basedir.Work, chrootDir, chroot))
+		if err != nil {
+			log.Errorf("error removing builddir/chroot %s/%s: %v", buildDir, chroot, err)
+		}
+	}()
+
+	buildNo := 1
+	versionSlice := strings.Split(p.DbPackage.LastVersionBuild, ".")
+	if strings.Join(versionSlice[:len(versionSlice)-1], ".") == p.Version {
+		buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error while reading buildNo from pkgrel: %w", err)
+		}
+		buildNo++
+	}
+
+	err = p.increasePkgRel(buildNo)
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error while increasing pkgrel: %w", err)
+	}
+
+	if contains(conf.KernelToPatch, p.Pkgbase) {
+		err = p.prepareKernelPatches()
+		if err != nil {
+			p.DbPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(p.Hash).ExecX(ctx)
+			return time.Since(start), fmt.Errorf("error modifying PKGBUILD for kernel patch: %w", err)
+		}
+	}
+
+	p.PkgFiles = []string{}
+
+	// default to LTO
+	makepkgFile := makepkg
+	if p.DbPackage.Lto == dbpackage.LtoDisabled || p.DbPackage.Lto == dbpackage.LtoAutoDisabled {
+		// use non-lto makepkg.conf if LTO is blacklisted for this package
+		makepkgFile = makepkgLTO
+	}
+	cmd := exec.CommandContext(ctx, "sh", "-c",
+		"cd "+filepath.Dir(p.Pkgbuild)+"&&makechrootpkg -c -D "+filepath.Join(conf.Basedir.Work, makepkgDir)+" -l "+chroot+" -r "+filepath.Join(conf.Basedir.Work, chrootDir)+" -- "+
+			"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+
+	err = cmd.Start()
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error starting build: %w", err)
+	}
+
+	err = cmd.Wait()
+
+	if err != nil {
+		if ctx.Err() != nil {
+			return time.Since(start), ctx.Err()
+		}
+
+		if p.DbPackage.Lto != dbpackage.LtoAutoDisabled && p.DbPackage.Lto != dbpackage.LtoDisabled && reLdError.Match(out.Bytes()) {
+			p.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(ctx)
+			return time.Since(start), fmt.Errorf("ld error detected, LTO disabled")
+		}
+
+		if reDownloadError.Match(out.Bytes()) || rePortError.Match(out.Bytes()) || reSigError.Match(out.Bytes()) {
+			p.DbPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(ctx)
+			return time.Since(start), fmt.Errorf("known builderror detected")
+		}
+
+		err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, p.March), 0755)
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error creating logdir: %w", err)
+		}
+		err = os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"), out.Bytes(), 0644)
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error warting to logdir: %w", err)
+		}
+
+		p.DbPackage.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(p.Hash).ExecX(ctx)
+		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
+	}
+
+	pkgFiles, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*.pkg.tar.zst"))
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error scanning builddir for artifacts: %w", err)
+	}
+
+	if len(pkgFiles) == 0 {
+		return time.Since(start), fmt.Errorf("no build-artifacts found")
+	}
+
+	for _, file := range pkgFiles {
+		cmd = exec.Command("gpg", "--batch", "--detach-sign", file)
+		res, err := cmd.CombinedOutput()
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error while signing artifact: %w (%s)", err, string(res))
+		}
+	}
+
+	copyFiles, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*.pkg.tar.zst*"))
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error scanning builddir for artifacts: %w", err)
+	}
+
+	holdingDir := filepath.Join(conf.Basedir.Work, waitingDir, p.FullRepo)
+	for _, file := range copyFiles {
+		err = os.MkdirAll(holdingDir, 0755)
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error creating %s: %w", holdingDir, err)
+		}
+		_, err = copyFile(file, filepath.Join(holdingDir, filepath.Base(file)))
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error while copying file to %s: %w", filepath.Join(holdingDir, filepath.Base(file)), err)
+		}
+
+		if filepath.Ext(file) != ".sig" {
+			p.PkgFiles = append(p.PkgFiles, filepath.Join(holdingDir, filepath.Base(file)))
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log")); err == nil {
+		err := os.Remove(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"))
+		if err != nil {
+			return time.Since(start), fmt.Errorf("error removing log: %w", err)
+		}
+	}
+
+	if p.DbPackage.Lto != dbpackage.LtoDisabled && p.DbPackage.Lto != dbpackage.LtoAutoDisabled {
+		p.DbPackage.Update().
+			SetStatus(dbpackage.StatusBuild).
+			SetLto(dbpackage.LtoEnabled).
+			SetBuildTimeStart(start).
+			SetLastVersionBuild(p.Version).
+			SetBuildTimeEnd(time.Now().UTC()).
+			SetHash(p.Hash).
+			ExecX(ctx)
+	} else {
+		p.DbPackage.Update().
+			SetStatus(dbpackage.StatusBuild).
+			SetBuildTimeStart(start).
+			SetBuildTimeEnd(time.Now().UTC()).
+			SetLastVersionBuild(p.Version).
+			SetHash(p.Hash).ExecX(ctx)
+	}
+
+	return time.Since(start), nil
+}
+
+func (p *ProtoPackage) Priority() float64 {
+	if p.DbPackage.BuildTimeEnd.IsZero() {
+		return 0
+	} else {
+		time := p.DbPackage.BuildTimeEnd.Sub(p.DbPackage.BuildTimeStart)
+		return time.Minutes()
+	}
+}
+
 func (p *ProtoPackage) setupBuildDir() (string, error) {
 	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
-	err := cleanBuildDir(buildDir)
+	err := cleanBuildDir(buildDir, "")
 	if err != nil {
 		return "", fmt.Errorf("removing old builddir failed: %w", err)
 	}
@@ -274,7 +549,6 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 		return "", fmt.Errorf("invalid arguments")
 	}
 
-	// upstream/upstream-core-extra/extra-cmake-modules/repos/extra-any/PKGBUILD
 	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
 
 	var fPkgbuilds []string
