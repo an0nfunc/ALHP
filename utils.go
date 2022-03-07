@@ -75,7 +75,7 @@ type Conf struct {
 		Worker             int
 		Makej              int
 		Checks             bool
-		SlowQueueThreshold int `yaml:"slow_queue_threshold"`
+		SlowQueueThreshold float64 `yaml:"slow_queue_threshold"`
 	}
 	Logging struct {
 		Level string
@@ -168,11 +168,14 @@ func cleanBuildDir(dir string, chrootDir string) error {
 
 	if chrootDir != "" {
 		if stat, err := os.Stat(chrootDir); err == nil && stat.IsDir() {
-			rmCmd := exec.Command("rm_chroot.py", chrootDir)
+			rmCmd := exec.Command("sudo", "rm_chroot.py", chrootDir)
 			_, err := rmCmd.CombinedOutput()
 			if err != nil {
 				return err
 			}
+			_ = os.Remove(chrootDir + ".lock")
+		} else {
+			return fmt.Errorf("chroot dir was not an directory or failed to stat: %w", err)
 		}
 	}
 
@@ -202,7 +205,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 			defer b.sem.Release(1)
 			dur, err := pkg.build(ctx)
 			if err != nil {
-				log.Warningf("error building package %s->%s->%s in %s: %s", pkg.March, pkg.FullRepo, pkg.Pkgbase, dur, err)
+				log.Warningf("error building package %s->%s->%s in %s: %s", pkg.March, pkg.Repo, pkg.Pkgbase, dur, err)
 				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			} else {
 				log.Infof("Build successful: %s (%s)", pkg.Pkgbase, dur)

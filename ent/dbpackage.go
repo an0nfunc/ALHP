@@ -35,8 +35,6 @@ type DbPackage struct {
 	RepoVersion string `json:"repo_version,omitempty"`
 	// BuildTimeStart holds the value of the "build_time_start" field.
 	BuildTimeStart time.Time `json:"build_time_start,omitempty"`
-	// BuildTimeEnd holds the value of the "build_time_end" field.
-	BuildTimeEnd time.Time `json:"build_time_end,omitempty"`
 	// Updated holds the value of the "updated" field.
 	Updated time.Time `json:"updated,omitempty"`
 	// Hash holds the value of the "hash" field.
@@ -49,6 +47,16 @@ type DbPackage struct {
 	LastVerified time.Time `json:"last_verified,omitempty"`
 	// DebugSymbols holds the value of the "debug_symbols" field.
 	DebugSymbols dbpackage.DebugSymbols `json:"debug_symbols,omitempty"`
+	// MaxRss holds the value of the "max_rss" field.
+	MaxRss *int64 `json:"max_rss,omitempty"`
+	// UTime holds the value of the "u_time" field.
+	UTime *int64 `json:"u_time,omitempty"`
+	// STime holds the value of the "s_time" field.
+	STime *int64 `json:"s_time,omitempty"`
+	// IoIn holds the value of the "io_in" field.
+	IoIn *int64 `json:"io_in,omitempty"`
+	// IoOut holds the value of the "io_out" field.
+	IoOut *int64 `json:"io_out,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -58,11 +66,11 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 		switch columns[i] {
 		case dbpackage.FieldPackages:
 			values[i] = new([]byte)
-		case dbpackage.FieldID:
+		case dbpackage.FieldID, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
 			values[i] = new(sql.NullInt64)
 		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols:
 			values[i] = new(sql.NullString)
-		case dbpackage.FieldBuildTimeStart, dbpackage.FieldBuildTimeEnd, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
+		case dbpackage.FieldBuildTimeStart, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type DbPackage", columns[i])
@@ -141,12 +149,6 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 			} else if value.Valid {
 				dp.BuildTimeStart = value.Time
 			}
-		case dbpackage.FieldBuildTimeEnd:
-			if value, ok := values[i].(*sql.NullTime); !ok {
-				return fmt.Errorf("unexpected type %T for field build_time_end", values[i])
-			} else if value.Valid {
-				dp.BuildTimeEnd = value.Time
-			}
 		case dbpackage.FieldUpdated:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated", values[i])
@@ -182,6 +184,41 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 				return fmt.Errorf("unexpected type %T for field debug_symbols", values[i])
 			} else if value.Valid {
 				dp.DebugSymbols = dbpackage.DebugSymbols(value.String)
+			}
+		case dbpackage.FieldMaxRss:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_rss", values[i])
+			} else if value.Valid {
+				dp.MaxRss = new(int64)
+				*dp.MaxRss = value.Int64
+			}
+		case dbpackage.FieldUTime:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field u_time", values[i])
+			} else if value.Valid {
+				dp.UTime = new(int64)
+				*dp.UTime = value.Int64
+			}
+		case dbpackage.FieldSTime:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field s_time", values[i])
+			} else if value.Valid {
+				dp.STime = new(int64)
+				*dp.STime = value.Int64
+			}
+		case dbpackage.FieldIoIn:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field io_in", values[i])
+			} else if value.Valid {
+				dp.IoIn = new(int64)
+				*dp.IoIn = value.Int64
+			}
+		case dbpackage.FieldIoOut:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field io_out", values[i])
+			} else if value.Valid {
+				dp.IoOut = new(int64)
+				*dp.IoOut = value.Int64
 			}
 		}
 	}
@@ -229,8 +266,6 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(dp.RepoVersion)
 	builder.WriteString(", build_time_start=")
 	builder.WriteString(dp.BuildTimeStart.Format(time.ANSIC))
-	builder.WriteString(", build_time_end=")
-	builder.WriteString(dp.BuildTimeEnd.Format(time.ANSIC))
 	builder.WriteString(", updated=")
 	builder.WriteString(dp.Updated.Format(time.ANSIC))
 	builder.WriteString(", hash=")
@@ -243,6 +278,26 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(dp.LastVerified.Format(time.ANSIC))
 	builder.WriteString(", debug_symbols=")
 	builder.WriteString(fmt.Sprintf("%v", dp.DebugSymbols))
+	if v := dp.MaxRss; v != nil {
+		builder.WriteString(", max_rss=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	if v := dp.UTime; v != nil {
+		builder.WriteString(", u_time=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	if v := dp.STime; v != nil {
+		builder.WriteString(", s_time=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	if v := dp.IoIn; v != nil {
+		builder.WriteString(", io_in=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	if v := dp.IoOut; v != nil {
+		builder.WriteString(", io_out=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

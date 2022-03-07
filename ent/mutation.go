@@ -42,13 +42,22 @@ type DbPackageMutation struct {
 	version            *string
 	repo_version       *string
 	build_time_start   *time.Time
-	build_time_end     *time.Time
 	updated            *time.Time
 	hash               *string
 	lto                *dbpackage.Lto
 	last_version_build *string
 	last_verified      *time.Time
 	debug_symbols      *dbpackage.DebugSymbols
+	max_rss            *int64
+	addmax_rss         *int64
+	u_time             *int64
+	addu_time          *int64
+	s_time             *int64
+	adds_time          *int64
+	io_in              *int64
+	addio_in           *int64
+	io_out             *int64
+	addio_out          *int64
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DbPackage, error)
@@ -555,55 +564,6 @@ func (m *DbPackageMutation) ResetBuildTimeStart() {
 	delete(m.clearedFields, dbpackage.FieldBuildTimeStart)
 }
 
-// SetBuildTimeEnd sets the "build_time_end" field.
-func (m *DbPackageMutation) SetBuildTimeEnd(t time.Time) {
-	m.build_time_end = &t
-}
-
-// BuildTimeEnd returns the value of the "build_time_end" field in the mutation.
-func (m *DbPackageMutation) BuildTimeEnd() (r time.Time, exists bool) {
-	v := m.build_time_end
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldBuildTimeEnd returns the old "build_time_end" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldBuildTimeEnd(ctx context.Context) (v time.Time, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldBuildTimeEnd is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldBuildTimeEnd requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldBuildTimeEnd: %w", err)
-	}
-	return oldValue.BuildTimeEnd, nil
-}
-
-// ClearBuildTimeEnd clears the value of the "build_time_end" field.
-func (m *DbPackageMutation) ClearBuildTimeEnd() {
-	m.build_time_end = nil
-	m.clearedFields[dbpackage.FieldBuildTimeEnd] = struct{}{}
-}
-
-// BuildTimeEndCleared returns if the "build_time_end" field was cleared in this mutation.
-func (m *DbPackageMutation) BuildTimeEndCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldBuildTimeEnd]
-	return ok
-}
-
-// ResetBuildTimeEnd resets all changes to the "build_time_end" field.
-func (m *DbPackageMutation) ResetBuildTimeEnd() {
-	m.build_time_end = nil
-	delete(m.clearedFields, dbpackage.FieldBuildTimeEnd)
-}
-
 // SetUpdated sets the "updated" field.
 func (m *DbPackageMutation) SetUpdated(t time.Time) {
 	m.updated = &t
@@ -898,6 +858,356 @@ func (m *DbPackageMutation) ResetDebugSymbols() {
 	delete(m.clearedFields, dbpackage.FieldDebugSymbols)
 }
 
+// SetMaxRss sets the "max_rss" field.
+func (m *DbPackageMutation) SetMaxRss(i int64) {
+	m.max_rss = &i
+	m.addmax_rss = nil
+}
+
+// MaxRss returns the value of the "max_rss" field in the mutation.
+func (m *DbPackageMutation) MaxRss() (r int64, exists bool) {
+	v := m.max_rss
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxRss returns the old "max_rss" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldMaxRss(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxRss is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxRss requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxRss: %w", err)
+	}
+	return oldValue.MaxRss, nil
+}
+
+// AddMaxRss adds i to the "max_rss" field.
+func (m *DbPackageMutation) AddMaxRss(i int64) {
+	if m.addmax_rss != nil {
+		*m.addmax_rss += i
+	} else {
+		m.addmax_rss = &i
+	}
+}
+
+// AddedMaxRss returns the value that was added to the "max_rss" field in this mutation.
+func (m *DbPackageMutation) AddedMaxRss() (r int64, exists bool) {
+	v := m.addmax_rss
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMaxRss clears the value of the "max_rss" field.
+func (m *DbPackageMutation) ClearMaxRss() {
+	m.max_rss = nil
+	m.addmax_rss = nil
+	m.clearedFields[dbpackage.FieldMaxRss] = struct{}{}
+}
+
+// MaxRssCleared returns if the "max_rss" field was cleared in this mutation.
+func (m *DbPackageMutation) MaxRssCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldMaxRss]
+	return ok
+}
+
+// ResetMaxRss resets all changes to the "max_rss" field.
+func (m *DbPackageMutation) ResetMaxRss() {
+	m.max_rss = nil
+	m.addmax_rss = nil
+	delete(m.clearedFields, dbpackage.FieldMaxRss)
+}
+
+// SetUTime sets the "u_time" field.
+func (m *DbPackageMutation) SetUTime(i int64) {
+	m.u_time = &i
+	m.addu_time = nil
+}
+
+// UTime returns the value of the "u_time" field in the mutation.
+func (m *DbPackageMutation) UTime() (r int64, exists bool) {
+	v := m.u_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUTime returns the old "u_time" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldUTime(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUTime: %w", err)
+	}
+	return oldValue.UTime, nil
+}
+
+// AddUTime adds i to the "u_time" field.
+func (m *DbPackageMutation) AddUTime(i int64) {
+	if m.addu_time != nil {
+		*m.addu_time += i
+	} else {
+		m.addu_time = &i
+	}
+}
+
+// AddedUTime returns the value that was added to the "u_time" field in this mutation.
+func (m *DbPackageMutation) AddedUTime() (r int64, exists bool) {
+	v := m.addu_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUTime clears the value of the "u_time" field.
+func (m *DbPackageMutation) ClearUTime() {
+	m.u_time = nil
+	m.addu_time = nil
+	m.clearedFields[dbpackage.FieldUTime] = struct{}{}
+}
+
+// UTimeCleared returns if the "u_time" field was cleared in this mutation.
+func (m *DbPackageMutation) UTimeCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldUTime]
+	return ok
+}
+
+// ResetUTime resets all changes to the "u_time" field.
+func (m *DbPackageMutation) ResetUTime() {
+	m.u_time = nil
+	m.addu_time = nil
+	delete(m.clearedFields, dbpackage.FieldUTime)
+}
+
+// SetSTime sets the "s_time" field.
+func (m *DbPackageMutation) SetSTime(i int64) {
+	m.s_time = &i
+	m.adds_time = nil
+}
+
+// STime returns the value of the "s_time" field in the mutation.
+func (m *DbPackageMutation) STime() (r int64, exists bool) {
+	v := m.s_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSTime returns the old "s_time" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldSTime(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSTime: %w", err)
+	}
+	return oldValue.STime, nil
+}
+
+// AddSTime adds i to the "s_time" field.
+func (m *DbPackageMutation) AddSTime(i int64) {
+	if m.adds_time != nil {
+		*m.adds_time += i
+	} else {
+		m.adds_time = &i
+	}
+}
+
+// AddedSTime returns the value that was added to the "s_time" field in this mutation.
+func (m *DbPackageMutation) AddedSTime() (r int64, exists bool) {
+	v := m.adds_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSTime clears the value of the "s_time" field.
+func (m *DbPackageMutation) ClearSTime() {
+	m.s_time = nil
+	m.adds_time = nil
+	m.clearedFields[dbpackage.FieldSTime] = struct{}{}
+}
+
+// STimeCleared returns if the "s_time" field was cleared in this mutation.
+func (m *DbPackageMutation) STimeCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldSTime]
+	return ok
+}
+
+// ResetSTime resets all changes to the "s_time" field.
+func (m *DbPackageMutation) ResetSTime() {
+	m.s_time = nil
+	m.adds_time = nil
+	delete(m.clearedFields, dbpackage.FieldSTime)
+}
+
+// SetIoIn sets the "io_in" field.
+func (m *DbPackageMutation) SetIoIn(i int64) {
+	m.io_in = &i
+	m.addio_in = nil
+}
+
+// IoIn returns the value of the "io_in" field in the mutation.
+func (m *DbPackageMutation) IoIn() (r int64, exists bool) {
+	v := m.io_in
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIoIn returns the old "io_in" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldIoIn(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIoIn is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIoIn requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIoIn: %w", err)
+	}
+	return oldValue.IoIn, nil
+}
+
+// AddIoIn adds i to the "io_in" field.
+func (m *DbPackageMutation) AddIoIn(i int64) {
+	if m.addio_in != nil {
+		*m.addio_in += i
+	} else {
+		m.addio_in = &i
+	}
+}
+
+// AddedIoIn returns the value that was added to the "io_in" field in this mutation.
+func (m *DbPackageMutation) AddedIoIn() (r int64, exists bool) {
+	v := m.addio_in
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIoIn clears the value of the "io_in" field.
+func (m *DbPackageMutation) ClearIoIn() {
+	m.io_in = nil
+	m.addio_in = nil
+	m.clearedFields[dbpackage.FieldIoIn] = struct{}{}
+}
+
+// IoInCleared returns if the "io_in" field was cleared in this mutation.
+func (m *DbPackageMutation) IoInCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldIoIn]
+	return ok
+}
+
+// ResetIoIn resets all changes to the "io_in" field.
+func (m *DbPackageMutation) ResetIoIn() {
+	m.io_in = nil
+	m.addio_in = nil
+	delete(m.clearedFields, dbpackage.FieldIoIn)
+}
+
+// SetIoOut sets the "io_out" field.
+func (m *DbPackageMutation) SetIoOut(i int64) {
+	m.io_out = &i
+	m.addio_out = nil
+}
+
+// IoOut returns the value of the "io_out" field in the mutation.
+func (m *DbPackageMutation) IoOut() (r int64, exists bool) {
+	v := m.io_out
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIoOut returns the old "io_out" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldIoOut(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIoOut is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIoOut requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIoOut: %w", err)
+	}
+	return oldValue.IoOut, nil
+}
+
+// AddIoOut adds i to the "io_out" field.
+func (m *DbPackageMutation) AddIoOut(i int64) {
+	if m.addio_out != nil {
+		*m.addio_out += i
+	} else {
+		m.addio_out = &i
+	}
+}
+
+// AddedIoOut returns the value that was added to the "io_out" field in this mutation.
+func (m *DbPackageMutation) AddedIoOut() (r int64, exists bool) {
+	v := m.addio_out
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIoOut clears the value of the "io_out" field.
+func (m *DbPackageMutation) ClearIoOut() {
+	m.io_out = nil
+	m.addio_out = nil
+	m.clearedFields[dbpackage.FieldIoOut] = struct{}{}
+}
+
+// IoOutCleared returns if the "io_out" field was cleared in this mutation.
+func (m *DbPackageMutation) IoOutCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldIoOut]
+	return ok
+}
+
+// ResetIoOut resets all changes to the "io_out" field.
+func (m *DbPackageMutation) ResetIoOut() {
+	m.io_out = nil
+	m.addio_out = nil
+	delete(m.clearedFields, dbpackage.FieldIoOut)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -917,7 +1227,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 20)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -945,9 +1255,6 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.build_time_start != nil {
 		fields = append(fields, dbpackage.FieldBuildTimeStart)
 	}
-	if m.build_time_end != nil {
-		fields = append(fields, dbpackage.FieldBuildTimeEnd)
-	}
 	if m.updated != nil {
 		fields = append(fields, dbpackage.FieldUpdated)
 	}
@@ -965,6 +1272,21 @@ func (m *DbPackageMutation) Fields() []string {
 	}
 	if m.debug_symbols != nil {
 		fields = append(fields, dbpackage.FieldDebugSymbols)
+	}
+	if m.max_rss != nil {
+		fields = append(fields, dbpackage.FieldMaxRss)
+	}
+	if m.u_time != nil {
+		fields = append(fields, dbpackage.FieldUTime)
+	}
+	if m.s_time != nil {
+		fields = append(fields, dbpackage.FieldSTime)
+	}
+	if m.io_in != nil {
+		fields = append(fields, dbpackage.FieldIoIn)
+	}
+	if m.io_out != nil {
+		fields = append(fields, dbpackage.FieldIoOut)
 	}
 	return fields
 }
@@ -992,8 +1314,6 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.RepoVersion()
 	case dbpackage.FieldBuildTimeStart:
 		return m.BuildTimeStart()
-	case dbpackage.FieldBuildTimeEnd:
-		return m.BuildTimeEnd()
 	case dbpackage.FieldUpdated:
 		return m.Updated()
 	case dbpackage.FieldHash:
@@ -1006,6 +1326,16 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.LastVerified()
 	case dbpackage.FieldDebugSymbols:
 		return m.DebugSymbols()
+	case dbpackage.FieldMaxRss:
+		return m.MaxRss()
+	case dbpackage.FieldUTime:
+		return m.UTime()
+	case dbpackage.FieldSTime:
+		return m.STime()
+	case dbpackage.FieldIoIn:
+		return m.IoIn()
+	case dbpackage.FieldIoOut:
+		return m.IoOut()
 	}
 	return nil, false
 }
@@ -1033,8 +1363,6 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldRepoVersion(ctx)
 	case dbpackage.FieldBuildTimeStart:
 		return m.OldBuildTimeStart(ctx)
-	case dbpackage.FieldBuildTimeEnd:
-		return m.OldBuildTimeEnd(ctx)
 	case dbpackage.FieldUpdated:
 		return m.OldUpdated(ctx)
 	case dbpackage.FieldHash:
@@ -1047,6 +1375,16 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldLastVerified(ctx)
 	case dbpackage.FieldDebugSymbols:
 		return m.OldDebugSymbols(ctx)
+	case dbpackage.FieldMaxRss:
+		return m.OldMaxRss(ctx)
+	case dbpackage.FieldUTime:
+		return m.OldUTime(ctx)
+	case dbpackage.FieldSTime:
+		return m.OldSTime(ctx)
+	case dbpackage.FieldIoIn:
+		return m.OldIoIn(ctx)
+	case dbpackage.FieldIoOut:
+		return m.OldIoOut(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1119,13 +1457,6 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBuildTimeStart(v)
 		return nil
-	case dbpackage.FieldBuildTimeEnd:
-		v, ok := value.(time.Time)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetBuildTimeEnd(v)
-		return nil
 	case dbpackage.FieldUpdated:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1168,6 +1499,41 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDebugSymbols(v)
 		return nil
+	case dbpackage.FieldMaxRss:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxRss(v)
+		return nil
+	case dbpackage.FieldUTime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUTime(v)
+		return nil
+	case dbpackage.FieldSTime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSTime(v)
+		return nil
+	case dbpackage.FieldIoIn:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIoIn(v)
+		return nil
+	case dbpackage.FieldIoOut:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIoOut(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1175,13 +1541,41 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *DbPackageMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addmax_rss != nil {
+		fields = append(fields, dbpackage.FieldMaxRss)
+	}
+	if m.addu_time != nil {
+		fields = append(fields, dbpackage.FieldUTime)
+	}
+	if m.adds_time != nil {
+		fields = append(fields, dbpackage.FieldSTime)
+	}
+	if m.addio_in != nil {
+		fields = append(fields, dbpackage.FieldIoIn)
+	}
+	if m.addio_out != nil {
+		fields = append(fields, dbpackage.FieldIoOut)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case dbpackage.FieldMaxRss:
+		return m.AddedMaxRss()
+	case dbpackage.FieldUTime:
+		return m.AddedUTime()
+	case dbpackage.FieldSTime:
+		return m.AddedSTime()
+	case dbpackage.FieldIoIn:
+		return m.AddedIoIn()
+	case dbpackage.FieldIoOut:
+		return m.AddedIoOut()
+	}
 	return nil, false
 }
 
@@ -1190,6 +1584,41 @@ func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *DbPackageMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case dbpackage.FieldMaxRss:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxRss(v)
+		return nil
+	case dbpackage.FieldUTime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUTime(v)
+		return nil
+	case dbpackage.FieldSTime:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSTime(v)
+		return nil
+	case dbpackage.FieldIoIn:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIoIn(v)
+		return nil
+	case dbpackage.FieldIoOut:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIoOut(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage numeric field %s", name)
 }
@@ -1216,9 +1645,6 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldBuildTimeStart) {
 		fields = append(fields, dbpackage.FieldBuildTimeStart)
 	}
-	if m.FieldCleared(dbpackage.FieldBuildTimeEnd) {
-		fields = append(fields, dbpackage.FieldBuildTimeEnd)
-	}
 	if m.FieldCleared(dbpackage.FieldUpdated) {
 		fields = append(fields, dbpackage.FieldUpdated)
 	}
@@ -1236,6 +1662,21 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(dbpackage.FieldDebugSymbols) {
 		fields = append(fields, dbpackage.FieldDebugSymbols)
+	}
+	if m.FieldCleared(dbpackage.FieldMaxRss) {
+		fields = append(fields, dbpackage.FieldMaxRss)
+	}
+	if m.FieldCleared(dbpackage.FieldUTime) {
+		fields = append(fields, dbpackage.FieldUTime)
+	}
+	if m.FieldCleared(dbpackage.FieldSTime) {
+		fields = append(fields, dbpackage.FieldSTime)
+	}
+	if m.FieldCleared(dbpackage.FieldIoIn) {
+		fields = append(fields, dbpackage.FieldIoIn)
+	}
+	if m.FieldCleared(dbpackage.FieldIoOut) {
+		fields = append(fields, dbpackage.FieldIoOut)
 	}
 	return fields
 }
@@ -1269,9 +1710,6 @@ func (m *DbPackageMutation) ClearField(name string) error {
 	case dbpackage.FieldBuildTimeStart:
 		m.ClearBuildTimeStart()
 		return nil
-	case dbpackage.FieldBuildTimeEnd:
-		m.ClearBuildTimeEnd()
-		return nil
 	case dbpackage.FieldUpdated:
 		m.ClearUpdated()
 		return nil
@@ -1289,6 +1727,21 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldDebugSymbols:
 		m.ClearDebugSymbols()
+		return nil
+	case dbpackage.FieldMaxRss:
+		m.ClearMaxRss()
+		return nil
+	case dbpackage.FieldUTime:
+		m.ClearUTime()
+		return nil
+	case dbpackage.FieldSTime:
+		m.ClearSTime()
+		return nil
+	case dbpackage.FieldIoIn:
+		m.ClearIoIn()
+		return nil
+	case dbpackage.FieldIoOut:
+		m.ClearIoOut()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1325,9 +1778,6 @@ func (m *DbPackageMutation) ResetField(name string) error {
 	case dbpackage.FieldBuildTimeStart:
 		m.ResetBuildTimeStart()
 		return nil
-	case dbpackage.FieldBuildTimeEnd:
-		m.ResetBuildTimeEnd()
-		return nil
 	case dbpackage.FieldUpdated:
 		m.ResetUpdated()
 		return nil
@@ -1345,6 +1795,21 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldDebugSymbols:
 		m.ResetDebugSymbols()
+		return nil
+	case dbpackage.FieldMaxRss:
+		m.ResetMaxRss()
+		return nil
+	case dbpackage.FieldUTime:
+		m.ResetUTime()
+		return nil
+	case dbpackage.FieldSTime:
+		m.ResetSTime()
+		return nil
+	case dbpackage.FieldIoIn:
+		m.ResetIoIn()
+		return nil
+	case dbpackage.FieldIoOut:
+		m.ResetIoOut()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

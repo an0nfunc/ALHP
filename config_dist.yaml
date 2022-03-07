@@ -62,8 +62,8 @@ build:
   worker: 4
   makej: 8
   checks: true
-  # builds over this threshold are considered slow (in minutes)
-  slow_queue_threshold: 60
+  # builds over this threshold are considered slow (in cpu-time-seconds)
+  slow_queue_threshold: 14400.0
 
 logging:
   level: INFO

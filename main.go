@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v2"
 	"html/template"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -105,8 +106,8 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 						Svn2GitVersion: pkg.Version,
 					}
 
-					if !pkg.BuildTimeEnd.IsZero() && !pkg.BuildTimeStart.IsZero() && pkg.BuildTimeStart.Before(pkg.BuildTimeEnd) {
-						addPkg.BuildDuration = pkg.BuildTimeEnd.Sub(pkg.BuildTimeStart)
+					if pkg.STime != nil && pkg.UTime != nil {
+						addPkg.BuildDuration = time.Duration(*pkg.STime+*pkg.UTime) * time.Second
 					}
 
 					if !pkg.BuildTimeStart.IsZero() {
@@ -327,14 +328,16 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 					log.Fatalf("Error running git clone: %v", err)
 				}
 			} else if err == nil {
-				cmd := exec.Command("sh", "-c", "cd "+gitPath+" && git reset --hard")
+				cmd := exec.Command("git", "reset", "--hard")
+				cmd.Dir = gitPath
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				if err != nil {
 					log.Fatalf("Error running git reset: %v", err)
 				}
 
-				cmd = exec.Command("sh", "-c", "cd "+gitPath+" && git pull")
+				cmd = exec.Command("git", "pull")
+				cmd.Dir = gitPath
 				res, err = cmd.CombinedOutput()
 				log.Debug(string(res))
 				if err != nil {
@@ -386,20 +389,32 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Warningf("Error building buildQueue: %v", err)
 		} else {
+			log.Debugf("buildQueue with %d items", len(queue))
 			var fastQueue []*ProtoPackage
 			var slowQueue []*ProtoPackage
+
+			maxDiff := 0.0
+			cutOff := 0.0
+			for i := 0; i < len(queue); i++ {
+				if i+1 < len(queue) {
+					if math.Abs(queue[i].Priority()-queue[i+1].Priority()) > maxDiff {
+						maxDiff = math.Abs(queue[i].Priority() - queue[i+1].Priority())
+						cutOff = queue[i].Priority()
+					}
+				}
+			}
 
 			for _, pkg := range queue {
 				eligible, err := pkg.isEligible(ctx)
 				if err != nil {
-					log.Warningf("Unable to determine package status for package %s: %v", pkg.Pkgbase, err)
+					log.Warningf("Unable to determine status for package %s: %v", pkg.Pkgbase, err)
 				}
 				if !eligible {
 					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
 					continue
 				}
 
-				if pkg.Priority() >= float64(conf.Build.SlowQueueThreshold) {
+				if pkg.Priority() > cutOff && cutOff >= conf.Build.SlowQueueThreshold {
 					slowQueue = append(slowQueue, pkg)
 				} else {
 					fastQueue = append(fastQueue, pkg)
@@ -424,9 +439,10 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			if err := b.sem.Acquire(ctx, int64(conf.Build.Worker)); err != nil {
 				return err
 			}
+			b.sem.Release(int64(conf.Build.Worker))
 		}
 
-		if ctx.Err() != nil {
+		if ctx.Err() == nil {
 			for _, repo := range repos {
 				err = movePackagesLive(repo)
 				if err != nil {
@@ -437,6 +453,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			return ctx.Err()
 		}
 
+		log.Debugf("build-cycle finished")
 		time.Sleep(time.Duration(*checkInterval) * time.Minute)
 	}
 }

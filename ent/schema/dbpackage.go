@@ -22,13 +22,17 @@ func (DbPackage) Fields() []ent.Field {
 		field.String("version").Optional(),
 		field.String("repo_version").Optional(),
 		field.Time("build_time_start").Optional(),
-		field.Time("build_time_end").Optional(),
 		field.Time("updated").Optional(),
 		field.String("hash").Optional(),
 		field.Enum("lto").Values("enabled", "unknown", "disabled", "auto_disabled").Default("unknown").Optional(),
 		field.String("last_version_build").Optional(),
 		field.Time("last_verified").Optional(),
 		field.Enum("debug_symbols").Values("available", "unknown", "not_available").Default("unknown").Optional(),
+		field.Int64("max_rss").Optional().Nillable(),
+		field.Int64("u_time").Optional().Nillable(),
+		field.Int64("s_time").Optional().Nillable(),
+		field.Int64("io_in").Optional().Nillable(),
+		field.Int64("io_out").Optional().Nillable(),
 	}
 }
 

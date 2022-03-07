@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).
 			SetPackages(packages2slice(p.Srcinfo.Packages)).SetStatus(p.DbPackage.Status).
 			SetSkipReason(p.DbPackage.SkipReason).SetHash(p.Hash).SaveX(ctx)
-		return false, fmt.Errorf("skipped package: %s", p.DbPackage.SkipReason)
+		return false, nil
 	} else {
 		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
 	}
@@ -133,6 +134,9 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 }
 
 func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
+	// Sleep randomly here to add some delay, avoiding two pacman instances trying to download the same package,
+	// which leads to errors when it's trying to remove the same temporary download file.
+	// This can be removed as soon as we can pass separate cache locations to makechrootpkg.
 	rand.Seed(time.Now().UnixNano())
 	time.Sleep(time.Duration(rand.Float32()*60) * time.Second)
 	start := time.Now().UTC()
@@ -154,6 +158,8 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
 	}
 	defer func() {
+		chroot := chroot
+		log.Debugf("removing chroot %s", chroot)
 		err := cleanBuildDir(buildFolder, filepath.Join(conf.Basedir.Work, chrootDir, chroot))
 		if err != nil {
 			log.Errorf("error removing builddir/chroot %s/%s: %v", buildDir, chroot, err)
@@ -191,9 +197,9 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		// use non-lto makepkg.conf if LTO is blacklisted for this package
 		makepkgFile = makepkgLTO
 	}
-	cmd := exec.CommandContext(ctx, "sh", "-c",
-		"cd "+filepath.Dir(p.Pkgbuild)+"&&makechrootpkg -c -D "+filepath.Join(conf.Basedir.Work, makepkgDir)+" -l "+chroot+" -r "+filepath.Join(conf.Basedir.Work, chrootDir)+" -- "+
-			"-m --noprogressbar --config "+filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
+	cmd := exec.CommandContext(ctx, "makechrootpkg", "-c", "-D", filepath.Join(conf.Basedir.Work, makepkgDir), "-l", chroot, "-r", filepath.Join(conf.Basedir.Work, chrootDir), "--",
+		"-m", "--noprogressbar", "--config", filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
+	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -204,6 +210,11 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	}
 
 	err = cmd.Wait()
+
+	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
+	if !ok {
+		log.Fatalf("Rusage is not of type *syscall.Rusage, are we running on unix-like?")
+	}
 
 	if err != nil {
 		if ctx.Err() != nil {
@@ -229,7 +240,17 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			return time.Since(start), fmt.Errorf("error warting to logdir: %w", err)
 		}
 
-		p.DbPackage.Update().SetStatus(dbpackage.StatusFailed).ClearSkipReason().SetBuildTimeStart(start).SetBuildTimeEnd(time.Now().UTC()).SetHash(p.Hash).ExecX(ctx)
+		p.DbPackage.Update().
+			SetStatus(dbpackage.StatusFailed).
+			ClearSkipReason().
+			SetBuildTimeStart(start).
+			SetMaxRss(Rusage.Maxrss).
+			SetIoOut(Rusage.Oublock).
+			SetIoIn(Rusage.Inblock).
+			SetUTime(Rusage.Utime.Sec).
+			SetSTime(Rusage.Stime.Sec).
+			SetHash(p.Hash).
+			ExecX(ctx)
 		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
 	}
 
@@ -284,15 +305,23 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			SetLto(dbpackage.LtoEnabled).
 			SetBuildTimeStart(start).
 			SetLastVersionBuild(p.Version).
-			SetBuildTimeEnd(time.Now().UTC()).
 			SetHash(p.Hash).
+			SetMaxRss(Rusage.Maxrss).
+			SetIoOut(Rusage.Oublock).
+			SetIoIn(Rusage.Inblock).
+			SetUTime(Rusage.Utime.Sec).
+			SetSTime(Rusage.Stime.Sec).
 			ExecX(ctx)
 	} else {
 		p.DbPackage.Update().
 			SetStatus(dbpackage.StatusBuild).
 			SetBuildTimeStart(start).
-			SetBuildTimeEnd(time.Now().UTC()).
 			SetLastVersionBuild(p.Version).
+			SetMaxRss(Rusage.Maxrss).
+			SetIoOut(Rusage.Oublock).
+			SetIoIn(Rusage.Inblock).
+			SetUTime(Rusage.Utime.Sec).
+			SetSTime(Rusage.Stime.Sec).
 			SetHash(p.Hash).ExecX(ctx)
 	}
 
@@ -304,11 +333,10 @@ func (p *ProtoPackage) Priority() float64 {
 		return 0
 	}
 
-	if p.DbPackage.BuildTimeEnd.IsZero() {
+	if p.DbPackage.STime == nil || p.DbPackage.UTime == nil {
 		return 0
 	} else {
-		nTime := p.DbPackage.BuildTimeEnd.Sub(p.DbPackage.BuildTimeStart)
-		return nTime.Minutes()
+		return float64(*p.DbPackage.STime + *p.DbPackage.UTime)
 	}
 }
 
@@ -609,7 +637,8 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}
 
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(fPkgbuilds[0])+"&&"+"makepkg --printsrcinfo")
+	cmd := exec.Command("makepkg", "--printsrcinfo")
+	cmd.Dir = filepath.Dir(fPkgbuilds[0])
 	res, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -647,7 +676,8 @@ func (p *ProtoPackage) genSrcinfo() error {
 		return nil
 	}
 
-	cmd := exec.Command("sh", "-c", "cd "+filepath.Dir(p.Pkgbuild)+"&&"+"makepkg --printsrcinfo -p "+filepath.Base(p.Pkgbuild))
+	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild))
+	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	res, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %w (%s)", p.Pkgbuild, err, string(res))

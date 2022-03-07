@@ -29,8 +29,6 @@ const (
 	FieldRepoVersion = "repo_version"
 	// FieldBuildTimeStart holds the string denoting the build_time_start field in the database.
 	FieldBuildTimeStart = "build_time_start"
-	// FieldBuildTimeEnd holds the string denoting the build_time_end field in the database.
-	FieldBuildTimeEnd = "build_time_end"
 	// FieldUpdated holds the string denoting the updated field in the database.
 	FieldUpdated = "updated"
 	// FieldHash holds the string denoting the hash field in the database.
@@ -43,6 +41,16 @@ const (
 	FieldLastVerified = "last_verified"
 	// FieldDebugSymbols holds the string denoting the debug_symbols field in the database.
 	FieldDebugSymbols = "debug_symbols"
+	// FieldMaxRss holds the string denoting the max_rss field in the database.
+	FieldMaxRss = "max_rss"
+	// FieldUTime holds the string denoting the u_time field in the database.
+	FieldUTime = "u_time"
+	// FieldSTime holds the string denoting the s_time field in the database.
+	FieldSTime = "s_time"
+	// FieldIoIn holds the string denoting the io_in field in the database.
+	FieldIoIn = "io_in"
+	// FieldIoOut holds the string denoting the io_out field in the database.
+	FieldIoOut = "io_out"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -59,13 +67,17 @@ var Columns = []string{
 	FieldVersion,
 	FieldRepoVersion,
 	FieldBuildTimeStart,
-	FieldBuildTimeEnd,
 	FieldUpdated,
 	FieldHash,
 	FieldLto,
 	FieldLastVersionBuild,
 	FieldLastVerified,
 	FieldDebugSymbols,
+	FieldMaxRss,
+	FieldUTime,
+	FieldSTime,
+	FieldIoIn,
+	FieldIoOut,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

@@ -114,20 +114,6 @@ func (dpc *DbPackageCreate) SetNillableBuildTimeStart(t *time.Time) *DbPackageCr
 	return dpc
 }
 
-// SetBuildTimeEnd sets the "build_time_end" field.
-func (dpc *DbPackageCreate) SetBuildTimeEnd(t time.Time) *DbPackageCreate {
-	dpc.mutation.SetBuildTimeEnd(t)
-	return dpc
-}
-
-// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableBuildTimeEnd(t *time.Time) *DbPackageCreate {
-	if t != nil {
-		dpc.SetBuildTimeEnd(*t)
-	}
-	return dpc
-}
-
 // SetUpdated sets the "updated" field.
 func (dpc *DbPackageCreate) SetUpdated(t time.Time) *DbPackageCreate {
 	dpc.mutation.SetUpdated(t)
@@ -208,6 +194,76 @@ func (dpc *DbPackageCreate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackag
 func (dpc *DbPackageCreate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageCreate {
 	if ds != nil {
 		dpc.SetDebugSymbols(*ds)
+	}
+	return dpc
+}
+
+// SetMaxRss sets the "max_rss" field.
+func (dpc *DbPackageCreate) SetMaxRss(i int64) *DbPackageCreate {
+	dpc.mutation.SetMaxRss(i)
+	return dpc
+}
+
+// SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableMaxRss(i *int64) *DbPackageCreate {
+	if i != nil {
+		dpc.SetMaxRss(*i)
+	}
+	return dpc
+}
+
+// SetUTime sets the "u_time" field.
+func (dpc *DbPackageCreate) SetUTime(i int64) *DbPackageCreate {
+	dpc.mutation.SetUTime(i)
+	return dpc
+}
+
+// SetNillableUTime sets the "u_time" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableUTime(i *int64) *DbPackageCreate {
+	if i != nil {
+		dpc.SetUTime(*i)
+	}
+	return dpc
+}
+
+// SetSTime sets the "s_time" field.
+func (dpc *DbPackageCreate) SetSTime(i int64) *DbPackageCreate {
+	dpc.mutation.SetSTime(i)
+	return dpc
+}
+
+// SetNillableSTime sets the "s_time" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableSTime(i *int64) *DbPackageCreate {
+	if i != nil {
+		dpc.SetSTime(*i)
+	}
+	return dpc
+}
+
+// SetIoIn sets the "io_in" field.
+func (dpc *DbPackageCreate) SetIoIn(i int64) *DbPackageCreate {
+	dpc.mutation.SetIoIn(i)
+	return dpc
+}
+
+// SetNillableIoIn sets the "io_in" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableIoIn(i *int64) *DbPackageCreate {
+	if i != nil {
+		dpc.SetIoIn(*i)
+	}
+	return dpc
+}
+
+// SetIoOut sets the "io_out" field.
+func (dpc *DbPackageCreate) SetIoOut(i int64) *DbPackageCreate {
+	dpc.mutation.SetIoOut(i)
+	return dpc
+}
+
+// SetNillableIoOut sets the "io_out" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableIoOut(i *int64) *DbPackageCreate {
+	if i != nil {
+		dpc.SetIoOut(*i)
 	}
 	return dpc
 }
@@ -437,14 +493,6 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 		})
 		_node.BuildTimeStart = value
 	}
-	if value, ok := dpc.mutation.BuildTimeEnd(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeEnd,
-		})
-		_node.BuildTimeEnd = value
-	}
 	if value, ok := dpc.mutation.Updated(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
@@ -492,6 +540,46 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldDebugSymbols,
 		})
 		_node.DebugSymbols = value
+	}
+	if value, ok := dpc.mutation.MaxRss(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldMaxRss,
+		})
+		_node.MaxRss = &value
+	}
+	if value, ok := dpc.mutation.UTime(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldUTime,
+		})
+		_node.UTime = &value
+	}
+	if value, ok := dpc.mutation.STime(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldSTime,
+		})
+		_node.STime = &value
+	}
+	if value, ok := dpc.mutation.IoIn(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoIn,
+		})
+		_node.IoIn = &value
+	}
+	if value, ok := dpc.mutation.IoOut(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoOut,
+		})
+		_node.IoOut = &value
 	}
 	return _node, _spec
 }

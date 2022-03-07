@@ -134,13 +134,6 @@ func BuildTimeStart(v time.Time) predicate.DbPackage {
 	})
 }
 
-// BuildTimeEnd applies equality check predicate on the "build_time_end" field. It's identical to BuildTimeEndEQ.
-func BuildTimeEnd(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
 // Updated applies equality check predicate on the "updated" field. It's identical to UpdatedEQ.
 func Updated(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -166,6 +159,41 @@ func LastVersionBuild(v string) predicate.DbPackage {
 func LastVerified(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldLastVerified), v))
+	})
+}
+
+// MaxRss applies equality check predicate on the "max_rss" field. It's identical to MaxRssEQ.
+func MaxRss(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldMaxRss), v))
+	})
+}
+
+// UTime applies equality check predicate on the "u_time" field. It's identical to UTimeEQ.
+func UTime(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUTime), v))
+	})
+}
+
+// STime applies equality check predicate on the "s_time" field. It's identical to STimeEQ.
+func STime(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldSTime), v))
+	})
+}
+
+// IoIn applies equality check predicate on the "io_in" field. It's identical to IoInEQ.
+func IoIn(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldIoIn), v))
+	})
+}
+
+// IoOut applies equality check predicate on the "io_out" field. It's identical to IoOutEQ.
+func IoOut(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldIoOut), v))
 	})
 }
 
@@ -980,96 +1008,6 @@ func BuildTimeStartNotNil() predicate.DbPackage {
 	})
 }
 
-// BuildTimeEndEQ applies the EQ predicate on the "build_time_end" field.
-func BuildTimeEndEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndNEQ applies the NEQ predicate on the "build_time_end" field.
-func BuildTimeEndNEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndIn applies the In predicate on the "build_time_end" field.
-func BuildTimeEndIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		// if not arguments were provided, append the FALSE constants,
-		// since we can't apply "IN ()". This will make this predicate falsy.
-		if len(v) == 0 {
-			s.Where(sql.False())
-			return
-		}
-		s.Where(sql.In(s.C(FieldBuildTimeEnd), v...))
-	})
-}
-
-// BuildTimeEndNotIn applies the NotIn predicate on the "build_time_end" field.
-func BuildTimeEndNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		// if not arguments were provided, append the FALSE constants,
-		// since we can't apply "IN ()". This will make this predicate falsy.
-		if len(v) == 0 {
-			s.Where(sql.False())
-			return
-		}
-		s.Where(sql.NotIn(s.C(FieldBuildTimeEnd), v...))
-	})
-}
-
-// BuildTimeEndGT applies the GT predicate on the "build_time_end" field.
-func BuildTimeEndGT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndGTE applies the GTE predicate on the "build_time_end" field.
-func BuildTimeEndGTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndLT applies the LT predicate on the "build_time_end" field.
-func BuildTimeEndLT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndLTE applies the LTE predicate on the "build_time_end" field.
-func BuildTimeEndLTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldBuildTimeEnd), v))
-	})
-}
-
-// BuildTimeEndIsNil applies the IsNil predicate on the "build_time_end" field.
-func BuildTimeEndIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldBuildTimeEnd)))
-	})
-}
-
-// BuildTimeEndNotNil applies the NotNil predicate on the "build_time_end" field.
-func BuildTimeEndNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldBuildTimeEnd)))
-	})
-}
-
 // UpdatedEQ applies the EQ predicate on the "updated" field.
 func UpdatedEQ(v time.Time) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -1621,6 +1559,456 @@ func DebugSymbolsIsNil() predicate.DbPackage {
 func DebugSymbolsNotNil() predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.NotNull(s.C(FieldDebugSymbols)))
+	})
+}
+
+// MaxRssEQ applies the EQ predicate on the "max_rss" field.
+func MaxRssEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssNEQ applies the NEQ predicate on the "max_rss" field.
+func MaxRssNEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssIn applies the In predicate on the "max_rss" field.
+func MaxRssIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldMaxRss), v...))
+	})
+}
+
+// MaxRssNotIn applies the NotIn predicate on the "max_rss" field.
+func MaxRssNotIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldMaxRss), v...))
+	})
+}
+
+// MaxRssGT applies the GT predicate on the "max_rss" field.
+func MaxRssGT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssGTE applies the GTE predicate on the "max_rss" field.
+func MaxRssGTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssLT applies the LT predicate on the "max_rss" field.
+func MaxRssLT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssLTE applies the LTE predicate on the "max_rss" field.
+func MaxRssLTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldMaxRss), v))
+	})
+}
+
+// MaxRssIsNil applies the IsNil predicate on the "max_rss" field.
+func MaxRssIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldMaxRss)))
+	})
+}
+
+// MaxRssNotNil applies the NotNil predicate on the "max_rss" field.
+func MaxRssNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldMaxRss)))
+	})
+}
+
+// UTimeEQ applies the EQ predicate on the "u_time" field.
+func UTimeEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeNEQ applies the NEQ predicate on the "u_time" field.
+func UTimeNEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeIn applies the In predicate on the "u_time" field.
+func UTimeIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldUTime), v...))
+	})
+}
+
+// UTimeNotIn applies the NotIn predicate on the "u_time" field.
+func UTimeNotIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldUTime), v...))
+	})
+}
+
+// UTimeGT applies the GT predicate on the "u_time" field.
+func UTimeGT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeGTE applies the GTE predicate on the "u_time" field.
+func UTimeGTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeLT applies the LT predicate on the "u_time" field.
+func UTimeLT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeLTE applies the LTE predicate on the "u_time" field.
+func UTimeLTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldUTime), v))
+	})
+}
+
+// UTimeIsNil applies the IsNil predicate on the "u_time" field.
+func UTimeIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldUTime)))
+	})
+}
+
+// UTimeNotNil applies the NotNil predicate on the "u_time" field.
+func UTimeNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldUTime)))
+	})
+}
+
+// STimeEQ applies the EQ predicate on the "s_time" field.
+func STimeEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldSTime), v))
+	})
+}
+
+// STimeNEQ applies the NEQ predicate on the "s_time" field.
+func STimeNEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldSTime), v))
+	})
+}
+
+// STimeIn applies the In predicate on the "s_time" field.
+func STimeIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldSTime), v...))
+	})
+}
+
+// STimeNotIn applies the NotIn predicate on the "s_time" field.
+func STimeNotIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldSTime), v...))
+	})
+}
+
+// STimeGT applies the GT predicate on the "s_time" field.
+func STimeGT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldSTime), v))
+	})
+}
+
+// STimeGTE applies the GTE predicate on the "s_time" field.
+func STimeGTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldSTime), v))
+	})
+}
+
+// STimeLT applies the LT predicate on the "s_time" field.
+func STimeLT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldSTime), v))
+	})
+}
+
+// STimeLTE applies the LTE predicate on the "s_time" field.
+func STimeLTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldSTime), v))
+	})
+}
+
+// STimeIsNil applies the IsNil predicate on the "s_time" field.
+func STimeIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldSTime)))
+	})
+}
+
+// STimeNotNil applies the NotNil predicate on the "s_time" field.
+func STimeNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldSTime)))
+	})
+}
+
+// IoInEQ applies the EQ predicate on the "io_in" field.
+func IoInEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInNEQ applies the NEQ predicate on the "io_in" field.
+func IoInNEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInIn applies the In predicate on the "io_in" field.
+func IoInIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldIoIn), v...))
+	})
+}
+
+// IoInNotIn applies the NotIn predicate on the "io_in" field.
+func IoInNotIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldIoIn), v...))
+	})
+}
+
+// IoInGT applies the GT predicate on the "io_in" field.
+func IoInGT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInGTE applies the GTE predicate on the "io_in" field.
+func IoInGTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInLT applies the LT predicate on the "io_in" field.
+func IoInLT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInLTE applies the LTE predicate on the "io_in" field.
+func IoInLTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldIoIn), v))
+	})
+}
+
+// IoInIsNil applies the IsNil predicate on the "io_in" field.
+func IoInIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldIoIn)))
+	})
+}
+
+// IoInNotNil applies the NotNil predicate on the "io_in" field.
+func IoInNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldIoIn)))
+	})
+}
+
+// IoOutEQ applies the EQ predicate on the "io_out" field.
+func IoOutEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutNEQ applies the NEQ predicate on the "io_out" field.
+func IoOutNEQ(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutIn applies the In predicate on the "io_out" field.
+func IoOutIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldIoOut), v...))
+	})
+}
+
+// IoOutNotIn applies the NotIn predicate on the "io_out" field.
+func IoOutNotIn(vs ...int64) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldIoOut), v...))
+	})
+}
+
+// IoOutGT applies the GT predicate on the "io_out" field.
+func IoOutGT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutGTE applies the GTE predicate on the "io_out" field.
+func IoOutGTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutLT applies the LT predicate on the "io_out" field.
+func IoOutLT(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutLTE applies the LTE predicate on the "io_out" field.
+func IoOutLTE(v int64) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldIoOut), v))
+	})
+}
+
+// IoOutIsNil applies the IsNil predicate on the "io_out" field.
+func IoOutIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldIoOut)))
+	})
+}
+
+// IoOutNotNil applies the NotNil predicate on the "io_out" field.
+func IoOutNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldIoOut)))
 	})
 }
 

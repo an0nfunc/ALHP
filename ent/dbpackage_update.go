@@ -146,26 +146,6 @@ func (dpu *DbPackageUpdate) ClearBuildTimeStart() *DbPackageUpdate {
 	return dpu
 }
 
-// SetBuildTimeEnd sets the "build_time_end" field.
-func (dpu *DbPackageUpdate) SetBuildTimeEnd(t time.Time) *DbPackageUpdate {
-	dpu.mutation.SetBuildTimeEnd(t)
-	return dpu
-}
-
-// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableBuildTimeEnd(t *time.Time) *DbPackageUpdate {
-	if t != nil {
-		dpu.SetBuildTimeEnd(*t)
-	}
-	return dpu
-}
-
-// ClearBuildTimeEnd clears the value of the "build_time_end" field.
-func (dpu *DbPackageUpdate) ClearBuildTimeEnd() *DbPackageUpdate {
-	dpu.mutation.ClearBuildTimeEnd()
-	return dpu
-}
-
 // SetUpdated sets the "updated" field.
 func (dpu *DbPackageUpdate) SetUpdated(t time.Time) *DbPackageUpdate {
 	dpu.mutation.SetUpdated(t)
@@ -283,6 +263,141 @@ func (dpu *DbPackageUpdate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) 
 // ClearDebugSymbols clears the value of the "debug_symbols" field.
 func (dpu *DbPackageUpdate) ClearDebugSymbols() *DbPackageUpdate {
 	dpu.mutation.ClearDebugSymbols()
+	return dpu
+}
+
+// SetMaxRss sets the "max_rss" field.
+func (dpu *DbPackageUpdate) SetMaxRss(i int64) *DbPackageUpdate {
+	dpu.mutation.ResetMaxRss()
+	dpu.mutation.SetMaxRss(i)
+	return dpu
+}
+
+// SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableMaxRss(i *int64) *DbPackageUpdate {
+	if i != nil {
+		dpu.SetMaxRss(*i)
+	}
+	return dpu
+}
+
+// AddMaxRss adds i to the "max_rss" field.
+func (dpu *DbPackageUpdate) AddMaxRss(i int64) *DbPackageUpdate {
+	dpu.mutation.AddMaxRss(i)
+	return dpu
+}
+
+// ClearMaxRss clears the value of the "max_rss" field.
+func (dpu *DbPackageUpdate) ClearMaxRss() *DbPackageUpdate {
+	dpu.mutation.ClearMaxRss()
+	return dpu
+}
+
+// SetUTime sets the "u_time" field.
+func (dpu *DbPackageUpdate) SetUTime(i int64) *DbPackageUpdate {
+	dpu.mutation.ResetUTime()
+	dpu.mutation.SetUTime(i)
+	return dpu
+}
+
+// SetNillableUTime sets the "u_time" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableUTime(i *int64) *DbPackageUpdate {
+	if i != nil {
+		dpu.SetUTime(*i)
+	}
+	return dpu
+}
+
+// AddUTime adds i to the "u_time" field.
+func (dpu *DbPackageUpdate) AddUTime(i int64) *DbPackageUpdate {
+	dpu.mutation.AddUTime(i)
+	return dpu
+}
+
+// ClearUTime clears the value of the "u_time" field.
+func (dpu *DbPackageUpdate) ClearUTime() *DbPackageUpdate {
+	dpu.mutation.ClearUTime()
+	return dpu
+}
+
+// SetSTime sets the "s_time" field.
+func (dpu *DbPackageUpdate) SetSTime(i int64) *DbPackageUpdate {
+	dpu.mutation.ResetSTime()
+	dpu.mutation.SetSTime(i)
+	return dpu
+}
+
+// SetNillableSTime sets the "s_time" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableSTime(i *int64) *DbPackageUpdate {
+	if i != nil {
+		dpu.SetSTime(*i)
+	}
+	return dpu
+}
+
+// AddSTime adds i to the "s_time" field.
+func (dpu *DbPackageUpdate) AddSTime(i int64) *DbPackageUpdate {
+	dpu.mutation.AddSTime(i)
+	return dpu
+}
+
+// ClearSTime clears the value of the "s_time" field.
+func (dpu *DbPackageUpdate) ClearSTime() *DbPackageUpdate {
+	dpu.mutation.ClearSTime()
+	return dpu
+}
+
+// SetIoIn sets the "io_in" field.
+func (dpu *DbPackageUpdate) SetIoIn(i int64) *DbPackageUpdate {
+	dpu.mutation.ResetIoIn()
+	dpu.mutation.SetIoIn(i)
+	return dpu
+}
+
+// SetNillableIoIn sets the "io_in" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableIoIn(i *int64) *DbPackageUpdate {
+	if i != nil {
+		dpu.SetIoIn(*i)
+	}
+	return dpu
+}
+
+// AddIoIn adds i to the "io_in" field.
+func (dpu *DbPackageUpdate) AddIoIn(i int64) *DbPackageUpdate {
+	dpu.mutation.AddIoIn(i)
+	return dpu
+}
+
+// ClearIoIn clears the value of the "io_in" field.
+func (dpu *DbPackageUpdate) ClearIoIn() *DbPackageUpdate {
+	dpu.mutation.ClearIoIn()
+	return dpu
+}
+
+// SetIoOut sets the "io_out" field.
+func (dpu *DbPackageUpdate) SetIoOut(i int64) *DbPackageUpdate {
+	dpu.mutation.ResetIoOut()
+	dpu.mutation.SetIoOut(i)
+	return dpu
+}
+
+// SetNillableIoOut sets the "io_out" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableIoOut(i *int64) *DbPackageUpdate {
+	if i != nil {
+		dpu.SetIoOut(*i)
+	}
+	return dpu
+}
+
+// AddIoOut adds i to the "io_out" field.
+func (dpu *DbPackageUpdate) AddIoOut(i int64) *DbPackageUpdate {
+	dpu.mutation.AddIoOut(i)
+	return dpu
+}
+
+// ClearIoOut clears the value of the "io_out" field.
+func (dpu *DbPackageUpdate) ClearIoOut() *DbPackageUpdate {
+	dpu.mutation.ClearIoOut()
 	return dpu
 }
 
@@ -479,19 +594,6 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if value, ok := dpu.mutation.BuildTimeEnd(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeEnd,
-		})
-	}
-	if dpu.mutation.BuildTimeEndCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTimeEnd,
-		})
-	}
 	if value, ok := dpu.mutation.Updated(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
@@ -568,6 +670,106 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeEnum,
 			Column: dbpackage.FieldDebugSymbols,
+		})
+	}
+	if value, ok := dpu.mutation.MaxRss(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if value, ok := dpu.mutation.AddedMaxRss(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if dpu.mutation.MaxRssCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if value, ok := dpu.mutation.UTime(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if value, ok := dpu.mutation.AddedUTime(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if dpu.mutation.UTimeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if value, ok := dpu.mutation.STime(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if value, ok := dpu.mutation.AddedSTime(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if dpu.mutation.STimeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if value, ok := dpu.mutation.IoIn(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if value, ok := dpu.mutation.AddedIoIn(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if dpu.mutation.IoInCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if value, ok := dpu.mutation.IoOut(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if value, ok := dpu.mutation.AddedIoOut(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if dpu.mutation.IoOutCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldIoOut,
 		})
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
@@ -707,26 +909,6 @@ func (dpuo *DbPackageUpdateOne) ClearBuildTimeStart() *DbPackageUpdateOne {
 	return dpuo
 }
 
-// SetBuildTimeEnd sets the "build_time_end" field.
-func (dpuo *DbPackageUpdateOne) SetBuildTimeEnd(t time.Time) *DbPackageUpdateOne {
-	dpuo.mutation.SetBuildTimeEnd(t)
-	return dpuo
-}
-
-// SetNillableBuildTimeEnd sets the "build_time_end" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableBuildTimeEnd(t *time.Time) *DbPackageUpdateOne {
-	if t != nil {
-		dpuo.SetBuildTimeEnd(*t)
-	}
-	return dpuo
-}
-
-// ClearBuildTimeEnd clears the value of the "build_time_end" field.
-func (dpuo *DbPackageUpdateOne) ClearBuildTimeEnd() *DbPackageUpdateOne {
-	dpuo.mutation.ClearBuildTimeEnd()
-	return dpuo
-}
-
 // SetUpdated sets the "updated" field.
 func (dpuo *DbPackageUpdateOne) SetUpdated(t time.Time) *DbPackageUpdateOne {
 	dpuo.mutation.SetUpdated(t)
@@ -844,6 +1026,141 @@ func (dpuo *DbPackageUpdateOne) SetNillableDebugSymbols(ds *dbpackage.DebugSymbo
 // ClearDebugSymbols clears the value of the "debug_symbols" field.
 func (dpuo *DbPackageUpdateOne) ClearDebugSymbols() *DbPackageUpdateOne {
 	dpuo.mutation.ClearDebugSymbols()
+	return dpuo
+}
+
+// SetMaxRss sets the "max_rss" field.
+func (dpuo *DbPackageUpdateOne) SetMaxRss(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.ResetMaxRss()
+	dpuo.mutation.SetMaxRss(i)
+	return dpuo
+}
+
+// SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableMaxRss(i *int64) *DbPackageUpdateOne {
+	if i != nil {
+		dpuo.SetMaxRss(*i)
+	}
+	return dpuo
+}
+
+// AddMaxRss adds i to the "max_rss" field.
+func (dpuo *DbPackageUpdateOne) AddMaxRss(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.AddMaxRss(i)
+	return dpuo
+}
+
+// ClearMaxRss clears the value of the "max_rss" field.
+func (dpuo *DbPackageUpdateOne) ClearMaxRss() *DbPackageUpdateOne {
+	dpuo.mutation.ClearMaxRss()
+	return dpuo
+}
+
+// SetUTime sets the "u_time" field.
+func (dpuo *DbPackageUpdateOne) SetUTime(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.ResetUTime()
+	dpuo.mutation.SetUTime(i)
+	return dpuo
+}
+
+// SetNillableUTime sets the "u_time" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableUTime(i *int64) *DbPackageUpdateOne {
+	if i != nil {
+		dpuo.SetUTime(*i)
+	}
+	return dpuo
+}
+
+// AddUTime adds i to the "u_time" field.
+func (dpuo *DbPackageUpdateOne) AddUTime(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.AddUTime(i)
+	return dpuo
+}
+
+// ClearUTime clears the value of the "u_time" field.
+func (dpuo *DbPackageUpdateOne) ClearUTime() *DbPackageUpdateOne {
+	dpuo.mutation.ClearUTime()
+	return dpuo
+}
+
+// SetSTime sets the "s_time" field.
+func (dpuo *DbPackageUpdateOne) SetSTime(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.ResetSTime()
+	dpuo.mutation.SetSTime(i)
+	return dpuo
+}
+
+// SetNillableSTime sets the "s_time" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableSTime(i *int64) *DbPackageUpdateOne {
+	if i != nil {
+		dpuo.SetSTime(*i)
+	}
+	return dpuo
+}
+
+// AddSTime adds i to the "s_time" field.
+func (dpuo *DbPackageUpdateOne) AddSTime(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.AddSTime(i)
+	return dpuo
+}
+
+// ClearSTime clears the value of the "s_time" field.
+func (dpuo *DbPackageUpdateOne) ClearSTime() *DbPackageUpdateOne {
+	dpuo.mutation.ClearSTime()
+	return dpuo
+}
+
+// SetIoIn sets the "io_in" field.
+func (dpuo *DbPackageUpdateOne) SetIoIn(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.ResetIoIn()
+	dpuo.mutation.SetIoIn(i)
+	return dpuo
+}
+
+// SetNillableIoIn sets the "io_in" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableIoIn(i *int64) *DbPackageUpdateOne {
+	if i != nil {
+		dpuo.SetIoIn(*i)
+	}
+	return dpuo
+}
+
+// AddIoIn adds i to the "io_in" field.
+func (dpuo *DbPackageUpdateOne) AddIoIn(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.AddIoIn(i)
+	return dpuo
+}
+
+// ClearIoIn clears the value of the "io_in" field.
+func (dpuo *DbPackageUpdateOne) ClearIoIn() *DbPackageUpdateOne {
+	dpuo.mutation.ClearIoIn()
+	return dpuo
+}
+
+// SetIoOut sets the "io_out" field.
+func (dpuo *DbPackageUpdateOne) SetIoOut(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.ResetIoOut()
+	dpuo.mutation.SetIoOut(i)
+	return dpuo
+}
+
+// SetNillableIoOut sets the "io_out" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableIoOut(i *int64) *DbPackageUpdateOne {
+	if i != nil {
+		dpuo.SetIoOut(*i)
+	}
+	return dpuo
+}
+
+// AddIoOut adds i to the "io_out" field.
+func (dpuo *DbPackageUpdateOne) AddIoOut(i int64) *DbPackageUpdateOne {
+	dpuo.mutation.AddIoOut(i)
+	return dpuo
+}
+
+// ClearIoOut clears the value of the "io_out" field.
+func (dpuo *DbPackageUpdateOne) ClearIoOut() *DbPackageUpdateOne {
+	dpuo.mutation.ClearIoOut()
 	return dpuo
 }
 
@@ -1064,19 +1381,6 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 			Column: dbpackage.FieldBuildTimeStart,
 		})
 	}
-	if value, ok := dpuo.mutation.BuildTimeEnd(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeEnd,
-		})
-	}
-	if dpuo.mutation.BuildTimeEndCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTimeEnd,
-		})
-	}
 	if value, ok := dpuo.mutation.Updated(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeTime,
@@ -1153,6 +1457,106 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeEnum,
 			Column: dbpackage.FieldDebugSymbols,
+		})
+	}
+	if value, ok := dpuo.mutation.MaxRss(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if value, ok := dpuo.mutation.AddedMaxRss(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if dpuo.mutation.MaxRssCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldMaxRss,
+		})
+	}
+	if value, ok := dpuo.mutation.UTime(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if value, ok := dpuo.mutation.AddedUTime(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if dpuo.mutation.UTimeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldUTime,
+		})
+	}
+	if value, ok := dpuo.mutation.STime(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if value, ok := dpuo.mutation.AddedSTime(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if dpuo.mutation.STimeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldSTime,
+		})
+	}
+	if value, ok := dpuo.mutation.IoIn(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if value, ok := dpuo.mutation.AddedIoIn(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if dpuo.mutation.IoInCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldIoIn,
+		})
+	}
+	if value, ok := dpuo.mutation.IoOut(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if value, ok := dpuo.mutation.AddedIoOut(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Value:  value,
+			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if dpuo.mutation.IoOutCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt64,
+			Column: dbpackage.FieldIoOut,
 		})
 	}
 	_node = &DbPackage{config: dpuo.config}
