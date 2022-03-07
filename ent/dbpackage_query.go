@@ -107,7 +107,7 @@ func (dpq *DbPackageQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single DbPackage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one DbPackage entity is not found.
+// Returns a *NotSingularError when more than one DbPackage entity is found.
 // Returns a *NotFoundError when no DbPackage entities are found.
 func (dpq *DbPackageQuery) Only(ctx context.Context) (*DbPackage, error) {
 	nodes, err := dpq.Limit(2).All(ctx)
@@ -134,7 +134,7 @@ func (dpq *DbPackageQuery) OnlyX(ctx context.Context) *DbPackage {
 }
 
 // OnlyID is like Only, but returns the only DbPackage ID in the query.
-// Returns a *NotSingularError when exactly one DbPackage ID is not found.
+// Returns a *NotSingularError when more than one DbPackage ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (dpq *DbPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -243,8 +243,9 @@ func (dpq *DbPackageQuery) Clone() *DbPackageQuery {
 		order:      append([]OrderFunc{}, dpq.order...),
 		predicates: append([]predicate.DbPackage{}, dpq.predicates...),
 		// clone intermediate query.
-		sql:  dpq.sql.Clone(),
-		path: dpq.path,
+		sql:    dpq.sql.Clone(),
+		path:   dpq.path,
+		unique: dpq.unique,
 	}
 }
 
