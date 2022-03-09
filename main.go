@@ -407,7 +407,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			for _, pkg := range queue {
 				eligible, err := pkg.isEligible(ctx)
 				if err != nil {
-					log.Warningf("Unable to determine status for package %s: %v", pkg.Pkgbase, err)
+					log.Infof("Unable to determine status for package %s: %v", pkg.Pkgbase, err)
 				}
 				if !eligible {
 					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
