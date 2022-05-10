@@ -726,7 +726,7 @@ func setupMakepkg(march string) error {
 	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32 -mpclmul -devirtualize-at-ltrans")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#PACKAGER=\"John Doe <john@doe.com>\"", "PACKAGER=\"ALHP "+march+" <alhp@harting.dev>\"")
@@ -742,6 +742,8 @@ func setupMakepkg(march string) error {
 	makepkgStr = strings.ReplaceAll(makepkgStr, "lto", "!lto")
 	// Remove align-functions=32, which is enabled because of LTO and not needed without
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-falign-functions=32", "")
+	// Remove devirtualize-at-ltrans, which is only helpful when using LTO and not needed without
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-devirtualize-at-ltrans", "")
 
 	// write non-lto makepkg
 	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0644)
