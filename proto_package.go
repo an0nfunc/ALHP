@@ -748,6 +748,12 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (bool, alpm.IPackage, stri
 
 	allDepends := p.Srcinfo.Depends
 	allDepends = append(allDepends, p.Srcinfo.MakeDepends...)
+	// add gcc to dependents, since we can't know for sure if its in use
+	// prevents issues like #111
+	allDepends = append(allDepends, srcinfo.ArchString{
+		Arch:  "x86_64",
+		Value: "gcc",
+	})
 
 	for _, dep := range allDepends {
 		buildManager.alpmMutex.Lock()
