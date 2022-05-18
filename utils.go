@@ -256,12 +256,13 @@ func genQueue(path string) ([]*ProtoPackage, error) {
 			}
 
 			pkgbuilds = append(pkgbuilds, &ProtoPackage{
-				Pkgbuild: pkgbuild,
-				Pkgbase:  mPkgbuild.PkgBase(),
-				Repo:     dbpackage.Repository(mPkgbuild.Repo()),
-				March:    march,
-				FullRepo: mPkgbuild.Repo() + "-" + march,
-				Hash:     b3s,
+				Pkgbuild:  pkgbuild,
+				Pkgbase:   mPkgbuild.PkgBase(),
+				Repo:      dbpackage.Repository(mPkgbuild.Repo()),
+				March:     march,
+				FullRepo:  mPkgbuild.Repo() + "-" + march,
+				Hash:      b3s,
+				DbPackage: dbPkg,
 			})
 		}
 	}
