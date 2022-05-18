@@ -698,6 +698,10 @@ func (p *ProtoPackage) findPkgFiles() error {
 		return err
 	}
 
+	if p.DbPackage == nil {
+		return fmt.Errorf("unable to find Pkgfiles without dbpakg present")
+	}
+
 	var realPkgs []string
 	for _, realPkg := range p.DbPackage.Packages {
 		realPkgs = append(realPkgs, realPkg)
