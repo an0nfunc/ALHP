@@ -408,9 +408,12 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 				eligible, err := pkg.isEligible(ctx)
 				if err != nil {
 					log.Infof("Unable to determine status for package %s: %v", pkg.Pkgbase, err)
+					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
+					continue
 				}
 				if !eligible {
 					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
+					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					continue
 				}
 
