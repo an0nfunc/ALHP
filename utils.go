@@ -590,7 +590,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			}
 		} else if dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "" {
 			log.Infof("[HK] reseting missing package %s with no repo version", dbPkg.Pkgbase)
-			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().SetUpdated(time.Now().UTC()).Exec(context.Background())
+			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}

@@ -279,7 +279,13 @@ func (b *BuildManager) repoWorker(repo string) {
 
 				var realPkgs []string
 				for _, filePath := range pkg.PkgFiles {
-					realPkgs = append(realPkgs, Package(filePath).Name())
+					if _, err := os.Stat(filePath); err == nil {
+						realPkgs = append(realPkgs, Package(filePath).Name())
+					}
+				}
+
+				if len(realPkgs) == 0 {
+					continue
 				}
 
 				b.repoWG.Add(1)
@@ -293,7 +299,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				}
 
 				if pkg.DbPackage != nil {
-					_ = pkg.DbPackage.Update().ClearRepoVersion().Exec(context.Background())
+					_ = pkg.DbPackage.Update().ClearRepoVersion().ClearHash().Exec(context.Background())
 				}
 
 				for _, file := range pkg.PkgFiles {
