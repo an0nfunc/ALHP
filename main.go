@@ -218,6 +218,7 @@ func (b *BuildManager) repoWorker(repo string) {
 	for {
 		select {
 		case pkgL := <-b.repoAdd[repo]:
+			b.repoWG.Add(1)
 			toAdd := make([]string, 0)
 			for _, pkg := range pkgL {
 				toAdd = append(toAdd, pkg.PkgFiles...)
@@ -263,6 +264,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			if err != nil {
 				log.Warningf("Error updating lastupdate: %v", err)
 			}
+			b.repoWG.Done()
 		case pkgL := <-b.repoPurge[repo]:
 			for _, pkg := range pkgL {
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
@@ -419,7 +421,6 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 				}
 				if !eligible {
 					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
-					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					continue
 				}
 
