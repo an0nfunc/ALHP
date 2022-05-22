@@ -733,7 +733,7 @@ func setupMakepkg(march string) error {
 	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32 -mpclmul -fdevirtualize-at-ltrans")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32 -mpclmul")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#PACKAGER=\"John Doe <john@doe.com>\"", "PACKAGER=\"ALHP "+march+" <alhp@harting.dev>\"")
