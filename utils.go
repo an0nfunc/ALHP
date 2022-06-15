@@ -737,6 +737,10 @@ func setupMakepkg(march string) error {
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
 	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#PACKAGER=\"John Doe <john@doe.com>\"", "PACKAGER=\"ALHP "+march+" <alhp@harting.dev>\"")
+	// enable rust flags and patch them
+	makepkgStr = strings.ReplaceAll(makepkgStr, "#RUSTFLAGS=", "RUSTFLAGS=")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-C opt-level=2", "-C opt-level=3")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "-C opt-level=3", "-C opt-level=3 -C target-cpu="+march+" -C lto=fat -C codegen-units=1 -C strip=symbols -C linker-plugin-lto")
 
 	// write makepkg
 	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
