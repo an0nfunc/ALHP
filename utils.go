@@ -733,7 +733,7 @@ func setupMakepkg(march string) error {
 	}
 	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
 	// set Go optimization flag
-	makepkgStr = strings.ReplaceAll(makepkgStr, "LDFLAGS=", "GOAMD64="+march[len(march)-2:]+\nLDFLAGS=")
+	makepkgStr = strings.ReplaceAll(makepkgStr, "LDFLAGS=", "GOAMD64="+march[len(march)-2:]+"\nLDFLAGS=")
 	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
 	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32 -mpclmul")
 	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
