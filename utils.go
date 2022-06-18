@@ -671,7 +671,7 @@ func syncMarchs() error {
 
 	var eRepos []string
 	for _, file := range files {
-		if file.Name() != "." && file.Name() != logDir && file.IsDir() {
+		if file.Name() != "." && file.Name() != logDir && file.Name() != makepkgDir && file.IsDir() {
 			eRepos = append(eRepos, file.Name())
 		}
 	}
