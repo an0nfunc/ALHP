@@ -1,0 +1,35 @@
+# template values get replaced on makepkg.conf generation
+# $level$ -> march x86-64 level, e.g. v3
+# $march$ -> full march, e.g. x86-64-v3
+# $buildproc$ -> number of threads to build with
+
+common:
+  cflags:
+    - "-mtune=generic": ~
+    - "-O2": "-O3"
+    - "-mpclmul" # https://git.harting.dev/ALHP/ALHP.GO/issues/92
+    - "-march=x86-64": "-march=$march$"
+
+  options:
+    - "lto": "!lto" # disable lto; see 'lto' section below
+
+  buildenv:
+    - "color": "!color" # color messes up the log output
+
+  goamd64: "$level$" # https://git.harting.dev/ALHP/ALHP.GO/issues/116
+  packager: "ALHP $march$ <alhp@harting.dev>"
+  makeflags: "-j$buildproc$"
+  # https://git.harting.dev/ALHP/ALHP.GO/issues/110
+  rustflags: |-
+    -Copt-level=3 -Ctarget-cpu=$march$
+  ltoflags:
+    - "-falign-functions=32" # https://github.com/InBetweenNames/gentooLTO/issues/164
+
+lto:
+  rustflags:
+    - "-Clto=fat"
+    - "codegen-units=1"
+    - "-Clinker-plugin-lto"
+
+  options:
+    - "lto"

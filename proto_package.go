@@ -51,17 +51,18 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 
 	p.toDbPackage(true)
 	skipping := false
-	if contains(p.Srcinfo.Arch, "any") {
+	if Contains(p.Srcinfo.Arch, "any") {
 		log.Debugf("Skipped %s: any-Package", p.Srcinfo.Pkgbase)
 		p.DbPackage.SkipReason = "arch = any"
 		p.DbPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	} else if contains(conf.Blacklist.Packages, p.Srcinfo.Pkgbase) {
+	} else if Contains(conf.Blacklist.Packages, p.Srcinfo.Pkgbase) {
 		log.Debugf("Skipped %s: blacklisted package", p.Srcinfo.Pkgbase)
 		p.DbPackage.SkipReason = "blacklisted"
 		p.DbPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	} else if contains(p.Srcinfo.MakeDepends, "ghc") || contains(p.Srcinfo.MakeDepends, "haskell-ghc") || contains(p.Srcinfo.Depends, "ghc") || contains(p.Srcinfo.Depends, "haskell-ghc") {
+	} else if Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
+		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
 		// Skip Haskell packages for now, as we are facing linking problems with them,
 		// most likely caused by not having a dependency check implemented yet and building at random.
 		// https://git.harting.dev/anonfunc/ALHP.GO/issues/11
@@ -83,7 +84,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		p.DbPackage = p.DbPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
 	}
 
-	if contains(conf.Blacklist.LTO, p.Pkgbase) {
+	if Contains(conf.Blacklist.LTO, p.Pkgbase) {
 		p.DbPackage = p.DbPackage.Update().SetLto(dbpackage.LtoDisabled).SaveX(ctx)
 	}
 
@@ -181,7 +182,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error while increasing pkgrel: %w", err)
 	}
 
-	if contains(conf.KernelToPatch, p.Pkgbase) {
+	if Contains(conf.KernelToPatch, p.Pkgbase) {
 		err = p.prepareKernelPatches()
 		if err != nil {
 			p.DbPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(p.Hash).ExecX(ctx)
@@ -590,7 +591,7 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 			continue
 		}
 
-		if !contains(fPkgbuilds, pkgbuild) {
+		if !Contains(fPkgbuilds, pkgbuild) {
 			fPkgbuilds = append(fPkgbuilds, pkgbuild)
 		}
 	}
@@ -718,7 +719,7 @@ func (p *ProtoPackage) findPkgFiles() error {
 		if !file.IsDir() && !strings.HasSuffix(file.Name(), ".sig") {
 			matches := rePkgFile.FindStringSubmatch(file.Name())
 
-			if len(matches) > 1 && contains(realPkgs, matches[1]) {
+			if len(matches) > 1 && Contains(realPkgs, matches[1]) {
 				fPkg = append(fPkg, filepath.Join(conf.Basedir.Repo, p.FullRepo, "os", conf.Arch, file.Name()))
 			}
 		}

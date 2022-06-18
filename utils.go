@@ -11,6 +11,7 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/fs"
 	"lukechampine.com/blake3"
@@ -38,10 +39,12 @@ const (
 	waitingDir     = "to_be_moved"
 	makepkgLTO     = "makepkg-%s-non-lto.conf"
 	makepkg        = "makepkg-%s.conf"
+	flagConfig     = "flags.yaml"
 )
 
 var (
-	reMarch         = regexp.MustCompile(`(-march=)(.+?) `)
+	reVar           = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]+)([)"])[^\S\r\n]*$`)
+	reEnvClean      = regexp.MustCompile(`(?m) ([\s\\]+) `)
 	rePkgRel        = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgSource     = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
 	rePkgSum        = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
@@ -224,7 +227,7 @@ func genQueue(path string) ([]*ProtoPackage, error) {
 	var pkgbuilds []*ProtoPackage
 	for _, pkgbuild := range pkgBuilds {
 		mPkgbuild := PKGBUILD(pkgbuild)
-		if mPkgbuild.FullRepo() == "trunk" || !contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
+		if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
 			continue
 		}
 
@@ -673,8 +676,18 @@ func syncMarchs() error {
 		}
 	}
 
+	flagConfigRaw, err := os.ReadFile(flagConfig)
+	if err != nil {
+		return err
+	}
+	var flagCfg map[string]interface{}
+	err = yaml.Unmarshal(flagConfigRaw, &flagCfg)
+	if err != nil {
+		return err
+	}
+
 	for _, march := range conf.March {
-		err := setupMakepkg(march)
+		err := setupMakepkg(march, flagCfg)
 		if err != nil {
 			log.Fatalf("Can't generate makepkg for %s: %v", march, err)
 		}
@@ -694,7 +707,7 @@ func syncMarchs() error {
 				}
 			}
 
-			if i := find(eRepos, fRepo); i != -1 {
+			if i := Find(eRepos, fRepo); i != -1 {
 				eRepos = append(eRepos[:i], eRepos[i+1:]...)
 			}
 		}
@@ -712,8 +725,82 @@ func syncMarchs() error {
 	return nil
 }
 
+func replaceStringsFromMap(str string, replace map[string]string) string {
+	for k, v := range replace {
+		str = strings.ReplaceAll(str, k, v)
+	}
+
+	return str
+}
+
+func parseFlagSubSection(list interface{}, res []string, replaceMap map[string]string) []string {
+	for _, cEntry := range list.([]interface{}) {
+		switch ce := cEntry.(type) {
+		case map[interface{}]interface{}:
+			for k, v := range ce {
+				if v == nil {
+					res = append(res[:Find(res, k.(string))], res[Find(res, k.(string))+1:]...)
+				} else if s, ok := v.(string); ok {
+					Replace(res, k.(string), replaceStringsFromMap(s, replaceMap))
+				} else {
+					log.Warningf("malformated flag-config: unable to handle %v:%v", replaceStringsFromMap(k.(string), replaceMap), v)
+				}
+			}
+		case string:
+			res = append(res, replaceStringsFromMap(ce, replaceMap))
+		default:
+			log.Warningf("malformated flag-config: unable to handle %v (%T)", cEntry, cEntry)
+		}
+	}
+
+	return res
+}
+
+func parseFlagSection(section interface{}, makepkgConf string, march string) (string, error) {
+	replaceMap := map[string]string{"$level$": march[len(march)-2:], "$march$": march, "$buildproc$": strconv.Itoa(conf.Build.Makej)}
+
+	if ct, ok := section.(map[interface{}]interface{}); ok {
+		for subSec, subMap := range ct {
+			varsReg := reVar.FindAllStringSubmatch(makepkgConf, -1)
+			if varsReg == nil {
+				return "", fmt.Errorf("no match in config found")
+			}
+
+			var flags []string
+			var orgMatch []string
+			for _, match := range varsReg {
+				if strings.ToLower(match[1]) == subSec.(string) {
+					flags = strings.Split(reEnvClean.ReplaceAllString(match[3], ""), " ")
+					orgMatch = match
+				}
+			}
+
+			if _, ok := subMap.(string); ok && len(orgMatch) > 0 {
+				makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf("\n%s=%s%s%s",
+					strings.ToUpper(subSec.(string)), orgMatch[2], replaceStringsFromMap(subMap.(string), replaceMap), orgMatch[4]))
+				continue
+			}
+
+			if len(orgMatch) == 0 {
+				// no match found, assume env var and append it
+				log.Debugf("no match found for %s:%v, appending", subSec, subMap)
+				makepkgConf += fmt.Sprintf("\n%s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(subMap.(string), replaceMap))
+				continue
+			}
+
+			log.Debugf("original %s: %v (%d)", subSec, flags, len(flags))
+			flags = parseFlagSubSection(subMap, flags, replaceMap)
+			log.Debugf("new %s: %v (%d)", subSec, flags, len(flags))
+
+			makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1], orgMatch[2], strings.Join(flags, " "), orgMatch[4]))
+		}
+	}
+
+	return makepkgConf, nil
+}
+
 //goland:noinspection SpellCheckingInspection
-func setupMakepkg(march string) error {
+func setupMakepkg(march string, flags map[string]interface{}) error {
 	lMakepkg := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkg, march))
 	lMakepkgLTO := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgLTO, march))
 
@@ -727,36 +814,10 @@ func setupMakepkg(march string) error {
 	}
 	makepkgStr := string(t)
 
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-mtune=generic", "")
-	if !conf.Build.Checks {
-		makepkgStr = strings.ReplaceAll(makepkgStr, " check ", " !check ")
-	}
-	makepkgStr = strings.ReplaceAll(makepkgStr, " color ", " !color ")
-	// set Go optimization flag
-	makepkgStr = strings.ReplaceAll(makepkgStr, "LDFLAGS=", "GOAMD64="+march[len(march)-2:]+"\nLDFLAGS=")
-	// Add align-functions=32, see https://github.com/InBetweenNames/gentooLTO/issues/164 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-O2", "-O3 -falign-functions=32 -mpclmul")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "#MAKEFLAGS=\"-j2\"", "MAKEFLAGS=\"-j"+strconv.Itoa(conf.Build.Makej)+"\"")
-	makepkgStr = reMarch.ReplaceAllString(makepkgStr, "${1}"+march)
-	makepkgStr = strings.ReplaceAll(makepkgStr, "#PACKAGER=\"John Doe <john@doe.com>\"", "PACKAGER=\"ALHP "+march+" <alhp@harting.dev>\"")
-	// enable rust flags and patch them
-	makepkgStr = strings.ReplaceAll(makepkgStr, "#RUSTFLAGS=", "RUSTFLAGS=")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-C opt-level=2", "-C opt-level=3")
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-C opt-level=3", "-C opt-level=3 -C target-cpu="+march+" -C lto=fat -C codegen-units=1 -C strip=symbols -C linker-plugin-lto")
-
-	// write makepkg
-	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
+	makepkgStr, err = parseFlagSection(flags["common"], makepkgStr, march)
 	if err != nil {
 		return err
 	}
-
-	// Remove LTO. Since lto is enabled pre default in devtools since 20211129-1, remove it.
-	// See https://git.harting.dev/anonfunc/ALHP.GO/issues/52 for more
-	makepkgStr = strings.ReplaceAll(makepkgStr, "lto", "!lto")
-	// Remove align-functions=32, which is enabled because of LTO and not needed without
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-falign-functions=32", "")
-	// Remove devirtualize-at-ltrans, which is only helpful when using LTO and not needed without
-	makepkgStr = strings.ReplaceAll(makepkgStr, "-fdevirtualize-at-ltrans", "")
 
 	// write non-lto makepkg
 	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0644)
@@ -764,13 +825,24 @@ func setupMakepkg(march string) error {
 		return err
 	}
 
+	makepkgStr, err = parseFlagSection(flags["lto"], makepkgStr, march)
+	if err != nil {
+		return err
+	}
+
+	// write makepkg
+	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func contains(s interface{}, str string) bool {
+func Contains(s interface{}, str string) bool {
 	switch v := s.(type) {
 	case []string:
-		if i := find(v, str); i != -1 {
+		if i := Find(v, str); i != -1 {
 			return true
 		}
 	case []srcinfo.ArchString:
@@ -779,7 +851,7 @@ func contains(s interface{}, str string) bool {
 			n = append(n, as.Value)
 		}
 
-		if i := find(n, str); i != -1 {
+		if i := Find(n, str); i != -1 {
 			return true
 		}
 	default:
@@ -789,14 +861,37 @@ func contains(s interface{}, str string) bool {
 	return false
 }
 
-func find(s []string, str string) int {
-	for i, v := range s {
-		if v == str {
+func Find[T comparable](arr []T, match T) int {
+	for i, v := range arr {
+		if v == match {
 			return i
 		}
 	}
 
 	return -1
+}
+
+func Unique[T comparable](arr []T) []T {
+	occurred := map[T]bool{}
+	var result []T
+	for e := range arr {
+		if occurred[arr[e]] != true {
+			occurred[arr[e]] = true
+			result = append(result, arr[e])
+		}
+	}
+
+	return result
+}
+
+func Replace[T comparable](arr []T, replace T, with T) []T {
+	for i, v := range arr {
+		if v == replace {
+			arr[i] = with
+		}
+	}
+
+	return arr
 }
 
 func copyFile(src, dst string) (int64, error) {
