@@ -32,4 +32,4 @@ lto:
     - "-Clinker-plugin-lto"
 
   options:
-    - "lto"
+    - "!lto": "lto"
