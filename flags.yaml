@@ -28,7 +28,7 @@ common:
 lto:
   rustflags:
     - "-Clto=fat"
-    - "codegen-units=1"
+    - "-Ccodegen-units=1"
     - "-Clinker-plugin-lto"
 
   options:
