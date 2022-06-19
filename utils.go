@@ -770,7 +770,7 @@ func parseFlagSection(section interface{}, makepkgConf string, march string) (st
 			var orgMatch []string
 			for _, match := range varsReg {
 				if strings.ToLower(match[1]) == subSec.(string) {
-					flags = strings.Split(reEnvClean.ReplaceAllString(match[3], ""), " ")
+					flags = strings.Split(reEnvClean.ReplaceAllString(match[3], " "), " ")
 					orgMatch = match
 				}
 			}
