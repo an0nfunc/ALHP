@@ -559,8 +559,10 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	var pkg alpm.IPackage
 	if p.Srcinfo != nil {
 		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
+		log.Debugf("trying to find %s on mirror", p.Srcinfo.Packages[0].Pkgname)
 	} else {
 		pkg, err = dbs.FindSatisfier(p.DbPackage.Packages[0])
+		log.Debugf("trying to find %s on mirror", p.DbPackage.Packages[0])
 	}
 	buildManager.alpmMutex.Unlock()
 	if err != nil {
