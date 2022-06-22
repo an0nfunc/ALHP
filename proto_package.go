@@ -573,7 +573,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		return false
 	}
 
-	if p.Srcinfo != nil && (p.Srcinfo.Arch[0] != pkg.Architecture() || p.Srcinfo.Pkgbase != pkg.Base()) {
+	if p.Srcinfo != nil && (!Contains(p.Srcinfo.Arch, pkg.Architecture()) || p.Srcinfo.Pkgbase != pkg.Base()) {
 		log.Debugf("%s: arch (%s!=%s) or pkgbase (%s!=%s) does not match", p.Pkgbase, p.Srcinfo.Arch[0], pkg.Architecture(), pkg.Base(), p.Pkgbase)
 		return false
 	}
