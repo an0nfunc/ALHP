@@ -600,6 +600,41 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// remove queued status from packages is not eligible
+	qPackages, err := db.DbPackage.Query().Where(
+		dbpackage.And(
+			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
+			dbpackage.March(march),
+			dbpackage.StatusEQ(dbpackage.StatusQueued),
+		)).All(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, dbPkg := range qPackages {
+		pkg := &ProtoPackage{
+			Pkgbase:   dbPkg.Pkgbase,
+			Repo:      dbPkg.Repository,
+			FullRepo:  string(dbPkg.Repository) + dbPkg.March,
+			DbPackage: dbPkg,
+			March:     dbPkg.March,
+		}
+
+		var upstream string
+		switch pkg.DbPackage.Repository {
+		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
+			upstream = "upstream-core-extra"
+		case dbpackage.RepositoryCommunity:
+			upstream = "upstream-community"
+		}
+		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+
+		_, err := pkg.isEligible(context.Background())
+		if err != nil {
+			log.Warningf("[HK] unable to determine status for %s: %v", dbPkg.Pkgbase, err)
+		}
+	}
+
 	return nil
 }
 
@@ -892,35 +927,6 @@ func Replace[T comparable](arr []T, replace T, with T) []T {
 	}
 
 	return arr
-}
-
-func copyFile(src, dst string) (int64, error) {
-	sourceFileStat, err := os.Stat(src)
-	if err != nil {
-		return 0, err
-	}
-
-	if !sourceFileStat.Mode().IsRegular() {
-		return 0, fmt.Errorf("%s is not a regular file", src)
-	}
-
-	source, err := os.Open(src)
-	if err != nil {
-		return 0, err
-	}
-	defer func(source *os.File) {
-		_ = source.Close()
-	}(source)
-
-	destination, err := os.Create(dst)
-	if err != nil {
-		return 0, err
-	}
-	defer func(destination *os.File) {
-		_ = destination.Close()
-	}(destination)
-	nBytes, err := io.Copy(destination, source)
-	return nBytes, err
 }
 
 func Glob(pattern string) ([]string, error) {

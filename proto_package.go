@@ -11,6 +11,7 @@ import (
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
 	"github.com/google/uuid"
+	"github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"math/rand"
@@ -283,7 +284,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		if err != nil {
 			return time.Since(start), fmt.Errorf("error creating %s: %w", holdingDir, err)
 		}
-		_, err = copyFile(file, filepath.Join(holdingDir, filepath.Base(file)))
+		err = copy.Copy(file, filepath.Join(holdingDir, filepath.Base(file)))
 		if err != nil {
 			return time.Since(start), fmt.Errorf("error while copying file to %s: %w", filepath.Join(holdingDir, filepath.Base(file)), err)
 		}
@@ -360,7 +361,7 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	}
 
 	for _, file := range files {
-		_, err = copyFile(file, filepath.Join(buildDir, filepath.Base(file)))
+		err = copy.Copy(file, filepath.Join(buildDir, filepath.Base(file)))
 		if err != nil {
 			return "", err
 		}

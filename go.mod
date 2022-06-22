@@ -9,6 +9,7 @@ require (
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.16.1
+	github.com/otiai10/copy v1.7.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
