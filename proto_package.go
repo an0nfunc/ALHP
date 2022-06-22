@@ -559,21 +559,22 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	var pkg alpm.IPackage
 	if p.Srcinfo != nil {
 		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
-		log.Debugf("trying to find %s on mirror", p.Srcinfo.Packages[0].Pkgname)
 	} else {
 		pkg, err = dbs.FindSatisfier(p.DbPackage.Packages[0])
-		log.Debugf("trying to find %s on mirror", p.DbPackage.Packages[0])
 	}
 	buildManager.alpmMutex.Unlock()
 	if err != nil {
+		log.Debugf("error resolving %s: %v", p.Pkgbase, err)
 		return false
 	}
 
 	if pkg.DB().Name() != p.Repo.String() || pkg.Base() != p.Pkgbase {
+		log.Debugf("%s: repo (%s!=%s) or pkgbase (%s!=%s) does not match", p.Pkgbase, pkg.DB().Name(), p.Repo.String(), pkg.Base(), p.Pkgbase)
 		return false
 	}
 
 	if p.Srcinfo != nil && (p.Srcinfo.Arch[0] != pkg.Architecture() || p.Srcinfo.Pkgbase != pkg.Base()) {
+		log.Debugf("%s: arch (%s!=%s) or pkgbase (%s!=%s) does not match", p.Pkgbase, p.Srcinfo.Arch[0], pkg.Architecture(), pkg.Base(), p.Pkgbase)
 		return false
 	}
 

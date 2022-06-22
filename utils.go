@@ -615,7 +615,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		pkg := &ProtoPackage{
 			Pkgbase:   dbPkg.Pkgbase,
 			Repo:      dbPkg.Repository,
-			FullRepo:  string(dbPkg.Repository) + "-" + dbPkg.March,
+			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
 			DbPackage: dbPkg,
 			March:     dbPkg.March,
 		}
