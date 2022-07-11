@@ -112,7 +112,8 @@ LTO status is visible per package on the package status page.
 
 ### Linux Kernel
 
-ALHP provides patched kernels (except `linux-zen`) that build with `-march=x86-64-vN`. Thanks to
+ALHP provides patched kernels (except `linux-zen`, which has these patches already applied) that build
+with `-march=x86-64-vN`. Thanks to
 [graysky](https://github.com/graysky2) for providing [these patches](https://github.com/graysky2/kernel_compiler_patch).
 
 ### Directly linked kernel modules
