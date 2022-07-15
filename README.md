@@ -149,4 +149,8 @@ I appreciate any money you want to throw my way, but donations are strictly opti
 pay for server costs. Also consider [donating to the **Archlinux Team**](https://archlinux.org/donate/), without their
 work ALHP would not be possible.
 
-[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/anonfunc/)
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/anonfunc/)[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fan0nfunc%2FALHP.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fan0nfunc%2FALHP?ref=badge_shield)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fan0nfunc%2FALHP.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fan0nfunc%2FALHP?ref=badge_large)
