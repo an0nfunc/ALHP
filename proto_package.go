@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"git.harting.dev/ALHP/ALHP.GO/ent"
 	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
@@ -120,6 +121,10 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		if local != nil {
 			log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
 			p.DbPackage.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
+
+			if time.Since(p.DbPackage.BuildTimeStart).Hours() >= 48 {
+				return false, errors.New("package out of date for more than 48 hours")
+			}
 		} else {
 			log.Infof("Delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
 			p.DbPackage.Update().SetSkipReason("waiting for mirror").ExecX(ctx)
