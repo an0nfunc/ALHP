@@ -120,6 +120,8 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		if local != nil {
 			log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
 			p.DbPackage.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
+
+			// TODO: purge packages that stay in this state too long
 		} else {
 			log.Infof("Delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
 			p.DbPackage.Update().SetSkipReason("waiting for mirror").ExecX(ctx)
