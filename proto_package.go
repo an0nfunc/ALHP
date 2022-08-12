@@ -746,7 +746,7 @@ func (p *ProtoPackage) toDbPackage(create bool) {
 	p.DbPackage = dbPkg
 }
 
-func (p ProtoPackage) exists() (bool, error) {
+func (p *ProtoPackage) exists() (bool, error) {
 	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
 	if err != nil {
 		return false, err
