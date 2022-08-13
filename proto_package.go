@@ -640,6 +640,7 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", p.Pkgbase, fPkgbuilds)}
 		}
 		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
+		p.Repo = dbpackage.Repository(iPackage.DB().Name())
 	} else if len(fPkgbuilds) == 0 {
 		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
 	}
@@ -795,6 +796,7 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (bool, alpm.IPackage, stri
 
 		svn2gitVer, err := (&ProtoPackage{
 			Pkgbase: pkg.Base(),
+			March:   p.March,
 		}).SVN2GITVersion(h)
 		if err != nil {
 			return false, nil, "", err

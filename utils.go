@@ -185,8 +185,8 @@ func cleanBuildDir(dir string, chrootDir string) error {
 	return nil
 }
 
-func (b *BuildManager) queue(path string) ([]*ProtoPackage, error) {
-	unsortedQueue, err := genQueue(path)
+func (b *BuildManager) queue() ([]*ProtoPackage, error) {
+	unsortedQueue, err := genQueue()
 	if err != nil {
 		return nil, fmt.Errorf("error building queue: %w", err)
 	}
@@ -218,59 +218,22 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 	return nil
 }
 
-func genQueue(path string) ([]*ProtoPackage, error) {
-	pkgBuilds, err := Glob(path)
+func genQueue() ([]*ProtoPackage, error) {
+	pkgs, err := db.DbPackage.Query().Where(dbpackage.StatusEQ(dbpackage.StatusQueued)).All(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("error scanning for PKGBUILDs: %w", err)
+		return nil, err
 	}
 
 	var pkgbuilds []*ProtoPackage
-	for _, pkgbuild := range pkgBuilds {
-		mPkgbuild := PKGBUILD(pkgbuild)
-		if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
-			continue
-		}
-
-		for _, march := range conf.March {
-			dbPkg, dbErr := db.DbPackage.Query().Where(
-				dbpackage.And(
-					dbpackage.Pkgbase(mPkgbuild.PkgBase()),
-					dbpackage.RepositoryEQ(dbpackage.Repository(mPkgbuild.Repo())),
-					dbpackage.March(march),
-				),
-			).Only(context.Background())
-
-			if ent.IsNotFound(dbErr) {
-				log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
-			} else if err != nil {
-				log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
-			}
-
-			// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
-			// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
-			b3s, err := b3sum(pkgbuild)
-			if err != nil {
-				log.Fatalf("Error hashing PKGBUILD: %v", err)
-			}
-
-			if dbPkg != nil && b3s == dbPkg.Hash {
-				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
-				continue
-			} else if dbPkg != nil && b3s != dbPkg.Hash {
-				log.Debugf("[%s/%s] srcinfo cleared", mPkgbuild.Repo(), mPkgbuild.PkgBase())
-				dbPkg = dbPkg.Update().ClearSrcinfo().SaveX(context.Background())
-			}
-
-			pkgbuilds = append(pkgbuilds, &ProtoPackage{
-				Pkgbuild:  pkgbuild,
-				Pkgbase:   mPkgbuild.PkgBase(),
-				Repo:      dbpackage.Repository(mPkgbuild.Repo()),
-				March:     march,
-				FullRepo:  mPkgbuild.Repo() + "-" + march,
-				Hash:      b3s,
-				DbPackage: dbPkg,
-			})
-		}
+	for _, pkg := range pkgs {
+		pkgbuilds = append(pkgbuilds, &ProtoPackage{
+			Pkgbase:   pkg.Pkgbase,
+			Repo:      pkg.Repository,
+			March:     pkg.March,
+			FullRepo:  pkg.Repository.String() + "-" + pkg.March,
+			Hash:      pkg.Hash,
+			DbPackage: pkg,
+		})
 	}
 	return pkgbuilds, nil
 }

@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -318,6 +319,80 @@ func (b *BuildManager) repoWorker(repo string) {
 	}
 }
 
+func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
+	pkgBuilds, err := Glob(path)
+	if err != nil {
+		return fmt.Errorf("error scanning for PKGBUILDs: %w", err)
+	}
+
+	step := int(float32(len(pkgBuilds)) / float32(runtime.NumCPU()))
+	cur := 0
+	for i := 0; i < runtime.NumCPU(); i++ {
+		if cur+step > len(pkgBuilds) {
+			step -= cur + step - len(pkgBuilds)
+		}
+
+		go func(pkgBuilds []string) {
+			for _, pkgbuild := range pkgBuilds {
+				mPkgbuild := PKGBUILD(pkgbuild)
+				if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
+					continue
+				}
+
+				for _, march := range conf.March {
+					dbPkg, dbErr := db.DbPackage.Query().Where(
+						dbpackage.And(
+							dbpackage.Pkgbase(mPkgbuild.PkgBase()),
+							dbpackage.RepositoryEQ(dbpackage.Repository(mPkgbuild.Repo())),
+							dbpackage.March(march),
+						),
+					).Only(context.Background())
+
+					if ent.IsNotFound(dbErr) {
+						log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
+					} else if err != nil {
+						log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
+					}
+
+					// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
+					// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
+					b3s, err := b3sum(pkgbuild)
+					if err != nil {
+						log.Fatalf("Error hashing PKGBUILD: %v", err)
+					}
+
+					if dbPkg != nil && b3s == dbPkg.Hash {
+						log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
+						continue
+					} else if dbPkg != nil && b3s != dbPkg.Hash {
+						log.Debugf("[%s/%s] srcinfo cleared", mPkgbuild.Repo(), mPkgbuild.PkgBase())
+						dbPkg = dbPkg.Update().ClearSrcinfo().SaveX(context.Background())
+					}
+
+					proto := &ProtoPackage{
+						Pkgbuild:  pkgbuild,
+						Pkgbase:   mPkgbuild.PkgBase(),
+						Repo:      dbpackage.Repository(mPkgbuild.Repo()),
+						March:     march,
+						FullRepo:  mPkgbuild.Repo() + "-" + march,
+						Hash:      b3s,
+						DbPackage: dbPkg,
+					}
+
+					_, err = proto.isEligible(ctx)
+					if err != nil {
+						log.Debugf("unknown status of %s: %v", proto.Pkgbase, err)
+					}
+				}
+			}
+		}(pkgBuilds[cur : cur+step])
+
+		cur += step
+	}
+
+	return nil
+}
+
 func (b *BuildManager) syncWorker(ctx context.Context) error {
 	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0755)
 	if err != nil {
@@ -394,7 +469,11 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		b.alpmMutex.Unlock()
 
 		log.Debugf("generating build-queue for PKGBUILDs found in %s", filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
-		queue, err := b.queue(filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
+		err = b.refreshSRCINFOs(ctx, filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
+		if err != nil {
+			log.Fatalf("error refreshing PKGBUILDs: %v", err)
+		}
+		queue, err := b.queue()
 		if err != nil {
 			log.Warningf("Error building buildQueue: %v", err)
 		} else {
