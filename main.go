@@ -329,9 +329,10 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 	cur := 0
 	wg := sync.WaitGroup{}
 	for i := 0; i < runtime.NumCPU(); i++ {
-		if cur+step > len(pkgBuilds) {
-			step -= cur + step - len(pkgBuilds)
+		if i == runtime.NumCPU()-1 {
+			step = len(pkgBuilds) - cur
 		}
+
 		wg.Add(1)
 		go func(pkgBuilds []string) {
 			defer wg.Done()
