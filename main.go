@@ -327,12 +327,14 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 
 	step := int(float32(len(pkgBuilds)) / float32(runtime.NumCPU()))
 	cur := 0
+	wg := sync.WaitGroup{}
 	for i := 0; i < runtime.NumCPU(); i++ {
 		if cur+step > len(pkgBuilds) {
 			step -= cur + step - len(pkgBuilds)
 		}
-
+		wg.Add(1)
 		go func(pkgBuilds []string) {
+			defer wg.Done()
 			for _, pkgbuild := range pkgBuilds {
 				mPkgbuild := PKGBUILD(pkgbuild)
 				if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
@@ -389,6 +391,8 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 
 		cur += step
 	}
+
+	wg.Wait()
 
 	return nil
 }
