@@ -58,6 +58,7 @@ type DbPackageMutation struct {
 	addio_in           *int64
 	io_out             *int64
 	addio_out          *int64
+	srcinfo            *string
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DbPackage, error)
@@ -1208,6 +1209,55 @@ func (m *DbPackageMutation) ResetIoOut() {
 	delete(m.clearedFields, dbpackage.FieldIoOut)
 }
 
+// SetSrcinfo sets the "srcinfo" field.
+func (m *DbPackageMutation) SetSrcinfo(s string) {
+	m.srcinfo = &s
+}
+
+// Srcinfo returns the value of the "srcinfo" field in the mutation.
+func (m *DbPackageMutation) Srcinfo() (r string, exists bool) {
+	v := m.srcinfo
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSrcinfo returns the old "srcinfo" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldSrcinfo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSrcinfo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSrcinfo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSrcinfo: %w", err)
+	}
+	return oldValue.Srcinfo, nil
+}
+
+// ClearSrcinfo clears the value of the "srcinfo" field.
+func (m *DbPackageMutation) ClearSrcinfo() {
+	m.srcinfo = nil
+	m.clearedFields[dbpackage.FieldSrcinfo] = struct{}{}
+}
+
+// SrcinfoCleared returns if the "srcinfo" field was cleared in this mutation.
+func (m *DbPackageMutation) SrcinfoCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldSrcinfo]
+	return ok
+}
+
+// ResetSrcinfo resets all changes to the "srcinfo" field.
+func (m *DbPackageMutation) ResetSrcinfo() {
+	m.srcinfo = nil
+	delete(m.clearedFields, dbpackage.FieldSrcinfo)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -1227,7 +1277,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -1288,6 +1338,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.io_out != nil {
 		fields = append(fields, dbpackage.FieldIoOut)
 	}
+	if m.srcinfo != nil {
+		fields = append(fields, dbpackage.FieldSrcinfo)
+	}
 	return fields
 }
 
@@ -1336,6 +1389,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.IoIn()
 	case dbpackage.FieldIoOut:
 		return m.IoOut()
+	case dbpackage.FieldSrcinfo:
+		return m.Srcinfo()
 	}
 	return nil, false
 }
@@ -1385,6 +1440,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldIoIn(ctx)
 	case dbpackage.FieldIoOut:
 		return m.OldIoOut(ctx)
+	case dbpackage.FieldSrcinfo:
+		return m.OldSrcinfo(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1534,6 +1591,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIoOut(v)
 		return nil
+	case dbpackage.FieldSrcinfo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSrcinfo(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1678,6 +1742,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldIoOut) {
 		fields = append(fields, dbpackage.FieldIoOut)
 	}
+	if m.FieldCleared(dbpackage.FieldSrcinfo) {
+		fields = append(fields, dbpackage.FieldSrcinfo)
+	}
 	return fields
 }
 
@@ -1742,6 +1809,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldIoOut:
 		m.ClearIoOut()
+		return nil
+	case dbpackage.FieldSrcinfo:
+		m.ClearSrcinfo()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1810,6 +1880,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldIoOut:
 		m.ResetIoOut()
+		return nil
+	case dbpackage.FieldSrcinfo:
+		m.ResetSrcinfo()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

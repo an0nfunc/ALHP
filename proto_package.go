@@ -683,6 +683,15 @@ func (p *ProtoPackage) genSrcinfo() error {
 		return nil
 	}
 
+	if p.DbPackage != nil && p.DbPackage.Srcinfo != nil {
+		var err error
+		p.Srcinfo, err = srcinfo.Parse(*p.DbPackage.Srcinfo)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild))
 	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	res, err := cmd.CombinedOutput()
@@ -696,6 +705,10 @@ func (p *ProtoPackage) genSrcinfo() error {
 	}
 
 	p.Srcinfo = info
+	if p.DbPackage != nil {
+		p.DbPackage = p.DbPackage.Update().SetSrcinfo(string(res)).SaveX(context.Background())
+	}
+
 	return nil
 }
 

@@ -402,6 +402,26 @@ func (dpu *DbPackageUpdate) ClearIoOut() *DbPackageUpdate {
 	return dpu
 }
 
+// SetSrcinfo sets the "srcinfo" field.
+func (dpu *DbPackageUpdate) SetSrcinfo(s string) *DbPackageUpdate {
+	dpu.mutation.SetSrcinfo(s)
+	return dpu
+}
+
+// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableSrcinfo(s *string) *DbPackageUpdate {
+	if s != nil {
+		dpu.SetSrcinfo(*s)
+	}
+	return dpu
+}
+
+// ClearSrcinfo clears the value of the "srcinfo" field.
+func (dpu *DbPackageUpdate) ClearSrcinfo() *DbPackageUpdate {
+	dpu.mutation.ClearSrcinfo()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -777,6 +797,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeInt64,
 			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if value, ok := dpu.mutation.Srcinfo(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfo,
+		})
+	}
+	if dpu.mutation.SrcinfoCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldSrcinfo,
 		})
 	}
 	_spec.Modifiers = dpu.modifiers
@@ -1170,6 +1203,26 @@ func (dpuo *DbPackageUpdateOne) AddIoOut(i int64) *DbPackageUpdateOne {
 // ClearIoOut clears the value of the "io_out" field.
 func (dpuo *DbPackageUpdateOne) ClearIoOut() *DbPackageUpdateOne {
 	dpuo.mutation.ClearIoOut()
+	return dpuo
+}
+
+// SetSrcinfo sets the "srcinfo" field.
+func (dpuo *DbPackageUpdateOne) SetSrcinfo(s string) *DbPackageUpdateOne {
+	dpuo.mutation.SetSrcinfo(s)
+	return dpuo
+}
+
+// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableSrcinfo(s *string) *DbPackageUpdateOne {
+	if s != nil {
+		dpuo.SetSrcinfo(*s)
+	}
+	return dpuo
+}
+
+// ClearSrcinfo clears the value of the "srcinfo" field.
+func (dpuo *DbPackageUpdateOne) ClearSrcinfo() *DbPackageUpdateOne {
+	dpuo.mutation.ClearSrcinfo()
 	return dpuo
 }
 
@@ -1578,6 +1631,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeInt64,
 			Column: dbpackage.FieldIoOut,
+		})
+	}
+	if value, ok := dpuo.mutation.Srcinfo(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfo,
+		})
+	}
+	if dpuo.mutation.SrcinfoCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldSrcinfo,
 		})
 	}
 	_spec.Modifiers = dpuo.modifiers

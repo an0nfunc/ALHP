@@ -268,6 +268,20 @@ func (dpc *DbPackageCreate) SetNillableIoOut(i *int64) *DbPackageCreate {
 	return dpc
 }
 
+// SetSrcinfo sets the "srcinfo" field.
+func (dpc *DbPackageCreate) SetSrcinfo(s string) *DbPackageCreate {
+	dpc.mutation.SetSrcinfo(s)
+	return dpc
+}
+
+// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableSrcinfo(s *string) *DbPackageCreate {
+	if s != nil {
+		dpc.SetSrcinfo(*s)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -586,6 +600,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldIoOut,
 		})
 		_node.IoOut = &value
+	}
+	if value, ok := dpc.mutation.Srcinfo(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfo,
+		})
+		_node.Srcinfo = &value
 	}
 	return _node, _spec
 }

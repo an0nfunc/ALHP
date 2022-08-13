@@ -256,6 +256,9 @@ func genQueue(path string) ([]*ProtoPackage, error) {
 			if dbPkg != nil && b3s == dbPkg.Hash {
 				log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
 				continue
+			} else if dbPkg != nil && b3s != dbPkg.Hash {
+				log.Debugf("[%s/%s] srcinfo cleared", mPkgbuild.Repo(), mPkgbuild.PkgBase())
+				dbPkg = dbPkg.Update().ClearSrcinfo().SaveX(context.Background())
 			}
 
 			pkgbuilds = append(pkgbuilds, &ProtoPackage{
