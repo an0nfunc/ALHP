@@ -640,9 +640,14 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", p.Pkgbase, fPkgbuilds)}
 		}
 		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
-		p.Repo = dbpackage.Repository(iPackage.DB().Name())
 	} else if len(fPkgbuilds) == 0 {
 		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase, filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
+	}
+
+	pPkg := PKGBUILD(fPkgbuilds[0])
+	dbPkg, err := db.DbPackage.Query().Where(dbpackage.RepositoryEQ(dbpackage.Repository(pPkg.Repo())), dbpackage.March(p.March), dbpackage.Pkgbase(p.Pkgbase)).Only(context.Background())
+	if err == nil {
+		return dbPkg.Version, nil
 	}
 
 	cmd := exec.Command("makepkg", "--printsrcinfo")

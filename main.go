@@ -394,7 +394,6 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 	}
 
 	wg.Wait()
-
 	return nil
 }
 
