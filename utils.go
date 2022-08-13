@@ -600,7 +600,6 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	// TODO: remove queued status from packages that are not eligible
 	qPackages, err := db.DbPackage.Query().Where(
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
@@ -635,6 +634,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	log.Debugf("[HK] all tasks finished")
 	return nil
 }
 

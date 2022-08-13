@@ -393,6 +393,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		b.alpmMutex.Unlock()
 
+		log.Debugf("generating build-queue for PKGBUILDs found in %s", filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		queue, err := b.queue(filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		if err != nil {
 			log.Warningf("Error building buildQueue: %v", err)
