@@ -450,6 +450,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		return err
 	}
 
+	log.Debugf("[HK/%s] removing orphans, signature check", fullRepo)
 	for _, path := range packages {
 		mPackage := Package(path)
 
@@ -464,7 +465,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
 		} else if err != nil {
-			log.Warningf("[HK] Problem fetching package from db for %s: %v", path, err)
+			log.Warningf("[HK/%s] Problem fetching package from db for %s: %v", fullRepo, path, err)
 			continue
 		}
 
@@ -534,6 +535,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 	}
 
 	// check all packages from db for existence
+	log.Debugf("[HK/%s] checking existing package-files", fullRepo)
 	dbPackages, err := db.DbPackage.Query().Where(
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
@@ -600,6 +602,8 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		}
 	}
 
+	// check queued packages for eligibility
+	log.Debugf("[HK/%s] check queued packages", fullRepo)
 	qPackages, err := db.DbPackage.Query().Where(
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
@@ -630,11 +634,11 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 
 		_, err := pkg.isEligible(context.Background())
 		if err != nil {
-			log.Warningf("[HK] unable to determine status for %s: %v", dbPkg.Pkgbase, err)
+			log.Warningf("[HK/%s] unable to determine status for %s: %v", fullRepo, dbPkg.Pkgbase, err)
 		}
 	}
 
-	log.Debugf("[HK] all tasks finished")
+	log.Debugf("[HK/%s] all tasks finished", fullRepo)
 	return nil
 }
 
