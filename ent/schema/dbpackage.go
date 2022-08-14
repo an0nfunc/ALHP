@@ -34,6 +34,7 @@ func (DbPackage) Fields() []ent.Field {
 		field.Int64("io_in").Optional().Nillable(),
 		field.Int64("io_out").Optional().Nillable(),
 		field.Text("srcinfo").Optional().Nillable(),
+		field.String("srcinfo_hash").Optional(),
 	}
 }
 

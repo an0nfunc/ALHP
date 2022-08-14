@@ -32,6 +32,7 @@ var (
 		{Name: "io_in", Type: field.TypeInt64, Nullable: true},
 		{Name: "io_out", Type: field.TypeInt64, Nullable: true},
 		{Name: "srcinfo", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "srcinfo_hash", Type: field.TypeString, Nullable: true},
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{

@@ -59,6 +59,8 @@ type DbPackage struct {
 	IoOut *int64 `json:"io_out,omitempty"`
 	// Srcinfo holds the value of the "srcinfo" field.
 	Srcinfo *string `json:"srcinfo,omitempty"`
+	// SrcinfoHash holds the value of the "srcinfo_hash" field.
+	SrcinfoHash string `json:"srcinfo_hash,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -70,7 +72,7 @@ func (*DbPackage) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new([]byte)
 		case dbpackage.FieldID, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols, dbpackage.FieldSrcinfo:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols, dbpackage.FieldSrcinfo, dbpackage.FieldSrcinfoHash:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTimeStart, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
@@ -229,6 +231,12 @@ func (dp *DbPackage) assignValues(columns []string, values []interface{}) error 
 				dp.Srcinfo = new(string)
 				*dp.Srcinfo = value.String
 			}
+		case dbpackage.FieldSrcinfoHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field srcinfo_hash", values[i])
+			} else if value.Valid {
+				dp.SrcinfoHash = value.String
+			}
 		}
 	}
 	return nil
@@ -331,6 +339,9 @@ func (dp *DbPackage) String() string {
 		builder.WriteString("srcinfo=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("srcinfo_hash=")
+	builder.WriteString(dp.SrcinfoHash)
 	builder.WriteByte(')')
 	return builder.String()
 }

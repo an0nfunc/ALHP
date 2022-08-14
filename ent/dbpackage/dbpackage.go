@@ -53,6 +53,8 @@ const (
 	FieldIoOut = "io_out"
 	// FieldSrcinfo holds the string denoting the srcinfo field in the database.
 	FieldSrcinfo = "srcinfo"
+	// FieldSrcinfoHash holds the string denoting the srcinfo_hash field in the database.
+	FieldSrcinfoHash = "srcinfo_hash"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -81,6 +83,7 @@ var Columns = []string{
 	FieldIoIn,
 	FieldIoOut,
 	FieldSrcinfo,
+	FieldSrcinfoHash,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

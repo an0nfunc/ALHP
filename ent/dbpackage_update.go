@@ -422,6 +422,26 @@ func (dpu *DbPackageUpdate) ClearSrcinfo() *DbPackageUpdate {
 	return dpu
 }
 
+// SetSrcinfoHash sets the "srcinfo_hash" field.
+func (dpu *DbPackageUpdate) SetSrcinfoHash(s string) *DbPackageUpdate {
+	dpu.mutation.SetSrcinfoHash(s)
+	return dpu
+}
+
+// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillableSrcinfoHash(s *string) *DbPackageUpdate {
+	if s != nil {
+		dpu.SetSrcinfoHash(*s)
+	}
+	return dpu
+}
+
+// ClearSrcinfoHash clears the value of the "srcinfo_hash" field.
+func (dpu *DbPackageUpdate) ClearSrcinfoHash() *DbPackageUpdate {
+	dpu.mutation.ClearSrcinfoHash()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -810,6 +830,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldSrcinfo,
+		})
+	}
+	if value, ok := dpu.mutation.SrcinfoHash(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfoHash,
+		})
+	}
+	if dpu.mutation.SrcinfoHashCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldSrcinfoHash,
 		})
 	}
 	_spec.Modifiers = dpu.modifiers
@@ -1223,6 +1256,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableSrcinfo(s *string) *DbPackageUpdateOn
 // ClearSrcinfo clears the value of the "srcinfo" field.
 func (dpuo *DbPackageUpdateOne) ClearSrcinfo() *DbPackageUpdateOne {
 	dpuo.mutation.ClearSrcinfo()
+	return dpuo
+}
+
+// SetSrcinfoHash sets the "srcinfo_hash" field.
+func (dpuo *DbPackageUpdateOne) SetSrcinfoHash(s string) *DbPackageUpdateOne {
+	dpuo.mutation.SetSrcinfoHash(s)
+	return dpuo
+}
+
+// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillableSrcinfoHash(s *string) *DbPackageUpdateOne {
+	if s != nil {
+		dpuo.SetSrcinfoHash(*s)
+	}
+	return dpuo
+}
+
+// ClearSrcinfoHash clears the value of the "srcinfo_hash" field.
+func (dpuo *DbPackageUpdateOne) ClearSrcinfoHash() *DbPackageUpdateOne {
+	dpuo.mutation.ClearSrcinfoHash()
 	return dpuo
 }
 
@@ -1644,6 +1697,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldSrcinfo,
+		})
+	}
+	if value, ok := dpuo.mutation.SrcinfoHash(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfoHash,
+		})
+	}
+	if dpuo.mutation.SrcinfoHashCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldSrcinfoHash,
 		})
 	}
 	_spec.Modifiers = dpuo.modifiers

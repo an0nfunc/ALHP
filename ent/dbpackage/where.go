@@ -192,6 +192,13 @@ func Srcinfo(v string) predicate.DbPackage {
 	})
 }
 
+// SrcinfoHash applies equality check predicate on the "srcinfo_hash" field. It's identical to SrcinfoHashEQ.
+func SrcinfoHash(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldSrcinfoHash), v))
+	})
+}
+
 // PkgbaseEQ applies the EQ predicate on the "pkgbase" field.
 func PkgbaseEQ(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -1889,6 +1896,119 @@ func SrcinfoEqualFold(v string) predicate.DbPackage {
 func SrcinfoContainsFold(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldSrcinfo), v))
+	})
+}
+
+// SrcinfoHashEQ applies the EQ predicate on the "srcinfo_hash" field.
+func SrcinfoHashEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashNEQ applies the NEQ predicate on the "srcinfo_hash" field.
+func SrcinfoHashNEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashIn applies the In predicate on the "srcinfo_hash" field.
+func SrcinfoHashIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldSrcinfoHash), v...))
+	})
+}
+
+// SrcinfoHashNotIn applies the NotIn predicate on the "srcinfo_hash" field.
+func SrcinfoHashNotIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldSrcinfoHash), v...))
+	})
+}
+
+// SrcinfoHashGT applies the GT predicate on the "srcinfo_hash" field.
+func SrcinfoHashGT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashGTE applies the GTE predicate on the "srcinfo_hash" field.
+func SrcinfoHashGTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashLT applies the LT predicate on the "srcinfo_hash" field.
+func SrcinfoHashLT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashLTE applies the LTE predicate on the "srcinfo_hash" field.
+func SrcinfoHashLTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashContains applies the Contains predicate on the "srcinfo_hash" field.
+func SrcinfoHashContains(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashHasPrefix applies the HasPrefix predicate on the "srcinfo_hash" field.
+func SrcinfoHashHasPrefix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashHasSuffix applies the HasSuffix predicate on the "srcinfo_hash" field.
+func SrcinfoHashHasSuffix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashIsNil applies the IsNil predicate on the "srcinfo_hash" field.
+func SrcinfoHashIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldSrcinfoHash)))
+	})
+}
+
+// SrcinfoHashNotNil applies the NotNil predicate on the "srcinfo_hash" field.
+func SrcinfoHashNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldSrcinfoHash)))
+	})
+}
+
+// SrcinfoHashEqualFold applies the EqualFold predicate on the "srcinfo_hash" field.
+func SrcinfoHashEqualFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// SrcinfoHashContainsFold applies the ContainsFold predicate on the "srcinfo_hash" field.
+func SrcinfoHashContainsFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldSrcinfoHash), v))
 	})
 }
 

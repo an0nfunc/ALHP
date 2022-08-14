@@ -282,6 +282,20 @@ func (dpc *DbPackageCreate) SetNillableSrcinfo(s *string) *DbPackageCreate {
 	return dpc
 }
 
+// SetSrcinfoHash sets the "srcinfo_hash" field.
+func (dpc *DbPackageCreate) SetSrcinfoHash(s string) *DbPackageCreate {
+	dpc.mutation.SetSrcinfoHash(s)
+	return dpc
+}
+
+// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillableSrcinfoHash(s *string) *DbPackageCreate {
+	if s != nil {
+		dpc.SetSrcinfoHash(*s)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -608,6 +622,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldSrcinfo,
 		})
 		_node.Srcinfo = &value
+	}
+	if value, ok := dpc.mutation.SrcinfoHash(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldSrcinfoHash,
+		})
+		_node.SrcinfoHash = value
 	}
 	return _node, _spec
 }

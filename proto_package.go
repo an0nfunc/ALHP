@@ -715,7 +715,7 @@ func (p *ProtoPackage) genSrcinfo() error {
 
 	p.Srcinfo = info
 	if p.DbPackage != nil {
-		p.DbPackage = p.DbPackage.Update().SetSrcinfo(string(res)).SaveX(context.Background())
+		p.DbPackage = p.DbPackage.Update().SetSrcinfoHash(p.Hash).SetSrcinfo(string(res)).SaveX(context.Background())
 	}
 
 	return nil
