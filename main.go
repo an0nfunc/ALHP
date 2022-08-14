@@ -384,7 +384,8 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 
 					_, err = proto.isEligible(ctx)
 					if err != nil {
-						log.Debugf("unknown status of %s: %v", proto.Pkgbase, err)
+						log.Infof("Unable to determine status for package %s: %v", proto.Pkgbase, err)
+						b.repoPurge[proto.FullRepo] <- []*ProtoPackage{proto}
 					}
 				}
 			}
@@ -497,17 +498,6 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			}
 
 			for _, pkg := range queue {
-				eligible, err := pkg.isEligible(ctx)
-				if err != nil {
-					log.Infof("Unable to determine status for package %s: %v", pkg.Pkgbase, err)
-					b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-					continue
-				}
-				if !eligible {
-					log.Debugf("skipped package %s (%v)", pkg.Pkgbase, err)
-					continue
-				}
-
 				if pkg.Priority() > cutOff && cutOff >= conf.Build.SlowQueueThreshold {
 					slowQueue = append(slowQueue, pkg)
 				} else {
