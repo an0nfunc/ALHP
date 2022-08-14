@@ -442,6 +442,26 @@ func (dpu *DbPackageUpdate) ClearSrcinfoHash() *DbPackageUpdate {
 	return dpu
 }
 
+// SetPkgbuild sets the "pkgbuild" field.
+func (dpu *DbPackageUpdate) SetPkgbuild(s string) *DbPackageUpdate {
+	dpu.mutation.SetPkgbuild(s)
+	return dpu
+}
+
+// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
+func (dpu *DbPackageUpdate) SetNillablePkgbuild(s *string) *DbPackageUpdate {
+	if s != nil {
+		dpu.SetPkgbuild(*s)
+	}
+	return dpu
+}
+
+// ClearPkgbuild clears the value of the "pkgbuild" field.
+func (dpu *DbPackageUpdate) ClearPkgbuild() *DbPackageUpdate {
+	dpu.mutation.ClearPkgbuild()
+	return dpu
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 	return dpu.mutation
@@ -843,6 +863,19 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldSrcinfoHash,
+		})
+	}
+	if value, ok := dpu.mutation.Pkgbuild(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldPkgbuild,
+		})
+	}
+	if dpu.mutation.PkgbuildCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldPkgbuild,
 		})
 	}
 	_spec.Modifiers = dpu.modifiers
@@ -1279,6 +1312,26 @@ func (dpuo *DbPackageUpdateOne) ClearSrcinfoHash() *DbPackageUpdateOne {
 	return dpuo
 }
 
+// SetPkgbuild sets the "pkgbuild" field.
+func (dpuo *DbPackageUpdateOne) SetPkgbuild(s string) *DbPackageUpdateOne {
+	dpuo.mutation.SetPkgbuild(s)
+	return dpuo
+}
+
+// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
+func (dpuo *DbPackageUpdateOne) SetNillablePkgbuild(s *string) *DbPackageUpdateOne {
+	if s != nil {
+		dpuo.SetPkgbuild(*s)
+	}
+	return dpuo
+}
+
+// ClearPkgbuild clears the value of the "pkgbuild" field.
+func (dpuo *DbPackageUpdateOne) ClearPkgbuild() *DbPackageUpdateOne {
+	dpuo.mutation.ClearPkgbuild()
+	return dpuo
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpuo *DbPackageUpdateOne) Mutation() *DbPackageMutation {
 	return dpuo.mutation
@@ -1710,6 +1763,19 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Column: dbpackage.FieldSrcinfoHash,
+		})
+	}
+	if value, ok := dpuo.mutation.Pkgbuild(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldPkgbuild,
+		})
+	}
+	if dpuo.mutation.PkgbuildCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: dbpackage.FieldPkgbuild,
 		})
 	}
 	_spec.Modifiers = dpuo.modifiers

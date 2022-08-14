@@ -185,6 +185,8 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 					if err != nil {
 						log.Infof("Unable to determine status for package %s: %v", proto.Pkgbase, err)
 						b.repoPurge[proto.FullRepo] <- []*ProtoPackage{proto}
+					} else {
+						proto.DbPackage.Update().SetPkgbuild(proto.Pkgbuild)
 					}
 				}
 			}
@@ -313,6 +315,7 @@ func genQueue() ([]*ProtoPackage, error) {
 			FullRepo:  pkg.Repository.String() + "-" + pkg.March,
 			Hash:      pkg.Hash,
 			DbPackage: pkg,
+			Pkgbuild:  pkg.Pkgbuild,
 		})
 	}
 	return pkgbuilds, nil

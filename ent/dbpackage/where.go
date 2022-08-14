@@ -199,6 +199,13 @@ func SrcinfoHash(v string) predicate.DbPackage {
 	})
 }
 
+// Pkgbuild applies equality check predicate on the "pkgbuild" field. It's identical to PkgbuildEQ.
+func Pkgbuild(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldPkgbuild), v))
+	})
+}
+
 // PkgbaseEQ applies the EQ predicate on the "pkgbase" field.
 func PkgbaseEQ(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
@@ -2009,6 +2016,119 @@ func SrcinfoHashEqualFold(v string) predicate.DbPackage {
 func SrcinfoHashContainsFold(v string) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldSrcinfoHash), v))
+	})
+}
+
+// PkgbuildEQ applies the EQ predicate on the "pkgbuild" field.
+func PkgbuildEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildNEQ applies the NEQ predicate on the "pkgbuild" field.
+func PkgbuildNEQ(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildIn applies the In predicate on the "pkgbuild" field.
+func PkgbuildIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldPkgbuild), v...))
+	})
+}
+
+// PkgbuildNotIn applies the NotIn predicate on the "pkgbuild" field.
+func PkgbuildNotIn(vs ...string) predicate.DbPackage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldPkgbuild), v...))
+	})
+}
+
+// PkgbuildGT applies the GT predicate on the "pkgbuild" field.
+func PkgbuildGT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildGTE applies the GTE predicate on the "pkgbuild" field.
+func PkgbuildGTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildLT applies the LT predicate on the "pkgbuild" field.
+func PkgbuildLT(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildLTE applies the LTE predicate on the "pkgbuild" field.
+func PkgbuildLTE(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildContains applies the Contains predicate on the "pkgbuild" field.
+func PkgbuildContains(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildHasPrefix applies the HasPrefix predicate on the "pkgbuild" field.
+func PkgbuildHasPrefix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildHasSuffix applies the HasSuffix predicate on the "pkgbuild" field.
+func PkgbuildHasSuffix(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildIsNil applies the IsNil predicate on the "pkgbuild" field.
+func PkgbuildIsNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldPkgbuild)))
+	})
+}
+
+// PkgbuildNotNil applies the NotNil predicate on the "pkgbuild" field.
+func PkgbuildNotNil() predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldPkgbuild)))
+	})
+}
+
+// PkgbuildEqualFold applies the EqualFold predicate on the "pkgbuild" field.
+func PkgbuildEqualFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldPkgbuild), v))
+	})
+}
+
+// PkgbuildContainsFold applies the ContainsFold predicate on the "pkgbuild" field.
+func PkgbuildContainsFold(v string) predicate.DbPackage {
+	return predicate.DbPackage(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldPkgbuild), v))
 	})
 }
 

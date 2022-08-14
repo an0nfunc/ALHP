@@ -60,6 +60,7 @@ type DbPackageMutation struct {
 	addio_out          *int64
 	srcinfo            *string
 	srcinfo_hash       *string
+	pkgbuild           *string
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DbPackage, error)
@@ -1308,6 +1309,55 @@ func (m *DbPackageMutation) ResetSrcinfoHash() {
 	delete(m.clearedFields, dbpackage.FieldSrcinfoHash)
 }
 
+// SetPkgbuild sets the "pkgbuild" field.
+func (m *DbPackageMutation) SetPkgbuild(s string) {
+	m.pkgbuild = &s
+}
+
+// Pkgbuild returns the value of the "pkgbuild" field in the mutation.
+func (m *DbPackageMutation) Pkgbuild() (r string, exists bool) {
+	v := m.pkgbuild
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPkgbuild returns the old "pkgbuild" field's value of the DbPackage entity.
+// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DbPackageMutation) OldPkgbuild(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPkgbuild is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPkgbuild requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPkgbuild: %w", err)
+	}
+	return oldValue.Pkgbuild, nil
+}
+
+// ClearPkgbuild clears the value of the "pkgbuild" field.
+func (m *DbPackageMutation) ClearPkgbuild() {
+	m.pkgbuild = nil
+	m.clearedFields[dbpackage.FieldPkgbuild] = struct{}{}
+}
+
+// PkgbuildCleared returns if the "pkgbuild" field was cleared in this mutation.
+func (m *DbPackageMutation) PkgbuildCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldPkgbuild]
+	return ok
+}
+
+// ResetPkgbuild resets all changes to the "pkgbuild" field.
+func (m *DbPackageMutation) ResetPkgbuild() {
+	m.pkgbuild = nil
+	delete(m.clearedFields, dbpackage.FieldPkgbuild)
+}
+
 // Where appends a list predicates to the DbPackageMutation builder.
 func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -1327,7 +1377,7 @@ func (m *DbPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -1394,6 +1444,9 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.srcinfo_hash != nil {
 		fields = append(fields, dbpackage.FieldSrcinfoHash)
 	}
+	if m.pkgbuild != nil {
+		fields = append(fields, dbpackage.FieldPkgbuild)
+	}
 	return fields
 }
 
@@ -1446,6 +1499,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.Srcinfo()
 	case dbpackage.FieldSrcinfoHash:
 		return m.SrcinfoHash()
+	case dbpackage.FieldPkgbuild:
+		return m.Pkgbuild()
 	}
 	return nil, false
 }
@@ -1499,6 +1554,8 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldSrcinfo(ctx)
 	case dbpackage.FieldSrcinfoHash:
 		return m.OldSrcinfoHash(ctx)
+	case dbpackage.FieldPkgbuild:
+		return m.OldPkgbuild(ctx)
 	}
 	return nil, fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1662,6 +1719,13 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSrcinfoHash(v)
 		return nil
+	case dbpackage.FieldPkgbuild:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPkgbuild(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)
 }
@@ -1812,6 +1876,9 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldSrcinfoHash) {
 		fields = append(fields, dbpackage.FieldSrcinfoHash)
 	}
+	if m.FieldCleared(dbpackage.FieldPkgbuild) {
+		fields = append(fields, dbpackage.FieldPkgbuild)
+	}
 	return fields
 }
 
@@ -1882,6 +1949,9 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldSrcinfoHash:
 		m.ClearSrcinfoHash()
+		return nil
+	case dbpackage.FieldPkgbuild:
+		m.ClearPkgbuild()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage nullable field %s", name)
@@ -1956,6 +2026,9 @@ func (m *DbPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldSrcinfoHash:
 		m.ResetSrcinfoHash()
+		return nil
+	case dbpackage.FieldPkgbuild:
+		m.ResetPkgbuild()
 		return nil
 	}
 	return fmt.Errorf("unknown DbPackage field %s", name)

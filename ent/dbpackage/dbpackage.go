@@ -55,6 +55,8 @@ const (
 	FieldSrcinfo = "srcinfo"
 	// FieldSrcinfoHash holds the string denoting the srcinfo_hash field in the database.
 	FieldSrcinfoHash = "srcinfo_hash"
+	// FieldPkgbuild holds the string denoting the pkgbuild field in the database.
+	FieldPkgbuild = "pkgbuild"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -84,6 +86,7 @@ var Columns = []string{
 	FieldIoOut,
 	FieldSrcinfo,
 	FieldSrcinfoHash,
+	FieldPkgbuild,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

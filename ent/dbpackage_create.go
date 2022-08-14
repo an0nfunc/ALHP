@@ -296,6 +296,20 @@ func (dpc *DbPackageCreate) SetNillableSrcinfoHash(s *string) *DbPackageCreate {
 	return dpc
 }
 
+// SetPkgbuild sets the "pkgbuild" field.
+func (dpc *DbPackageCreate) SetPkgbuild(s string) *DbPackageCreate {
+	dpc.mutation.SetPkgbuild(s)
+	return dpc
+}
+
+// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
+func (dpc *DbPackageCreate) SetNillablePkgbuild(s *string) *DbPackageCreate {
+	if s != nil {
+		dpc.SetPkgbuild(*s)
+	}
+	return dpc
+}
+
 // Mutation returns the DbPackageMutation object of the builder.
 func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 	return dpc.mutation
@@ -630,6 +644,14 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 			Column: dbpackage.FieldSrcinfoHash,
 		})
 		_node.SrcinfoHash = value
+	}
+	if value, ok := dpc.mutation.Pkgbuild(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: dbpackage.FieldPkgbuild,
+		})
+		_node.Pkgbuild = value
 	}
 	return _node, _spec
 }
