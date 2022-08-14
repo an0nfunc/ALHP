@@ -301,7 +301,8 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 }
 
 func genQueue() ([]*ProtoPackage, error) {
-	pkgs, err := db.DbPackage.Query().Where(dbpackage.StatusEQ(dbpackage.StatusQueued)).All(context.Background())
+	pkgs, err := db.DbPackage.Query().Where(dbpackage.Or(dbpackage.StatusEQ(dbpackage.StatusQueued),
+		dbpackage.StatusEQ(dbpackage.StatusBuild), dbpackage.StatusEQ(dbpackage.StatusBuilding))).All(context.Background())
 	if err != nil {
 		return nil, err
 	}
