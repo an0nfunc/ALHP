@@ -150,6 +150,17 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	workerId := uuid.New()
 	chroot := "build_" + workerId.String()
 
+	if p.Version == "" {
+		if p.Srcinfo == nil {
+			err := p.genSrcinfo()
+			if err != nil {
+				return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
+			}
+		}
+
+		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+	}
+
 	log.Infof("[%s/%s/%s] Build starting", p.FullRepo, p.Pkgbase, p.Version)
 
 	p.toDbPackage(true)
