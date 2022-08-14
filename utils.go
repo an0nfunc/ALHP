@@ -316,6 +316,7 @@ func genQueue() ([]*ProtoPackage, error) {
 			Hash:      pkg.Hash,
 			DbPackage: pkg,
 			Pkgbuild:  pkg.Pkgbuild,
+			Version:   pkg.RepoVersion,
 		})
 	}
 	return pkgbuilds, nil
