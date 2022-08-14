@@ -13,7 +13,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "pkgbase", Type: field.TypeString},
 		{Name: "packages", Type: field.TypeJSON, Nullable: true},
-		{Name: "status", Type: field.TypeEnum, Nullable: true, Enums: []string{"skipped", "failed", "build", "queued", "building", "latest", "signing", "unknown"}, Default: "unknown"},
+		{Name: "status", Type: field.TypeEnum, Nullable: true, Enums: []string{"skipped", "failed", "build", "queued", "delayed", "building", "latest", "signing", "unknown"}, Default: "unknown"},
 		{Name: "skip_reason", Type: field.TypeString, Nullable: true},
 		{Name: "repository", Type: field.TypeEnum, Enums: []string{"extra", "core", "community"}},
 		{Name: "march", Type: field.TypeString},

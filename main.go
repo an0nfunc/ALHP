@@ -498,10 +498,6 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			}
 
 			for _, pkg := range queue {
-				if pkg.DbPackage.SkipReason != "" {
-					continue
-				}
-
 				if pkg.Priority() > cutOff && cutOff >= conf.Build.SlowQueueThreshold {
 					slowQueue = append(slowQueue, pkg)
 				} else {

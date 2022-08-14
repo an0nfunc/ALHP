@@ -112,6 +112,7 @@ const (
 	StatusFailed   Status = "failed"
 	StatusBuild    Status = "build"
 	StatusQueued   Status = "queued"
+	StatusDelayed  Status = "delayed"
 	StatusBuilding Status = "building"
 	StatusLatest   Status = "latest"
 	StatusSigning  Status = "signing"
@@ -125,7 +126,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusSkipped, StatusFailed, StatusBuild, StatusQueued, StatusBuilding, StatusLatest, StatusSigning, StatusUnknown:
+	case StatusSkipped, StatusFailed, StatusBuild, StatusQueued, StatusDelayed, StatusBuilding, StatusLatest, StatusSigning, StatusUnknown:
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for status field: %q", s)

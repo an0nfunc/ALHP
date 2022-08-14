@@ -129,7 +129,7 @@ func statusId2string(s dbpackage.Status) string {
 		return conf.Status.Class.Failed
 	case dbpackage.StatusSigning:
 		return conf.Status.Class.Signing
-	case dbpackage.StatusBuilding:
+	case dbpackage.StatusBuilding, dbpackage.StatusDelayed:
 		return conf.Status.Class.Building
 	default:
 		return conf.Status.Class.Unknown

@@ -120,20 +120,20 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 	if !isLatest {
 		if local != nil {
 			log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)", p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
-			p.DbPackage.Update().SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
+			p.DbPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
 
+			// Returning an error here causes the package to be purged.
+			// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
+			// Worst case would be clients downloading a package update twice, once from their official mirror,
+			// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
+			// in an outdated version.
 			if time.Since(local.BuildDate()).Hours() >= 48 && p.DbPackage.RepoVersion != "" {
 				return false, errors.New("overdue package waiting")
 			}
 		} else {
 			log.Infof("Delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
-			p.DbPackage.Update().SetSkipReason("waiting for mirror").ExecX(ctx)
+			p.DbPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason("waiting for mirror").ExecX(ctx)
 		}
-
-		// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
-		// Worst case would be clients downloading a package update twice, once from their official mirror,
-		// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
-		// in an outdated version.
 		return false, nil
 	}
 
