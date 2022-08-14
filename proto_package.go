@@ -543,6 +543,13 @@ func (p *ProtoPackage) prepareKernelPatches() error {
 }
 
 func (p *ProtoPackage) importKeys() error {
+	if p.Srcinfo == nil {
+		err := p.genSrcinfo()
+		if err != nil {
+			return fmt.Errorf("error generating srcinfo: %w", err)
+		}
+	}
+
 	if p.Srcinfo.ValidPGPKeys != nil {
 		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
 		args = append(args, p.Srcinfo.ValidPGPKeys...)
