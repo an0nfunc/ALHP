@@ -1,5 +1,5 @@
 [Unit]
-Description=Go based Archlinux instructionset enabled repo build manager.
+Description=Go based Archlinux instruction-set enabled repo build manager.
 After=network.target
 
 [Service]
