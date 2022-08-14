@@ -177,7 +177,7 @@ func cleanBuildDir(dir string, chrootDir string) error {
 				return err
 			}
 			_ = os.Remove(chrootDir + ".lock")
-		} else {
+		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("chroot dir was not an directory or failed to stat: %w", err)
 		}
 	}
