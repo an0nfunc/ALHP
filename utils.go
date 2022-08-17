@@ -661,42 +661,6 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	// check packages for eligibility
-	log.Debugf("[HK/%s] check queued packages", fullRepo)
-	qPackages, err := db.DbPackage.Query().Where(
-		dbpackage.And(
-			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
-			dbpackage.March(march),
-			dbpackage.StatusEQ(dbpackage.StatusQueued),
-		)).All(context.Background())
-	if err != nil {
-		return err
-	}
-
-	for _, dbPkg := range qPackages {
-		pkg := &ProtoPackage{
-			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      dbPkg.Repository,
-			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
-			DbPackage: dbPkg,
-			March:     dbPkg.March,
-		}
-
-		var upstream string
-		switch pkg.DbPackage.Repository {
-		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
-			upstream = "upstream-core-extra"
-		case dbpackage.RepositoryCommunity:
-			upstream = "upstream-community"
-		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
-
-		_, err := pkg.isEligible(context.Background())
-		if err != nil {
-			log.Warningf("[HK/%s] unable to determine status for %s: %v", fullRepo, dbPkg.Pkgbase, err)
-		}
-	}
-
 	log.Debugf("[HK/%s] all tasks finished", fullRepo)
 	return nil
 }
