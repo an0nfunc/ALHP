@@ -10,15 +10,16 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.17.0
 	github.com/otiai10/copy v1.7.0
+	github.com/sethvargo/go-retry v0.2.3
 	github.com/sirupsen/logrus v1.9.0
 	github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde
 	gopkg.in/yaml.v2 v2.4.0
 	lukechampine.com/blake3 v1.1.7
 )
 
 require (
-	ariga.io/atlas v0.6.0 // indirect
+	ariga.io/atlas v0.6.3 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
@@ -34,9 +35,9 @@ require (
 	github.com/jackc/pgtype v1.12.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/zclconf/go-cty v1.10.0 // indirect
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
+	github.com/zclconf/go-cty v1.11.0 // indirect
+	golang.org/x/crypto v0.0.0-20220824171710-5757bc0c5503 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
+	golang.org/x/sys v0.0.0-20220823224334-20c2bfdbfe24 // indirect
 	golang.org/x/text v0.3.7 // indirect
 )

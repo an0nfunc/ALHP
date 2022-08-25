@@ -11,6 +11,7 @@ import (
 	"git.harting.dev/ALHP/ALHP.GO/ent/migrate"
 	"github.com/Jguer/go-alpm/v2"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
 	"golang.org/x/sync/semaphore"
@@ -380,11 +381,15 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Fatalf("Error releasing ALPM handle: %v", err)
 		}
-		err = setupChroot()
-		for err != nil {
-			log.Warningf("Unable to upgrade chroot, trying again later.")
-			time.Sleep(time.Minute)
-			err = setupChroot()
+
+		if err := retry.Fibonacci(ctx, 1*time.Second, func(ctx context.Context) error {
+			if err := setupChroot(); err != nil {
+				log.Warningf("Unable to upgrade chroot, trying again later.")
+				return retry.RetryableError(err)
+			}
+			return nil
+		}); err != nil {
+			log.Fatal(err)
 		}
 
 		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
