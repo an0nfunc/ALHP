@@ -398,11 +398,20 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		b.alpmMutex.Unlock()
 
+		// do refreshSRCINFOs twice here
+		// since MirrorLatest depends on the DB being correct, there can be packages queued which should not be queued,
+		// so we check them twice to eliminate those.
 		log.Debugf("generating build-queue for PKGBUILDs found in %s", filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		err = b.refreshSRCINFOs(ctx, filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
 		if err != nil {
 			log.Fatalf("error refreshing PKGBUILDs: %v", err)
 		}
+		log.Debugf("regenerating build-queue for PKGBUILDs found in %s", filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
+		err = b.refreshSRCINFOs(ctx, filepath.Join(conf.Basedir.Work, upstreamDir, "/**/PKGBUILD"))
+		if err != nil {
+			log.Fatalf("error refreshing PKGBUILDs: %v", err)
+		}
+
 		queue, err := b.queue()
 		if err != nil {
 			log.Warningf("Error building buildQueue: %v", err)
