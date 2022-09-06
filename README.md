@@ -150,3 +150,7 @@ pay for server costs. Also consider [donating to the **Archlinux Team**](https:/
 work ALHP would not be possible.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/anonfunc/)
+
+## License and Legal
+
+This project including all of its source files is released under the terms of the GNU General Public License version 2 (only/or any later version). See [LICENSE](https://git.harting.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
