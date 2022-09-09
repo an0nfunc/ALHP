@@ -244,7 +244,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			return time.Since(start), fmt.Errorf("ld error detected, LTO disabled")
 		}
 
-		if reDownloadError.Match(out.Bytes()) || rePortError.Match(out.Bytes()) || reSigError.Match(out.Bytes()) {
+		if reDownloadError.MatchString(out.String()) || rePortError.MatchString(out.String()) || reSigError.MatchString(out.String()) {
 			p.DbPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(ctx)
 			return time.Since(start), fmt.Errorf("known builderror detected")
 		}
