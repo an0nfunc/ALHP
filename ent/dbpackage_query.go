@@ -317,10 +317,10 @@ func (dpq *DbPackageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*D
 		nodes = []*DbPackage{}
 		_spec = dpq.querySpec()
 	)
-	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
+	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*DbPackage).scanValues(nil, columns)
 	}
-	_spec.Assign = func(columns []string, values []interface{}) error {
+	_spec.Assign = func(columns []string, values []any) error {
 		node := &DbPackage{config: dpq.config}
 		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
@@ -353,11 +353,14 @@ func (dpq *DbPackageQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (dpq *DbPackageQuery) sqlExist(ctx context.Context) (bool, error) {
-	n, err := dpq.sqlCount(ctx)
-	if err != nil {
+	switch _, err := dpq.FirstID(ctx); {
+	case IsNotFound(err):
+		return false, nil
+	case err != nil:
 		return false, fmt.Errorf("ent: check existence: %w", err)
+	default:
+		return true, nil
 	}
-	return n > 0, nil
 }
 
 func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
@@ -467,7 +470,7 @@ func (dpgb *DbPackageGroupBy) Aggregate(fns ...AggregateFunc) *DbPackageGroupBy 
 }
 
 // Scan applies the group-by query and scans the result into the given value.
-func (dpgb *DbPackageGroupBy) Scan(ctx context.Context, v interface{}) error {
+func (dpgb *DbPackageGroupBy) Scan(ctx context.Context, v any) error {
 	query, err := dpgb.path(ctx)
 	if err != nil {
 		return err
@@ -476,7 +479,7 @@ func (dpgb *DbPackageGroupBy) Scan(ctx context.Context, v interface{}) error {
 	return dpgb.sqlScan(ctx, v)
 }
 
-func (dpgb *DbPackageGroupBy) sqlScan(ctx context.Context, v interface{}) error {
+func (dpgb *DbPackageGroupBy) sqlScan(ctx context.Context, v any) error {
 	for _, f := range dpgb.fields {
 		if !dbpackage.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("invalid field %q for group-by", f)}
@@ -523,7 +526,7 @@ type DbPackageSelect struct {
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (dps *DbPackageSelect) Scan(ctx context.Context, v interface{}) error {
+func (dps *DbPackageSelect) Scan(ctx context.Context, v any) error {
 	if err := dps.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -531,7 +534,7 @@ func (dps *DbPackageSelect) Scan(ctx context.Context, v interface{}) error {
 	return dps.sqlScan(ctx, v)
 }
 
-func (dps *DbPackageSelect) sqlScan(ctx context.Context, v interface{}) error {
+func (dps *DbPackageSelect) sqlScan(ctx context.Context, v any) error {
 	rows := &sql.Rows{}
 	query, args := dps.sql.Query()
 	if err := dps.driver.Query(ctx, query, args, rows); err != nil {

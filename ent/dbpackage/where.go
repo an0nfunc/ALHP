@@ -33,7 +33,7 @@ func IDNEQ(id int) predicate.DbPackage {
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...int) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		v := make([]interface{}, len(ids))
+		v := make([]any, len(ids))
 		for i := range v {
 			v[i] = ids[i]
 		}
@@ -44,7 +44,7 @@ func IDIn(ids ...int) predicate.DbPackage {
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...int) predicate.DbPackage {
 	return predicate.DbPackage(func(s *sql.Selector) {
-		v := make([]interface{}, len(ids))
+		v := make([]any, len(ids))
 		for i := range v {
 			v[i] = ids[i]
 		}
@@ -222,7 +222,7 @@ func PkgbaseNEQ(v string) predicate.DbPackage {
 
 // PkgbaseIn applies the In predicate on the "pkgbase" field.
 func PkgbaseIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -233,7 +233,7 @@ func PkgbaseIn(vs ...string) predicate.DbPackage {
 
 // PkgbaseNotIn applies the NotIn predicate on the "pkgbase" field.
 func PkgbaseNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -335,7 +335,7 @@ func StatusNEQ(v Status) predicate.DbPackage {
 
 // StatusIn applies the In predicate on the "status" field.
 func StatusIn(vs ...Status) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -346,7 +346,7 @@ func StatusIn(vs ...Status) predicate.DbPackage {
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -385,7 +385,7 @@ func SkipReasonNEQ(v string) predicate.DbPackage {
 
 // SkipReasonIn applies the In predicate on the "skip_reason" field.
 func SkipReasonIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -396,7 +396,7 @@ func SkipReasonIn(vs ...string) predicate.DbPackage {
 
 // SkipReasonNotIn applies the NotIn predicate on the "skip_reason" field.
 func SkipReasonNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -498,7 +498,7 @@ func RepositoryNEQ(v Repository) predicate.DbPackage {
 
 // RepositoryIn applies the In predicate on the "repository" field.
 func RepositoryIn(vs ...Repository) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -509,7 +509,7 @@ func RepositoryIn(vs ...Repository) predicate.DbPackage {
 
 // RepositoryNotIn applies the NotIn predicate on the "repository" field.
 func RepositoryNotIn(vs ...Repository) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -534,7 +534,7 @@ func MarchNEQ(v string) predicate.DbPackage {
 
 // MarchIn applies the In predicate on the "march" field.
 func MarchIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -545,7 +545,7 @@ func MarchIn(vs ...string) predicate.DbPackage {
 
 // MarchNotIn applies the NotIn predicate on the "march" field.
 func MarchNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -633,7 +633,7 @@ func VersionNEQ(v string) predicate.DbPackage {
 
 // VersionIn applies the In predicate on the "version" field.
 func VersionIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -644,7 +644,7 @@ func VersionIn(vs ...string) predicate.DbPackage {
 
 // VersionNotIn applies the NotIn predicate on the "version" field.
 func VersionNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -746,7 +746,7 @@ func RepoVersionNEQ(v string) predicate.DbPackage {
 
 // RepoVersionIn applies the In predicate on the "repo_version" field.
 func RepoVersionIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -757,7 +757,7 @@ func RepoVersionIn(vs ...string) predicate.DbPackage {
 
 // RepoVersionNotIn applies the NotIn predicate on the "repo_version" field.
 func RepoVersionNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -859,7 +859,7 @@ func BuildTimeStartNEQ(v time.Time) predicate.DbPackage {
 
 // BuildTimeStartIn applies the In predicate on the "build_time_start" field.
 func BuildTimeStartIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -870,7 +870,7 @@ func BuildTimeStartIn(vs ...time.Time) predicate.DbPackage {
 
 // BuildTimeStartNotIn applies the NotIn predicate on the "build_time_start" field.
 func BuildTimeStartNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -937,7 +937,7 @@ func UpdatedNEQ(v time.Time) predicate.DbPackage {
 
 // UpdatedIn applies the In predicate on the "updated" field.
 func UpdatedIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -948,7 +948,7 @@ func UpdatedIn(vs ...time.Time) predicate.DbPackage {
 
 // UpdatedNotIn applies the NotIn predicate on the "updated" field.
 func UpdatedNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1015,7 +1015,7 @@ func HashNEQ(v string) predicate.DbPackage {
 
 // HashIn applies the In predicate on the "hash" field.
 func HashIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1026,7 +1026,7 @@ func HashIn(vs ...string) predicate.DbPackage {
 
 // HashNotIn applies the NotIn predicate on the "hash" field.
 func HashNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1128,7 +1128,7 @@ func LtoNEQ(v Lto) predicate.DbPackage {
 
 // LtoIn applies the In predicate on the "lto" field.
 func LtoIn(vs ...Lto) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1139,7 +1139,7 @@ func LtoIn(vs ...Lto) predicate.DbPackage {
 
 // LtoNotIn applies the NotIn predicate on the "lto" field.
 func LtoNotIn(vs ...Lto) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1178,7 +1178,7 @@ func LastVersionBuildNEQ(v string) predicate.DbPackage {
 
 // LastVersionBuildIn applies the In predicate on the "last_version_build" field.
 func LastVersionBuildIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1189,7 +1189,7 @@ func LastVersionBuildIn(vs ...string) predicate.DbPackage {
 
 // LastVersionBuildNotIn applies the NotIn predicate on the "last_version_build" field.
 func LastVersionBuildNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1291,7 +1291,7 @@ func LastVerifiedNEQ(v time.Time) predicate.DbPackage {
 
 // LastVerifiedIn applies the In predicate on the "last_verified" field.
 func LastVerifiedIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1302,7 +1302,7 @@ func LastVerifiedIn(vs ...time.Time) predicate.DbPackage {
 
 // LastVerifiedNotIn applies the NotIn predicate on the "last_verified" field.
 func LastVerifiedNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1369,7 +1369,7 @@ func DebugSymbolsNEQ(v DebugSymbols) predicate.DbPackage {
 
 // DebugSymbolsIn applies the In predicate on the "debug_symbols" field.
 func DebugSymbolsIn(vs ...DebugSymbols) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1380,7 +1380,7 @@ func DebugSymbolsIn(vs ...DebugSymbols) predicate.DbPackage {
 
 // DebugSymbolsNotIn applies the NotIn predicate on the "debug_symbols" field.
 func DebugSymbolsNotIn(vs ...DebugSymbols) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1419,7 +1419,7 @@ func MaxRssNEQ(v int64) predicate.DbPackage {
 
 // MaxRssIn applies the In predicate on the "max_rss" field.
 func MaxRssIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1430,7 +1430,7 @@ func MaxRssIn(vs ...int64) predicate.DbPackage {
 
 // MaxRssNotIn applies the NotIn predicate on the "max_rss" field.
 func MaxRssNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1497,7 +1497,7 @@ func UTimeNEQ(v int64) predicate.DbPackage {
 
 // UTimeIn applies the In predicate on the "u_time" field.
 func UTimeIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1508,7 +1508,7 @@ func UTimeIn(vs ...int64) predicate.DbPackage {
 
 // UTimeNotIn applies the NotIn predicate on the "u_time" field.
 func UTimeNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1575,7 +1575,7 @@ func STimeNEQ(v int64) predicate.DbPackage {
 
 // STimeIn applies the In predicate on the "s_time" field.
 func STimeIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1586,7 +1586,7 @@ func STimeIn(vs ...int64) predicate.DbPackage {
 
 // STimeNotIn applies the NotIn predicate on the "s_time" field.
 func STimeNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1653,7 +1653,7 @@ func IoInNEQ(v int64) predicate.DbPackage {
 
 // IoInIn applies the In predicate on the "io_in" field.
 func IoInIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1664,7 +1664,7 @@ func IoInIn(vs ...int64) predicate.DbPackage {
 
 // IoInNotIn applies the NotIn predicate on the "io_in" field.
 func IoInNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1731,7 +1731,7 @@ func IoOutNEQ(v int64) predicate.DbPackage {
 
 // IoOutIn applies the In predicate on the "io_out" field.
 func IoOutIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1742,7 +1742,7 @@ func IoOutIn(vs ...int64) predicate.DbPackage {
 
 // IoOutNotIn applies the NotIn predicate on the "io_out" field.
 func IoOutNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1809,7 +1809,7 @@ func SrcinfoNEQ(v string) predicate.DbPackage {
 
 // SrcinfoIn applies the In predicate on the "srcinfo" field.
 func SrcinfoIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1820,7 +1820,7 @@ func SrcinfoIn(vs ...string) predicate.DbPackage {
 
 // SrcinfoNotIn applies the NotIn predicate on the "srcinfo" field.
 func SrcinfoNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1922,7 +1922,7 @@ func SrcinfoHashNEQ(v string) predicate.DbPackage {
 
 // SrcinfoHashIn applies the In predicate on the "srcinfo_hash" field.
 func SrcinfoHashIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -1933,7 +1933,7 @@ func SrcinfoHashIn(vs ...string) predicate.DbPackage {
 
 // SrcinfoHashNotIn applies the NotIn predicate on the "srcinfo_hash" field.
 func SrcinfoHashNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -2035,7 +2035,7 @@ func PkgbuildNEQ(v string) predicate.DbPackage {
 
 // PkgbuildIn applies the In predicate on the "pkgbuild" field.
 func PkgbuildIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
@@ -2046,7 +2046,7 @@ func PkgbuildIn(vs ...string) predicate.DbPackage {
 
 // PkgbuildNotIn applies the NotIn predicate on the "pkgbuild" field.
 func PkgbuildNotIn(vs ...string) predicate.DbPackage {
-	v := make([]interface{}, len(vs))
+	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = vs[i]
 	}
