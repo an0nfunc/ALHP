@@ -54,6 +54,7 @@ var (
 	reDownloadError = regexp.MustCompile(`(?m)^error: could not rename .+$`)
 	rePortError     = regexp.MustCompile(`(?m)^OSError: \[Errno 98] Address already in use$`)
 	reSigError      = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
+	reRustLTOError  = regexp.MustCompile(`(?m)^error: options \x60-C (.+)\x60 and \x60-C lto\x60 are incompatible$`)
 )
 
 type BuildManager struct {
@@ -696,8 +697,9 @@ func logHK() error {
 		if err != nil {
 			return err
 		}
+		sLogContent := string(logContent)
 
-		if rePortError.Match(logContent) || reSigError.Match(logContent) || reDownloadError.Match(logContent) {
+		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) {
 			rows, err := db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 			if err != nil {
@@ -707,7 +709,7 @@ func logHK() error {
 			if rows > 0 {
 				log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
 			}
-		} else if reLdError.Match(logContent) {
+		} else if reLdError.MatchString(sLogContent) || reRustLTOError.MatchString(sLogContent) {
 			rows, err := db.DbPackage.Update().Where(
 				dbpackage.And(
 					dbpackage.Pkgbase(pkg.Pkgbase),

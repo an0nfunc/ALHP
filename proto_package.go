@@ -239,9 +239,9 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			return time.Since(start), ctx.Err()
 		}
 
-		if p.DbPackage.Lto != dbpackage.LtoAutoDisabled && p.DbPackage.Lto != dbpackage.LtoDisabled && reLdError.Match(out.Bytes()) {
+		if p.DbPackage.Lto != dbpackage.LtoAutoDisabled && p.DbPackage.Lto != dbpackage.LtoDisabled && (reLdError.MatchString(out.String()) || reRustLTOError.MatchString(out.String())) {
 			p.DbPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(ctx)
-			return time.Since(start), fmt.Errorf("ld error detected, LTO disabled")
+			return time.Since(start), fmt.Errorf("ld/lto-incomp error detected, LTO disabled")
 		}
 
 		if reDownloadError.MatchString(out.String()) || rePortError.MatchString(out.String()) || reSigError.MatchString(out.String()) {
