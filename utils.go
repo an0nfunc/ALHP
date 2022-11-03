@@ -536,7 +536,8 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		case dbpackage.RepositoryCommunity:
 			upstream = "upstream-community"
 		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos", pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos",
+			pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 
 		// check if package is still part of repo
 		dbs, err := alpmHandle.SyncDBs()
@@ -544,11 +545,12 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			return err
 		}
 		buildManager.alpmMutex.Lock()
-		pkgResolved, err := dbs.FindSatisfier(dbPkg.Packages[0])
+		pkgResolved, err := dbs.FindSatisfier(mPackage.Name())
 		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() || pkgResolved.Architecture() != pkg.Arch {
+		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
+			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
 			// package not found on mirror/db -> not part of any repo anymore
-			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, pkg.Pkgbase)
+			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, mPackage.Name())
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
 			if err != nil {
