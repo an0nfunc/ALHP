@@ -35,6 +35,7 @@ type DbPackageMutation struct {
 	id                 *int
 	pkgbase            *string
 	packages           *[]string
+	appendpackages     []string
 	status             *dbpackage.Status
 	skip_reason        *string
 	repository         *dbpackage.Repository
@@ -204,6 +205,7 @@ func (m *DbPackageMutation) ResetPkgbase() {
 // SetPackages sets the "packages" field.
 func (m *DbPackageMutation) SetPackages(s []string) {
 	m.packages = &s
+	m.appendpackages = nil
 }
 
 // Packages returns the value of the "packages" field in the mutation.
@@ -232,9 +234,23 @@ func (m *DbPackageMutation) OldPackages(ctx context.Context) (v []string, err er
 	return oldValue.Packages, nil
 }
 
+// AppendPackages adds s to the "packages" field.
+func (m *DbPackageMutation) AppendPackages(s []string) {
+	m.appendpackages = append(m.appendpackages, s...)
+}
+
+// AppendedPackages returns the list of values that were appended to the "packages" field in this mutation.
+func (m *DbPackageMutation) AppendedPackages() ([]string, bool) {
+	if len(m.appendpackages) == 0 {
+		return nil, false
+	}
+	return m.appendpackages, true
+}
+
 // ClearPackages clears the value of the "packages" field.
 func (m *DbPackageMutation) ClearPackages() {
 	m.packages = nil
+	m.appendpackages = nil
 	m.clearedFields[dbpackage.FieldPackages] = struct{}{}
 }
 
@@ -247,6 +263,7 @@ func (m *DbPackageMutation) PackagesCleared() bool {
 // ResetPackages resets all changes to the "packages" field.
 func (m *DbPackageMutation) ResetPackages() {
 	m.packages = nil
+	m.appendpackages = nil
 	delete(m.clearedFields, dbpackage.FieldPackages)
 }
 

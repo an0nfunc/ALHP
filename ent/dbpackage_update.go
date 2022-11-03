@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
@@ -32,6 +33,12 @@ func (dpu *DbPackageUpdate) Where(ps ...predicate.DbPackage) *DbPackageUpdate {
 // SetPackages sets the "packages" field.
 func (dpu *DbPackageUpdate) SetPackages(s []string) *DbPackageUpdate {
 	dpu.mutation.SetPackages(s)
+	return dpu
+}
+
+// AppendPackages appends s to the "packages" field.
+func (dpu *DbPackageUpdate) AppendPackages(s []string) *DbPackageUpdate {
+	dpu.mutation.AppendPackages(s)
 	return dpu
 }
 
@@ -577,308 +584,149 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 	}
 	if value, ok := dpu.mutation.Packages(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Value:  value,
-			Column: dbpackage.FieldPackages,
+		_spec.SetField(dbpackage.FieldPackages, field.TypeJSON, value)
+	}
+	if value, ok := dpu.mutation.AppendedPackages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, dbpackage.FieldPackages, value)
 		})
 	}
 	if dpu.mutation.PackagesCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Column: dbpackage.FieldPackages,
-		})
+		_spec.ClearField(dbpackage.FieldPackages, field.TypeJSON)
 	}
 	if value, ok := dpu.mutation.Status(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldStatus,
-		})
+		_spec.SetField(dbpackage.FieldStatus, field.TypeEnum, value)
 	}
 	if dpu.mutation.StatusCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldStatus,
-		})
+		_spec.ClearField(dbpackage.FieldStatus, field.TypeEnum)
 	}
 	if value, ok := dpu.mutation.SkipReason(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSkipReason,
-		})
+		_spec.SetField(dbpackage.FieldSkipReason, field.TypeString, value)
 	}
 	if dpu.mutation.SkipReasonCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSkipReason,
-		})
+		_spec.ClearField(dbpackage.FieldSkipReason, field.TypeString)
 	}
 	if value, ok := dpu.mutation.Repository(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldRepository,
-		})
+		_spec.SetField(dbpackage.FieldRepository, field.TypeEnum, value)
 	}
 	if value, ok := dpu.mutation.Version(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldVersion,
-		})
+		_spec.SetField(dbpackage.FieldVersion, field.TypeString, value)
 	}
 	if dpu.mutation.VersionCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldVersion,
-		})
+		_spec.ClearField(dbpackage.FieldVersion, field.TypeString)
 	}
 	if value, ok := dpu.mutation.RepoVersion(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldRepoVersion,
-		})
+		_spec.SetField(dbpackage.FieldRepoVersion, field.TypeString, value)
 	}
 	if dpu.mutation.RepoVersionCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldRepoVersion,
-		})
+		_spec.ClearField(dbpackage.FieldRepoVersion, field.TypeString)
 	}
 	if value, ok := dpu.mutation.BuildTimeStart(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeStart,
-		})
+		_spec.SetField(dbpackage.FieldBuildTimeStart, field.TypeTime, value)
 	}
 	if dpu.mutation.BuildTimeStartCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTimeStart,
-		})
+		_spec.ClearField(dbpackage.FieldBuildTimeStart, field.TypeTime)
 	}
 	if value, ok := dpu.mutation.Updated(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldUpdated,
-		})
+		_spec.SetField(dbpackage.FieldUpdated, field.TypeTime, value)
 	}
 	if dpu.mutation.UpdatedCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldUpdated,
-		})
+		_spec.ClearField(dbpackage.FieldUpdated, field.TypeTime)
 	}
 	if value, ok := dpu.mutation.Hash(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldHash,
-		})
+		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
 	}
 	if dpu.mutation.HashCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldHash,
-		})
+		_spec.ClearField(dbpackage.FieldHash, field.TypeString)
 	}
 	if value, ok := dpu.mutation.Lto(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldLto,
-		})
+		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
 	}
 	if dpu.mutation.LtoCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldLto,
-		})
+		_spec.ClearField(dbpackage.FieldLto, field.TypeEnum)
 	}
 	if value, ok := dpu.mutation.LastVersionBuild(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldLastVersionBuild,
-		})
+		_spec.SetField(dbpackage.FieldLastVersionBuild, field.TypeString, value)
 	}
 	if dpu.mutation.LastVersionBuildCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldLastVersionBuild,
-		})
+		_spec.ClearField(dbpackage.FieldLastVersionBuild, field.TypeString)
 	}
 	if value, ok := dpu.mutation.LastVerified(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldLastVerified,
-		})
+		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)
 	}
 	if dpu.mutation.LastVerifiedCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldLastVerified,
-		})
+		_spec.ClearField(dbpackage.FieldLastVerified, field.TypeTime)
 	}
 	if value, ok := dpu.mutation.DebugSymbols(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldDebugSymbols,
-		})
+		_spec.SetField(dbpackage.FieldDebugSymbols, field.TypeEnum, value)
 	}
 	if dpu.mutation.DebugSymbolsCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldDebugSymbols,
-		})
+		_spec.ClearField(dbpackage.FieldDebugSymbols, field.TypeEnum)
 	}
 	if value, ok := dpu.mutation.MaxRss(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.SetField(dbpackage.FieldMaxRss, field.TypeInt64, value)
 	}
 	if value, ok := dpu.mutation.AddedMaxRss(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.AddField(dbpackage.FieldMaxRss, field.TypeInt64, value)
 	}
 	if dpu.mutation.MaxRssCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.ClearField(dbpackage.FieldMaxRss, field.TypeInt64)
 	}
 	if value, ok := dpu.mutation.UTime(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.SetField(dbpackage.FieldUTime, field.TypeInt64, value)
 	}
 	if value, ok := dpu.mutation.AddedUTime(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.AddField(dbpackage.FieldUTime, field.TypeInt64, value)
 	}
 	if dpu.mutation.UTimeCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.ClearField(dbpackage.FieldUTime, field.TypeInt64)
 	}
 	if value, ok := dpu.mutation.STime(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.SetField(dbpackage.FieldSTime, field.TypeInt64, value)
 	}
 	if value, ok := dpu.mutation.AddedSTime(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.AddField(dbpackage.FieldSTime, field.TypeInt64, value)
 	}
 	if dpu.mutation.STimeCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.ClearField(dbpackage.FieldSTime, field.TypeInt64)
 	}
 	if value, ok := dpu.mutation.IoIn(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.SetField(dbpackage.FieldIoIn, field.TypeInt64, value)
 	}
 	if value, ok := dpu.mutation.AddedIoIn(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.AddField(dbpackage.FieldIoIn, field.TypeInt64, value)
 	}
 	if dpu.mutation.IoInCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.ClearField(dbpackage.FieldIoIn, field.TypeInt64)
 	}
 	if value, ok := dpu.mutation.IoOut(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.SetField(dbpackage.FieldIoOut, field.TypeInt64, value)
 	}
 	if value, ok := dpu.mutation.AddedIoOut(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.AddField(dbpackage.FieldIoOut, field.TypeInt64, value)
 	}
 	if dpu.mutation.IoOutCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.ClearField(dbpackage.FieldIoOut, field.TypeInt64)
 	}
 	if value, ok := dpu.mutation.Srcinfo(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfo,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
 	}
 	if dpu.mutation.SrcinfoCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSrcinfo,
-		})
+		_spec.ClearField(dbpackage.FieldSrcinfo, field.TypeString)
 	}
 	if value, ok := dpu.mutation.SrcinfoHash(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfoHash,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
 	}
 	if dpu.mutation.SrcinfoHashCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSrcinfoHash,
-		})
+		_spec.ClearField(dbpackage.FieldSrcinfoHash, field.TypeString)
 	}
 	if value, ok := dpu.mutation.Pkgbuild(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldPkgbuild,
-		})
+		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
 	}
 	if dpu.mutation.PkgbuildCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldPkgbuild,
-		})
+		_spec.ClearField(dbpackage.FieldPkgbuild, field.TypeString)
 	}
-	_spec.Modifiers = dpu.modifiers
+	_spec.AddModifiers(dpu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dbpackage.Label}
@@ -902,6 +750,12 @@ type DbPackageUpdateOne struct {
 // SetPackages sets the "packages" field.
 func (dpuo *DbPackageUpdateOne) SetPackages(s []string) *DbPackageUpdateOne {
 	dpuo.mutation.SetPackages(s)
+	return dpuo
+}
+
+// AppendPackages appends s to the "packages" field.
+func (dpuo *DbPackageUpdateOne) AppendPackages(s []string) *DbPackageUpdateOne {
+	dpuo.mutation.AppendPackages(s)
 	return dpuo
 }
 
@@ -1477,308 +1331,149 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		}
 	}
 	if value, ok := dpuo.mutation.Packages(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Value:  value,
-			Column: dbpackage.FieldPackages,
+		_spec.SetField(dbpackage.FieldPackages, field.TypeJSON, value)
+	}
+	if value, ok := dpuo.mutation.AppendedPackages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, dbpackage.FieldPackages, value)
 		})
 	}
 	if dpuo.mutation.PackagesCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Column: dbpackage.FieldPackages,
-		})
+		_spec.ClearField(dbpackage.FieldPackages, field.TypeJSON)
 	}
 	if value, ok := dpuo.mutation.Status(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldStatus,
-		})
+		_spec.SetField(dbpackage.FieldStatus, field.TypeEnum, value)
 	}
 	if dpuo.mutation.StatusCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldStatus,
-		})
+		_spec.ClearField(dbpackage.FieldStatus, field.TypeEnum)
 	}
 	if value, ok := dpuo.mutation.SkipReason(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSkipReason,
-		})
+		_spec.SetField(dbpackage.FieldSkipReason, field.TypeString, value)
 	}
 	if dpuo.mutation.SkipReasonCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSkipReason,
-		})
+		_spec.ClearField(dbpackage.FieldSkipReason, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.Repository(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldRepository,
-		})
+		_spec.SetField(dbpackage.FieldRepository, field.TypeEnum, value)
 	}
 	if value, ok := dpuo.mutation.Version(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldVersion,
-		})
+		_spec.SetField(dbpackage.FieldVersion, field.TypeString, value)
 	}
 	if dpuo.mutation.VersionCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldVersion,
-		})
+		_spec.ClearField(dbpackage.FieldVersion, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.RepoVersion(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldRepoVersion,
-		})
+		_spec.SetField(dbpackage.FieldRepoVersion, field.TypeString, value)
 	}
 	if dpuo.mutation.RepoVersionCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldRepoVersion,
-		})
+		_spec.ClearField(dbpackage.FieldRepoVersion, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.BuildTimeStart(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeStart,
-		})
+		_spec.SetField(dbpackage.FieldBuildTimeStart, field.TypeTime, value)
 	}
 	if dpuo.mutation.BuildTimeStartCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldBuildTimeStart,
-		})
+		_spec.ClearField(dbpackage.FieldBuildTimeStart, field.TypeTime)
 	}
 	if value, ok := dpuo.mutation.Updated(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldUpdated,
-		})
+		_spec.SetField(dbpackage.FieldUpdated, field.TypeTime, value)
 	}
 	if dpuo.mutation.UpdatedCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldUpdated,
-		})
+		_spec.ClearField(dbpackage.FieldUpdated, field.TypeTime)
 	}
 	if value, ok := dpuo.mutation.Hash(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldHash,
-		})
+		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
 	}
 	if dpuo.mutation.HashCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldHash,
-		})
+		_spec.ClearField(dbpackage.FieldHash, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.Lto(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldLto,
-		})
+		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
 	}
 	if dpuo.mutation.LtoCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldLto,
-		})
+		_spec.ClearField(dbpackage.FieldLto, field.TypeEnum)
 	}
 	if value, ok := dpuo.mutation.LastVersionBuild(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldLastVersionBuild,
-		})
+		_spec.SetField(dbpackage.FieldLastVersionBuild, field.TypeString, value)
 	}
 	if dpuo.mutation.LastVersionBuildCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldLastVersionBuild,
-		})
+		_spec.ClearField(dbpackage.FieldLastVersionBuild, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.LastVerified(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldLastVerified,
-		})
+		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)
 	}
 	if dpuo.mutation.LastVerifiedCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Column: dbpackage.FieldLastVerified,
-		})
+		_spec.ClearField(dbpackage.FieldLastVerified, field.TypeTime)
 	}
 	if value, ok := dpuo.mutation.DebugSymbols(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldDebugSymbols,
-		})
+		_spec.SetField(dbpackage.FieldDebugSymbols, field.TypeEnum, value)
 	}
 	if dpuo.mutation.DebugSymbolsCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Column: dbpackage.FieldDebugSymbols,
-		})
+		_spec.ClearField(dbpackage.FieldDebugSymbols, field.TypeEnum)
 	}
 	if value, ok := dpuo.mutation.MaxRss(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.SetField(dbpackage.FieldMaxRss, field.TypeInt64, value)
 	}
 	if value, ok := dpuo.mutation.AddedMaxRss(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.AddField(dbpackage.FieldMaxRss, field.TypeInt64, value)
 	}
 	if dpuo.mutation.MaxRssCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.ClearField(dbpackage.FieldMaxRss, field.TypeInt64)
 	}
 	if value, ok := dpuo.mutation.UTime(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.SetField(dbpackage.FieldUTime, field.TypeInt64, value)
 	}
 	if value, ok := dpuo.mutation.AddedUTime(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.AddField(dbpackage.FieldUTime, field.TypeInt64, value)
 	}
 	if dpuo.mutation.UTimeCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.ClearField(dbpackage.FieldUTime, field.TypeInt64)
 	}
 	if value, ok := dpuo.mutation.STime(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.SetField(dbpackage.FieldSTime, field.TypeInt64, value)
 	}
 	if value, ok := dpuo.mutation.AddedSTime(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.AddField(dbpackage.FieldSTime, field.TypeInt64, value)
 	}
 	if dpuo.mutation.STimeCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.ClearField(dbpackage.FieldSTime, field.TypeInt64)
 	}
 	if value, ok := dpuo.mutation.IoIn(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.SetField(dbpackage.FieldIoIn, field.TypeInt64, value)
 	}
 	if value, ok := dpuo.mutation.AddedIoIn(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.AddField(dbpackage.FieldIoIn, field.TypeInt64, value)
 	}
 	if dpuo.mutation.IoInCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.ClearField(dbpackage.FieldIoIn, field.TypeInt64)
 	}
 	if value, ok := dpuo.mutation.IoOut(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.SetField(dbpackage.FieldIoOut, field.TypeInt64, value)
 	}
 	if value, ok := dpuo.mutation.AddedIoOut(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.AddField(dbpackage.FieldIoOut, field.TypeInt64, value)
 	}
 	if dpuo.mutation.IoOutCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.ClearField(dbpackage.FieldIoOut, field.TypeInt64)
 	}
 	if value, ok := dpuo.mutation.Srcinfo(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfo,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
 	}
 	if dpuo.mutation.SrcinfoCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSrcinfo,
-		})
+		_spec.ClearField(dbpackage.FieldSrcinfo, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.SrcinfoHash(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfoHash,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
 	}
 	if dpuo.mutation.SrcinfoHashCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldSrcinfoHash,
-		})
+		_spec.ClearField(dbpackage.FieldSrcinfoHash, field.TypeString)
 	}
 	if value, ok := dpuo.mutation.Pkgbuild(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldPkgbuild,
-		})
+		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
 	}
 	if dpuo.mutation.PkgbuildCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Column: dbpackage.FieldPkgbuild,
-		})
+		_spec.ClearField(dbpackage.FieldPkgbuild, field.TypeString)
 	}
-	_spec.Modifiers = dpuo.modifiers
+	_spec.AddModifiers(dpuo.modifiers...)
 	_node = &DbPackage{config: dpuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

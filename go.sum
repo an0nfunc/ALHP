@@ -1,7 +1,7 @@
 ariga.io/atlas v0.8.1 h1:eTZS+qyBpqMTkCbatFquYXIqGPAIEzjQzkVXlOwkcEY=
 ariga.io/atlas v0.8.1/go.mod h1:ft47uSh5hWGDCmQC9DsztZg6Xk+KagM5Ts/mZYKb9JE=
-entgo.io/ent v0.11.3 h1:F5FBGAWiDCGder7YT+lqMnyzXl6d0xU3xMBM/SO3CMc=
-entgo.io/ent v0.11.3/go.mod h1:mvDhvynOzAsOe7anH7ynPPtMjA/eeXP96kAfweevyxc=
+entgo.io/ent v0.11.4 h1:grwVY0fp31BZ6oEo3YrXenAuv8VJmEw7F/Bi6WqeH3Q=
+entgo.io/ent v0.11.4/go.mod h1:fnQIXL36RYnCk/9nvG4aE7YHBFZhCycfh7wMjY5p7SE=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/Jguer/go-alpm/v2 v2.1.2 h1:CGTIxzuEpT9Q3a7IBrx0E6acoYoaHX2Z93UOApPDhgU=
@@ -112,7 +112,7 @@ github.com/mattn/go-colorable v0.1.6/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope
 github.com/mattn/go-isatty v0.0.5/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.7/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
-github.com/mattn/go-sqlite3 v1.14.15 h1:vfoHhTN1af61xCRSWzFIWzx2YskyMTwHLrExkBOjvxI=
+github.com/mattn/go-sqlite3 v1.14.16 h1:yOQRA0RpS5PFz/oikGwBEqvAWhWg5ufRz4ETLjwpU1Y=
 github.com/mitchellh/go-wordwrap v1.0.1 h1:TLuKupo69TCn6TQSyGxwI1EblZZEsQ0vMlAFQflz0v0=
 github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTSsCt+hzestvNj0=
 github.com/otiai10/copy v1.7.0 h1:hVoPiN+t+7d2nzzwMiDHPSOogsWAStewq3TwU05+clE=

@@ -178,7 +178,7 @@ func (c *DbPackageClient) DeleteOne(dp *DbPackage) *DbPackageDeleteOne {
 	return c.DeleteOneID(dp.ID)
 }
 
-// DeleteOne returns a builder for deleting the given entity by its id.
+// DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *DbPackageClient) DeleteOneID(id int) *DbPackageDeleteOne {
 	builder := c.Delete().Where(dbpackage.ID(id))
 	builder.mutation.id = &id

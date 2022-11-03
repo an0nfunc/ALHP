@@ -470,187 +470,95 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 		}
 	)
 	if value, ok := dpc.mutation.Pkgbase(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldPkgbase,
-		})
+		_spec.SetField(dbpackage.FieldPkgbase, field.TypeString, value)
 		_node.Pkgbase = value
 	}
 	if value, ok := dpc.mutation.Packages(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Value:  value,
-			Column: dbpackage.FieldPackages,
-		})
+		_spec.SetField(dbpackage.FieldPackages, field.TypeJSON, value)
 		_node.Packages = value
 	}
 	if value, ok := dpc.mutation.Status(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldStatus,
-		})
+		_spec.SetField(dbpackage.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
 	if value, ok := dpc.mutation.SkipReason(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSkipReason,
-		})
+		_spec.SetField(dbpackage.FieldSkipReason, field.TypeString, value)
 		_node.SkipReason = value
 	}
 	if value, ok := dpc.mutation.Repository(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldRepository,
-		})
+		_spec.SetField(dbpackage.FieldRepository, field.TypeEnum, value)
 		_node.Repository = value
 	}
 	if value, ok := dpc.mutation.March(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldMarch,
-		})
+		_spec.SetField(dbpackage.FieldMarch, field.TypeString, value)
 		_node.March = value
 	}
 	if value, ok := dpc.mutation.Version(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldVersion,
-		})
+		_spec.SetField(dbpackage.FieldVersion, field.TypeString, value)
 		_node.Version = value
 	}
 	if value, ok := dpc.mutation.RepoVersion(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldRepoVersion,
-		})
+		_spec.SetField(dbpackage.FieldRepoVersion, field.TypeString, value)
 		_node.RepoVersion = value
 	}
 	if value, ok := dpc.mutation.BuildTimeStart(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldBuildTimeStart,
-		})
+		_spec.SetField(dbpackage.FieldBuildTimeStart, field.TypeTime, value)
 		_node.BuildTimeStart = value
 	}
 	if value, ok := dpc.mutation.Updated(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldUpdated,
-		})
+		_spec.SetField(dbpackage.FieldUpdated, field.TypeTime, value)
 		_node.Updated = value
 	}
 	if value, ok := dpc.mutation.Hash(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldHash,
-		})
+		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
 		_node.Hash = value
 	}
 	if value, ok := dpc.mutation.Lto(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldLto,
-		})
+		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
 		_node.Lto = value
 	}
 	if value, ok := dpc.mutation.LastVersionBuild(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldLastVersionBuild,
-		})
+		_spec.SetField(dbpackage.FieldLastVersionBuild, field.TypeString, value)
 		_node.LastVersionBuild = value
 	}
 	if value, ok := dpc.mutation.LastVerified(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: dbpackage.FieldLastVerified,
-		})
+		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)
 		_node.LastVerified = value
 	}
 	if value, ok := dpc.mutation.DebugSymbols(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: dbpackage.FieldDebugSymbols,
-		})
+		_spec.SetField(dbpackage.FieldDebugSymbols, field.TypeEnum, value)
 		_node.DebugSymbols = value
 	}
 	if value, ok := dpc.mutation.MaxRss(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldMaxRss,
-		})
+		_spec.SetField(dbpackage.FieldMaxRss, field.TypeInt64, value)
 		_node.MaxRss = &value
 	}
 	if value, ok := dpc.mutation.UTime(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldUTime,
-		})
+		_spec.SetField(dbpackage.FieldUTime, field.TypeInt64, value)
 		_node.UTime = &value
 	}
 	if value, ok := dpc.mutation.STime(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldSTime,
-		})
+		_spec.SetField(dbpackage.FieldSTime, field.TypeInt64, value)
 		_node.STime = &value
 	}
 	if value, ok := dpc.mutation.IoIn(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoIn,
-		})
+		_spec.SetField(dbpackage.FieldIoIn, field.TypeInt64, value)
 		_node.IoIn = &value
 	}
 	if value, ok := dpc.mutation.IoOut(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: dbpackage.FieldIoOut,
-		})
+		_spec.SetField(dbpackage.FieldIoOut, field.TypeInt64, value)
 		_node.IoOut = &value
 	}
 	if value, ok := dpc.mutation.Srcinfo(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfo,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
 		_node.Srcinfo = &value
 	}
 	if value, ok := dpc.mutation.SrcinfoHash(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldSrcinfoHash,
-		})
+		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
 		_node.SrcinfoHash = value
 	}
 	if value, ok := dpc.mutation.Pkgbuild(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: dbpackage.FieldPkgbuild,
-		})
+		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
 		_node.Pkgbuild = value
 	}
 	return _node, _spec

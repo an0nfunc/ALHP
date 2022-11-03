@@ -3,7 +3,7 @@ module git.harting.dev/ALHP/ALHP.GO
 go 1.18
 
 require (
-	entgo.io/ent v0.11.3
+	entgo.io/ent v0.11.4
 	github.com/Jguer/go-alpm/v2 v2.1.2
 	github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5
 	github.com/Morganamilo/go-srcinfo v1.0.0

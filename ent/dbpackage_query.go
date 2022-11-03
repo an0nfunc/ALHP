@@ -296,6 +296,11 @@ func (dpq *DbPackageQuery) Select(fields ...string) *DbPackageSelect {
 	return selbuild
 }
 
+// Aggregate returns a DbPackageSelect configured with the given aggregations.
+func (dpq *DbPackageQuery) Aggregate(fns ...AggregateFunc) *DbPackageSelect {
+	return dpq.Select().Aggregate(fns...)
+}
+
 func (dpq *DbPackageQuery) prepareQuery(ctx context.Context) error {
 	for _, f := range dpq.fields {
 		if !dbpackage.ValidColumn(f) {
@@ -504,8 +509,6 @@ func (dpgb *DbPackageGroupBy) sqlQuery() *sql.Selector {
 	for _, fn := range dpgb.fns {
 		aggregation = append(aggregation, fn(selector))
 	}
-	// If no columns were selected in a custom aggregation function, the default
-	// selection is the fields used for "group-by", and the aggregation functions.
 	if len(selector.SelectedColumns()) == 0 {
 		columns := make([]string, 0, len(dpgb.fields)+len(dpgb.fns))
 		for _, f := range dpgb.fields {
@@ -525,6 +528,12 @@ type DbPackageSelect struct {
 	sql *sql.Selector
 }
 
+// Aggregate adds the given aggregation functions to the selector query.
+func (dps *DbPackageSelect) Aggregate(fns ...AggregateFunc) *DbPackageSelect {
+	dps.fns = append(dps.fns, fns...)
+	return dps
+}
+
 // Scan applies the selector query and scans the result into the given value.
 func (dps *DbPackageSelect) Scan(ctx context.Context, v any) error {
 	if err := dps.prepareQuery(ctx); err != nil {
@@ -535,6 +544,16 @@ func (dps *DbPackageSelect) Scan(ctx context.Context, v any) error {
 }
 
 func (dps *DbPackageSelect) sqlScan(ctx context.Context, v any) error {
+	aggregation := make([]string, 0, len(dps.fns))
+	for _, fn := range dps.fns {
+		aggregation = append(aggregation, fn(dps.sql))
+	}
+	switch n := len(*dps.selector.flds); {
+	case n == 0 && len(aggregation) > 0:
+		dps.sql.Select(aggregation...)
+	case n != 0 && len(aggregation) > 0:
+		dps.sql.AppendSelect(aggregation...)
+	}
 	rows := &sql.Rows{}
 	query, args := dps.sql.Query()
 	if err := dps.driver.Query(ctx, query, args, rows); err != nil {
