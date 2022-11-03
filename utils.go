@@ -52,7 +52,7 @@ var (
 	rePkgFile       = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	reLdError       = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
 	reDownloadError = regexp.MustCompile(`(?m)^error: could not rename .+$`)
-	rePortError     = regexp.MustCompile(`(?m)^OSError: \[Errno 98] Address already in use$`)
+	rePortError     = regexp.MustCompile(`(?m)(?m)^OSError: \x5bErrno 98\x5d Address already in use$`)
 	reSigError      = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
 	reRustLTOError  = regexp.MustCompile(`(?m)^error: options \x60-C (.+)\x60 and \x60-C lto\x60 are incompatible$`)
 )
