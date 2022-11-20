@@ -94,14 +94,14 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 					Name: repo,
 				}
 
-				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(dbpackage.Repository(repo))).AllX(ctx)
+				pkgs := db.DbPackage.Query().Order(ent.Asc(dbpackage.FieldPkgbase)).
+					Where(dbpackage.MarchEQ(march), dbpackage.RepositoryEQ(dbpackage.Repository(repo))).AllX(ctx)
 
 				for _, pkg := range pkgs {
-
 					addPkg := Pkg{
 						Pkgbase:        pkg.Pkgbase,
 						Status:         strings.ToUpper(pkg.Status.String()),
-						Class:          statusId2string(pkg.Status),
+						Class:          statusID2string(pkg.Status),
 						Skip:           pkg.SkipReason,
 						Version:        pkg.RepoVersion,
 						Svn2GitVersion: pkg.Version,
@@ -181,7 +181,8 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 			Count  int           `json:"count"`
 		}
 
-		db.DbPackage.Query().Where(dbpackage.StatusNEQ(dbpackage.StatusSkipped)).GroupBy(dbpackage.FieldLto).Aggregate(ent.Count()).ScanX(ctx, &v2)
+		db.DbPackage.Query().Where(dbpackage.StatusNEQ(dbpackage.StatusSkipped)).
+			GroupBy(dbpackage.FieldLto).Aggregate(ent.Count()).ScanX(ctx, &v2)
 
 		for _, c := range v2 {
 			switch c.Status {
@@ -200,7 +201,7 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 			continue
 		}
 
-		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			log.Warningf("[HTML] Erro ropening output file: %v", err)
 			continue
@@ -235,9 +236,10 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			for _, pkg := range pkgL {
-				pkg.toDbPackage(true)
-				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, pkg.March, pkg.DbPackage.Packages[0]+"-debug-"+pkg.Version+"-"+conf.Arch+".pkg.tar.zst")); err == nil {
-					pkg.DbPackage = pkg.DbPackage.Update().
+				pkg.toDBPackage(true)
+				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, pkg.March,
+					pkg.DBPackage.Packages[0]+"-debug-"+pkg.Version+"-"+conf.Arch+".pkg.tar.zst")); err == nil {
+					pkg.DBPackage = pkg.DBPackage.Update().
 						SetStatus(dbpackage.StatusLatest).
 						ClearSkipReason().
 						SetDebugSymbols(dbpackage.DebugSymbolsAvailable).
@@ -245,7 +247,7 @@ func (b *BuildManager) repoWorker(repo string) {
 						SetHash(pkg.Hash).
 						SaveX(context.Background())
 				} else {
-					pkg.DbPackage = pkg.DbPackage.Update().
+					pkg.DBPackage = pkg.DBPackage.Update().
 						SetStatus(dbpackage.StatusLatest).
 						ClearSkipReason().
 						SetDebugSymbols(dbpackage.DebugSymbolsNotAvailable).
@@ -255,7 +257,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				}
 			}
 
-			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1")
+			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1") //nolint:gosec
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
@@ -301,8 +303,8 @@ func (b *BuildManager) repoWorker(repo string) {
 					log.Warningf("Error while deleting package %s: %s", pkg.Pkgbase, string(res))
 				}
 
-				if pkg.DbPackage != nil {
-					_ = pkg.DbPackage.Update().ClearRepoVersion().ClearHash().Exec(context.Background())
+				if pkg.DBPackage != nil {
+					_ = pkg.DBPackage.Update().ClearRepoVersion().ClearHash().Exec(context.Background())
 				}
 
 				for _, file := range pkg.PkgFiles {
@@ -320,7 +322,7 @@ func (b *BuildManager) repoWorker(repo string) {
 }
 
 func (b *BuildManager) syncWorker(ctx context.Context) error {
-	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0755)
+	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, upstreamDir), 0o755)
 	if err != nil {
 		log.Fatalf("Error creating upstream dir: %v", err)
 	}
@@ -392,7 +394,8 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			log.Fatal(err)
 		}
 
-		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
+		alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot),
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 		if err != nil {
 			log.Warningf("Error while ALPM-init: %v", err)
 		}
@@ -509,23 +512,23 @@ func main() {
 		log.Warningf("Failed to drop priority: %v", err)
 	}
 
-	err = os.MkdirAll(conf.Basedir.Repo, 0755)
+	err = os.MkdirAll(conf.Basedir.Repo, 0o755)
 	if err != nil {
 		log.Fatalf("Error creating repo dir: %v", err)
 	}
 
-	if conf.Db.Driver == "pgx" {
-		pdb, err := sql.Open("pgx", conf.Db.ConnectTo)
+	if conf.DB.Driver == "pgx" {
+		pdb, err := sql.Open("pgx", conf.DB.ConnectTo)
 		if err != nil {
-			log.Fatalf("Failed to open database %s: %v", conf.Db.ConnectTo, err)
+			log.Fatalf("Failed to open database %s: %v", conf.DB.ConnectTo, err)
 		}
 
 		drv := sql.OpenDB(dialect.Postgres, pdb.DB())
 		db = ent.NewClient(ent.Driver(drv))
 	} else {
-		db, err = ent.Open(conf.Db.Driver, conf.Db.ConnectTo)
+		db, err = ent.Open(conf.DB.Driver, conf.DB.ConnectTo)
 		if err != nil {
-			log.Panicf("Failed to open database %s: %v", conf.Db.ConnectTo, err)
+			log.Panicf("Failed to open database %s: %v", conf.DB.ConnectTo, err)
 		}
 		defer func(Client *ent.Client) {
 			_ = Client.Close()
@@ -544,16 +547,17 @@ func main() {
 
 	err = setupChroot()
 	if err != nil {
-		log.Fatalf("Unable to setup chroot: %v", err)
+		log.Panicf("Unable to setup chroot: %v", err)
 	}
 	err = syncMarchs()
 	if err != nil {
-		log.Fatalf("Error syncing marchs: %v", err)
+		log.Panicf("Error syncing marchs: %v", err)
 	}
 
-	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
+	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot),
+		filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 	if err != nil {
-		log.Fatalf("Error while ALPM-init: %v", err)
+		log.Panicf("Error while ALPM-init: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -571,17 +575,17 @@ killLoop:
 		case <-reloadSignals:
 			confStr, err := os.ReadFile("config.yaml")
 			if err != nil {
-				log.Fatalf("Unable to open config: %v", err)
+				log.Panicf("Unable to open config: %v", err)
 			}
 
 			err = yaml.Unmarshal(confStr, &conf)
 			if err != nil {
-				log.Fatalf("Unable to parse config: %v", err)
+				log.Panicf("Unable to parse config: %v", err)
 			}
 
 			lvl, err := log.ParseLevel(conf.Logging.Level)
 			if err != nil {
-				log.Fatalf("Failure setting logging level: %v", err)
+				log.Panicf("Failure setting logging level: %v", err)
 			}
 			log.SetLevel(lvl)
 			log.Infof("Config reloaded")

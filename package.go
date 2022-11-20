@@ -54,13 +54,14 @@ func (pkg Package) Arch() string {
 
 // HasValidSignature returns if package has valid detached signature file
 func (pkg Package) HasValidSignature() (bool, error) {
-	cmd := exec.Command("gpg", "--verify", string(pkg)+".sig")
+	cmd := exec.Command("gpg", "--verify", string(pkg)+".sig") //nolint:gosec
 	res, err := cmd.CombinedOutput()
-	if cmd.ProcessState.ExitCode() == 2 || cmd.ProcessState.ExitCode() == 1 {
+	switch {
+	case cmd.ProcessState.ExitCode() == 2 || cmd.ProcessState.ExitCode() == 1:
 		return false, nil
-	} else if cmd.ProcessState.ExitCode() == 0 {
+	case cmd.ProcessState.ExitCode() == 0:
 		return true, nil
-	} else if err != nil {
+	case err != nil:
 		return false, fmt.Errorf("error checking signature: %w (%s)", err, res)
 	}
 

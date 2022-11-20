@@ -72,10 +72,10 @@ type Conf struct {
 	Basedir      struct {
 		Repo, Work, Debug string
 	}
-	Db struct {
+	DB struct {
 		Driver    string
 		ConnectTo string `yaml:"connect_to"`
-	}
+	} `yaml:"db"`
 	Build struct {
 		Worker             int
 		Makej              int
@@ -112,7 +112,7 @@ type UnableToSatisfyError struct {
 }
 
 func updateLastUpdated() error {
-	err := os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0644)
+	err := os.WriteFile(filepath.Join(conf.Basedir.Repo, lastUpdate), []byte(strconv.FormatInt(time.Now().Unix(), 10)), 0o644) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,8 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 			defer wg.Done()
 			for _, pkgbuild := range pkgBuilds {
 				mPkgbuild := PKGBUILD(pkgbuild)
-				if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
+				if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) ||
+					containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
 					continue
 				}
 
@@ -179,15 +180,15 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 						March:     march,
 						FullRepo:  mPkgbuild.Repo() + "-" + march,
 						Hash:      b3s,
-						DbPackage: dbPkg,
+						DBPackage: dbPkg,
 					}
 
 					_, err = proto.isEligible(ctx)
 					if err != nil {
 						log.Infof("Unable to determine status for package %s: %v", proto.Pkgbase, err)
 						b.repoPurge[proto.FullRepo] <- []*ProtoPackage{proto}
-					} else if proto.DbPackage != nil {
-						proto.DbPackage.Update().SetPkgbuild(proto.Pkgbuild).ExecX(ctx)
+					} else if proto.DBPackage != nil {
+						proto.DBPackage.Update().SetPkgbuild(proto.Pkgbuild).ExecX(ctx)
 					}
 				}
 			}
@@ -200,7 +201,7 @@ func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
 	return nil
 }
 
-func statusId2string(s dbpackage.Status) string {
+func statusID2string(s dbpackage.Status) string {
 	switch s {
 	case dbpackage.StatusSkipped:
 		return conf.Status.Class.Skipped
@@ -228,7 +229,7 @@ func b3sum(filePath string) (string, error) {
 		_ = file.Close()
 	}(file)
 
-	hash := blake3.New(32, nil)
+	hash := blake3.New(32, nil) //nolint:gomnd
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
@@ -244,7 +245,7 @@ func containsSubStr(str string, subList []string) bool {
 	return false
 }
 
-func cleanBuildDir(dir string, chrootDir string) error {
+func cleanBuildDir(dir, chrootDir string) error {
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
 		err = os.RemoveAll(dir)
 		if err != nil {
@@ -316,7 +317,7 @@ func genQueue() ([]*ProtoPackage, error) {
 			March:     pkg.March,
 			FullRepo:  pkg.Repository.String() + "-" + pkg.March,
 			Hash:      pkg.Hash,
-			DbPackage: pkg,
+			DBPackage: pkg,
 			Pkgbuild:  pkg.Pkgbuild,
 			Version:   pkg.RepoVersion,
 		})
@@ -347,7 +348,7 @@ func movePackagesLive(fullRepo string) error {
 		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo), db)
 		if err != nil {
 			if strings.HasSuffix(pkg.Name(), "-debug") {
-				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0755)
+				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0o755)
 				if mkErr != nil {
 					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
 				}
@@ -356,7 +357,8 @@ func movePackagesLive(fullRepo string) error {
 				debugPkgs++
 
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
-					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage,
+						filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 				} else {
 					err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 					if err != nil {
@@ -383,7 +385,7 @@ func movePackagesLive(fullRepo string) error {
 		}
 
 		toAdd = append(toAdd, &ProtoPackage{
-			DbPackage: dbPkg,
+			DBPackage: dbPkg,
 			Pkgbase:   dbPkg.Pkgbase,
 			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
 			Version:   pkg.Version(),
@@ -419,14 +421,14 @@ func packages2slice(pkgs interface{}) []string {
 	}
 }
 
-func constructVersion(pkgver string, pkgrel string, epoch string) string {
+func constructVersion(pkgver, pkgrel, epoch string) string {
 	if epoch == "" {
 		return pkgver + "-" + pkgrel
 	}
 	return epoch + ":" + pkgver + "-" + pkgrel
 }
 
-func initALPM(root string, dbpath string) (*alpm.Handle, error) {
+func initALPM(root, dbpath string) (*alpm.Handle, error) {
 	h, err := alpm.Initialize(root, dbpath)
 	if err != nil {
 		return nil, err
@@ -467,33 +469,35 @@ func initALPM(root string, dbpath string) (*alpm.Handle, error) {
 }
 
 func setupChroot() error {
-	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot)); err == nil {
-		//goland:noinspection SpellCheckingInspection
-		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "pacman", "-Syuu", "--noconfirm")
+	_, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
+	switch {
+	case err == nil:
+		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), //nolint:gosec
+			"pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("Unable to update chroot: %w\n%s", err, string(res))
+			return fmt.Errorf("error updating chroot: %w\n%s", err, string(res))
 		}
-	} else if os.IsNotExist(err) {
-		err = os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0755)
+	case os.IsNotExist(err):
+		err = os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0o755)
 		if err != nil {
 			return err
 		}
-
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel")
+		cmd := exec.Command("mkarchroot", "-C", pacmanConf, //nolint:gosec
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("Unable to create chroot: %w\n%s", err, string(res))
+			return fmt.Errorf("error creating chroot: %w\n%s", err, string(res))
 		}
-	} else {
+	default:
 		return err
 	}
 	return nil
 }
 
-func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
+func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
 	log.Debugf("[%s] Start housekeeping", fullRepo)
@@ -525,20 +529,20 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			Pkgbase:   dbPkg.Pkgbase,
 			Repo:      mPackage.Repo(),
 			FullRepo:  mPackage.FullRepo(),
-			DbPackage: dbPkg,
+			DBPackage: dbPkg,
 			March:     mPackage.MArch(),
 			Arch:      mPackage.Arch(),
 		}
 
 		var upstream string
-		switch pkg.DbPackage.Repository {
+		switch pkg.DBPackage.Repository {
 		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
 			upstream = "upstream-core-extra"
 		case dbpackage.RepositoryCommunity:
 			upstream = "upstream-community"
 		}
 		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos",
-			pkg.DbPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
+			pkg.DBPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 
 		// check if package is still part of repo
 		dbs, err := alpmHandle.SyncDBs()
@@ -548,20 +552,20 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		buildManager.alpmMutex.Lock()
 		pkgResolved, err := dbs.FindSatisfier(mPackage.Name())
 		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DbPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
+		if err != nil || pkgResolved.DB().Name() != pkg.DBPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
 			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, mPackage.Name())
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-			err = db.DbPackage.DeleteOne(pkg.DbPackage).Exec(context.Background())
+			err = db.DbPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		if pkg.DbPackage.LastVerified.Before(pkg.DbPackage.BuildTimeStart) {
-			err := pkg.DbPackage.Update().SetLastVerified(time.Now().UTC()).Exec(context.Background())
+		if pkg.DBPackage.LastVerified.Before(pkg.DBPackage.BuildTimeStart) {
+			err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(context.Background())
 			if err != nil {
 				return err
 			}
@@ -581,7 +585,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 		repoVer, err := pkg.repoVersion()
 		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DbPackage, err = pkg.DbPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
+			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
 			if err != nil {
 				return err
 			}
@@ -605,7 +609,7 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			Repo:      dbPkg.Repository,
 			March:     dbPkg.March,
 			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
-			DbPackage: dbPkg,
+			DBPackage: dbPkg,
 		}
 
 		if !pkg.isAvailable(alpmHandle) {
@@ -617,24 +621,25 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 			continue
 		}
 
-		if dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "" {
+		switch {
+		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
 			var existingSplits []string
 			var missingSplits []string
 			for _, splitPkg := range dbPkg.Packages {
 				pkgFile := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch,
 					splitPkg+"-"+dbPkg.RepoVersion+"-"+conf.Arch+".pkg.tar.zst")
-				if _, err := os.Stat(pkgFile); os.IsNotExist(err) {
+				switch {
+				case os.IsNotExist(err):
 					missingSplits = append(missingSplits, splitPkg)
-				} else if err != nil {
+				case err != nil:
 					log.Warningf("[HK] error reading package-file %s: %v", splitPkg, err)
-				} else {
+				default:
 					existingSplits = append(existingSplits, pkgFile)
 				}
 			}
-
 			if len(missingSplits) > 0 {
 				log.Infof("[HK/%s] missing split-package(s) %s for pkgbase %s", fullRepo, missingSplits, dbPkg.Pkgbase)
-				pkg.DbPackage, err = pkg.DbPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 				if err != nil {
 					return err
 				}
@@ -643,22 +648,22 @@ func housekeeping(repo string, march string, wg *sync.WaitGroup) error {
 					FullRepo:  fullRepo,
 					PkgFiles:  existingSplits,
 					March:     march,
-					DbPackage: dbPkg,
+					DBPackage: dbPkg,
 				}
 				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 			}
-		} else if dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "" {
+		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
 			log.Infof("[HK] reseting missing package %s with no repo version", dbPkg.Pkgbase)
 			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
-		} else if dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && strings.HasPrefix(dbPkg.SkipReason, "blacklisted") {
+		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && strings.HasPrefix(dbPkg.SkipReason, "blacklisted"):
 			log.Infof("[HK] delete blacklisted package %s", dbPkg.Pkgbase)
 			pkg := &ProtoPackage{
 				FullRepo:  fullRepo,
 				March:     march,
-				DbPackage: dbPkg,
+				DBPackage: dbPkg,
 			}
 			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 		}
@@ -762,12 +767,12 @@ func syncMarchs() error {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
 			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, conf.Build.Worker)
-			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 10000)
+			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 10000) //nolint:gomnd
 			go buildManager.repoWorker(fRepo)
 
-			if _, err := os.Stat(filepath.Join(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))); os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
 				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
-				err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0755)
+				err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0o755)
 				if err != nil {
 					return err
 				}
@@ -822,7 +827,7 @@ func parseFlagSubSection(list interface{}, res []string, replaceMap map[string]s
 	return res
 }
 
-func parseFlagSection(section interface{}, makepkgConf string, march string) (string, error) {
+func parseFlagSection(section interface{}, makepkgConf, march string) (string, error) {
 	replaceMap := map[string]string{"$level$": march[len(march)-2:], "$march$": march, "$buildproc$": strconv.Itoa(conf.Build.Makej)}
 
 	if ct, ok := section.(map[interface{}]interface{}); ok {
@@ -858,7 +863,8 @@ func parseFlagSection(section interface{}, makepkgConf string, march string) (st
 			flags = parseFlagSubSection(subMap, flags, replaceMap)
 			log.Debugf("new %s: %v (%d)", subSec, flags, len(flags))
 
-			makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1], orgMatch[2], strings.Join(flags, " "), orgMatch[4]))
+			makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1],
+				orgMatch[2], strings.Join(flags, " "), orgMatch[4]))
 		}
 	}
 
@@ -870,7 +876,7 @@ func setupMakepkg(march string, flags map[string]interface{}) error {
 	lMakepkg := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkg, march))
 	lMakepkgLTO := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgLTO, march))
 
-	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, makepkgDir), 0755)
+	err := os.MkdirAll(filepath.Join(conf.Basedir.Work, makepkgDir), 0o755)
 	if err != nil {
 		return err
 	}
@@ -886,7 +892,7 @@ func setupMakepkg(march string, flags map[string]interface{}) error {
 	}
 
 	// write non-lto makepkg
-	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0644)
+	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0o644) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -897,7 +903,7 @@ func setupMakepkg(march string, flags map[string]interface{}) error {
 	}
 
 	// write makepkg
-	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0644)
+	err = os.WriteFile(lMakepkg, []byte(makepkgStr), 0o644) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -941,7 +947,7 @@ func Unique[T comparable](arr []T) []T {
 	occurred := map[T]bool{}
 	var result []T
 	for e := range arr {
-		if occurred[arr[e]] != true {
+		if !occurred[arr[e]] {
 			occurred[arr[e]] = true
 			result = append(result, arr[e])
 		}
@@ -950,7 +956,7 @@ func Unique[T comparable](arr []T) []T {
 	return result
 }
 
-func Replace[T comparable](arr []T, replace T, with T) []T {
+func Replace[T comparable](arr []T, replace, with T) []T {
 	for i, v := range arr {
 		if v == replace {
 			arr[i] = with
