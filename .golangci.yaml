@@ -62,7 +62,6 @@ linters:
     - govet
     - lll
     - misspell
-    - nakedret
     - noctx
     - nolintlint
     - staticcheck
@@ -72,4 +71,3 @@ linters:
     - unparam
     - unused
     - whitespace
-
