@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -1007,4 +1008,14 @@ func (globs Globs) Expand() ([]string, error) {
 	}
 
 	return matches, nil
+}
+
+func TotalMemory() uint64 {
+	sinfo := new(syscall.Sysinfo_t)
+	err := syscall.Sysinfo(sinfo)
+	if err != nil {
+		return 0
+	}
+
+	return sinfo.Totalram * uint64(sinfo.Unit)
 }

@@ -509,8 +509,10 @@ func main() {
 
 	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
 	if err != nil {
-		log.Warningf("Failed to drop priority: %v", err)
+		log.Infof("Failed to drop priority: %v", err)
 	}
+
+	log.Infof("Usable %d bytes of memory ", TotalMemory())
 
 	err = os.MkdirAll(conf.Basedir.Repo, 0o755)
 	if err != nil {
