@@ -358,16 +358,16 @@ func movePackagesLive(fullRepo string) error {
 				debugPkgs++
 
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
-					log.Warningf("[MOVE] Existing debug infos for %s, skipping: %s", forPackage,
+					log.Warningf("[MOVE] Overwrite existing debug infos for %s: %s", forPackage,
 						filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
-				} else {
-					err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
-					if err != nil {
-						return err
-					}
-					_ = os.Remove(file + ".sig")
-					continue
 				}
+
+				err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+				if err != nil {
+					return err
+				}
+				_ = os.Remove(file + ".sig")
+				continue
 			}
 
 			log.Warningf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
