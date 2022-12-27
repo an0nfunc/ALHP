@@ -145,7 +145,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	// which leads to errors when it's trying to remove the same temporary download file.
 	// This can be removed as soon as we can pass separate cache locations to makechrootpkg.
 	rand.Seed(time.Now().UnixNano())
-	time.Sleep(time.Duration(rand.Float32()*60) * time.Second) //nolint:gosec
+	time.Sleep(time.Duration(rand.Float32()*60) * time.Second) //nolint:gomnd,gosec
 	start := time.Now().UTC()
 	chroot := "build_" + uuid.New().String()
 

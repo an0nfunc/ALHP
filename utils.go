@@ -856,7 +856,7 @@ func parseFlagSection(section interface{}, makepkgConf, march string) (string, e
 			if len(orgMatch) == 0 {
 				// no match found, assume env var and append it
 				log.Debugf("no match found for %s:%v, appending", subSec, subMap)
-				makepkgConf += fmt.Sprintf("\n%s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(subMap.(string), replaceMap))
+				makepkgConf += fmt.Sprintf("\nexport %s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(subMap.(string), replaceMap))
 				continue
 			}
 
