@@ -401,7 +401,7 @@ func movePackagesLive(fullRepo string) error {
 	return nil
 }
 
-func packages2slice(pkgs interface{}) []string {
+func packages2slice(pkgs any) []string {
 	switch v := pkgs.(type) {
 	case []srcinfo.Package:
 		var sPkgs []string
@@ -752,7 +752,7 @@ func syncMarchs() error {
 	if err != nil {
 		return err
 	}
-	var flagCfg map[string]interface{}
+	var flagCfg map[string]any
 	err = yaml.Unmarshal(flagConfigRaw, &flagCfg)
 	if err != nil {
 		return err
@@ -805,10 +805,10 @@ func replaceStringsFromMap(str string, replace map[string]string) string {
 	return str
 }
 
-func parseFlagSubSection(list interface{}, res []string, replaceMap map[string]string) []string {
-	for _, cEntry := range list.([]interface{}) {
+func parseFlagSubSection(list any, res []string, replaceMap map[string]string) []string {
+	for _, cEntry := range list.([]any) {
 		switch ce := cEntry.(type) {
-		case map[interface{}]interface{}:
+		case map[any]any:
 			for k, v := range ce {
 				if v == nil {
 					res = append(res[:Find(res, k.(string))], res[Find(res, k.(string))+1:]...)
@@ -828,10 +828,10 @@ func parseFlagSubSection(list interface{}, res []string, replaceMap map[string]s
 	return res
 }
 
-func parseFlagSection(section interface{}, makepkgConf, march string) (string, error) {
+func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 	replaceMap := map[string]string{"$level$": march[len(march)-2:], "$march$": march, "$buildproc$": strconv.Itoa(conf.Build.Makej)}
 
-	if ct, ok := section.(map[interface{}]interface{}); ok {
+	if ct, ok := section.(map[any]any); ok {
 		for subSec, subMap := range ct {
 			varsReg := reVar.FindAllStringSubmatch(makepkgConf, -1)
 			if varsReg == nil {
@@ -873,7 +873,7 @@ func parseFlagSection(section interface{}, makepkgConf, march string) (string, e
 }
 
 //goland:noinspection SpellCheckingInspection
-func setupMakepkg(march string, flags map[string]interface{}) error {
+func setupMakepkg(march string, flags map[string]any) error {
 	lMakepkg := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkg, march))
 	lMakepkgLTO := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgLTO, march))
 
@@ -912,7 +912,7 @@ func setupMakepkg(march string, flags map[string]interface{}) error {
 	return nil
 }
 
-func Contains(s interface{}, str string) bool {
+func Contains(s any, str string) bool {
 	switch v := s.(type) {
 	case []string:
 		if i := Find(v, str); i != -1 {
