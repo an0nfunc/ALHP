@@ -594,7 +594,6 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	}
 
 	// check all packages from db for existence
-	log.Debugf("[HK/%s] checking existing package-files", fullRepo)
 	dbPackages, err := db.DbPackage.Query().Where(
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
@@ -603,6 +602,8 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("[HK/%s] checking %d existing package-files", fullRepo, len(dbPackages))
 
 	for _, dbPkg := range dbPackages {
 		pkg := &ProtoPackage{
@@ -629,6 +630,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			for _, splitPkg := range dbPkg.Packages {
 				pkgFile := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch,
 					splitPkg+"-"+dbPkg.RepoVersion+"-"+conf.Arch+".pkg.tar.zst")
+				_, err = os.Stat(pkgFile)
 				switch {
 				case os.IsNotExist(err):
 					missingSplits = append(missingSplits, splitPkg)
