@@ -11,2125 +11,1387 @@ import (
 
 // ID filters vertices based on their ID field.
 func ID(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldID, id))
 }
 
 // IDEQ applies the EQ predicate on the ID field.
 func IDEQ(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldID, id))
 }
 
 // IDNEQ applies the NEQ predicate on the ID field.
 func IDNEQ(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldID, id))
 }
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.In(s.C(FieldID), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldID, ids...))
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.NotIn(s.C(FieldID), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldID, ids...))
 }
 
 // IDGT applies the GT predicate on the ID field.
 func IDGT(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldID, id))
 }
 
 // IDGTE applies the GTE predicate on the ID field.
 func IDGTE(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldID, id))
 }
 
 // IDLT applies the LT predicate on the ID field.
 func IDLT(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldID, id))
 }
 
 // IDLTE applies the LTE predicate on the ID field.
 func IDLTE(id int) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldID), id))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldID, id))
 }
 
 // Pkgbase applies equality check predicate on the "pkgbase" field. It's identical to PkgbaseEQ.
 func Pkgbase(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldPkgbase, v))
 }
 
 // SkipReason applies equality check predicate on the "skip_reason" field. It's identical to SkipReasonEQ.
 func SkipReason(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSkipReason, v))
 }
 
 // March applies equality check predicate on the "march" field. It's identical to MarchEQ.
 func March(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldMarch, v))
 }
 
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldVersion, v))
 }
 
 // RepoVersion applies equality check predicate on the "repo_version" field. It's identical to RepoVersionEQ.
 func RepoVersion(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldRepoVersion, v))
 }
 
 // BuildTimeStart applies equality check predicate on the "build_time_start" field. It's identical to BuildTimeStartEQ.
 func BuildTimeStart(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldBuildTimeStart, v))
 }
 
 // Updated applies equality check predicate on the "updated" field. It's identical to UpdatedEQ.
 func Updated(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldUpdated, v))
 }
 
 // Hash applies equality check predicate on the "hash" field. It's identical to HashEQ.
 func Hash(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldHash, v))
 }
 
 // LastVersionBuild applies equality check predicate on the "last_version_build" field. It's identical to LastVersionBuildEQ.
 func LastVersionBuild(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldLastVersionBuild, v))
 }
 
 // LastVerified applies equality check predicate on the "last_verified" field. It's identical to LastVerifiedEQ.
 func LastVerified(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldLastVerified, v))
 }
 
 // MaxRss applies equality check predicate on the "max_rss" field. It's identical to MaxRssEQ.
 func MaxRss(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldMaxRss, v))
 }
 
 // UTime applies equality check predicate on the "u_time" field. It's identical to UTimeEQ.
 func UTime(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldUTime, v))
 }
 
 // STime applies equality check predicate on the "s_time" field. It's identical to STimeEQ.
 func STime(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSTime, v))
 }
 
 // IoIn applies equality check predicate on the "io_in" field. It's identical to IoInEQ.
 func IoIn(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldIoIn, v))
 }
 
 // IoOut applies equality check predicate on the "io_out" field. It's identical to IoOutEQ.
 func IoOut(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldIoOut, v))
 }
 
 // Srcinfo applies equality check predicate on the "srcinfo" field. It's identical to SrcinfoEQ.
 func Srcinfo(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSrcinfo, v))
 }
 
 // SrcinfoHash applies equality check predicate on the "srcinfo_hash" field. It's identical to SrcinfoHashEQ.
 func SrcinfoHash(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSrcinfoHash, v))
 }
 
 // Pkgbuild applies equality check predicate on the "pkgbuild" field. It's identical to PkgbuildEQ.
 func Pkgbuild(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldPkgbuild, v))
 }
 
 // PkgbaseEQ applies the EQ predicate on the "pkgbase" field.
 func PkgbaseEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldPkgbase, v))
 }
 
 // PkgbaseNEQ applies the NEQ predicate on the "pkgbase" field.
 func PkgbaseNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldPkgbase, v))
 }
 
 // PkgbaseIn applies the In predicate on the "pkgbase" field.
 func PkgbaseIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldPkgbase), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldPkgbase, vs...))
 }
 
 // PkgbaseNotIn applies the NotIn predicate on the "pkgbase" field.
 func PkgbaseNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldPkgbase), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldPkgbase, vs...))
 }
 
 // PkgbaseGT applies the GT predicate on the "pkgbase" field.
 func PkgbaseGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldPkgbase, v))
 }
 
 // PkgbaseGTE applies the GTE predicate on the "pkgbase" field.
 func PkgbaseGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldPkgbase, v))
 }
 
 // PkgbaseLT applies the LT predicate on the "pkgbase" field.
 func PkgbaseLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldPkgbase, v))
 }
 
 // PkgbaseLTE applies the LTE predicate on the "pkgbase" field.
 func PkgbaseLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldPkgbase, v))
 }
 
 // PkgbaseContains applies the Contains predicate on the "pkgbase" field.
 func PkgbaseContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldPkgbase, v))
 }
 
 // PkgbaseHasPrefix applies the HasPrefix predicate on the "pkgbase" field.
 func PkgbaseHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldPkgbase, v))
 }
 
 // PkgbaseHasSuffix applies the HasSuffix predicate on the "pkgbase" field.
 func PkgbaseHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldPkgbase, v))
 }
 
 // PkgbaseEqualFold applies the EqualFold predicate on the "pkgbase" field.
 func PkgbaseEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldPkgbase, v))
 }
 
 // PkgbaseContainsFold applies the ContainsFold predicate on the "pkgbase" field.
 func PkgbaseContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldPkgbase), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldPkgbase, v))
 }
 
 // PackagesIsNil applies the IsNil predicate on the "packages" field.
 func PackagesIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldPackages)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldPackages))
 }
 
 // PackagesNotNil applies the NotNil predicate on the "packages" field.
 func PackagesNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldPackages)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldPackages))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldStatus), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldStatus, v))
 }
 
 // StatusNEQ applies the NEQ predicate on the "status" field.
 func StatusNEQ(v Status) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldStatus), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldStatus, v))
 }
 
 // StatusIn applies the In predicate on the "status" field.
 func StatusIn(vs ...Status) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldStatus), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldStatus, vs...))
 }
 
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldStatus), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldStatus, vs...))
 }
 
 // StatusIsNil applies the IsNil predicate on the "status" field.
 func StatusIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldStatus)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldStatus))
 }
 
 // StatusNotNil applies the NotNil predicate on the "status" field.
 func StatusNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldStatus)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldStatus))
 }
 
 // SkipReasonEQ applies the EQ predicate on the "skip_reason" field.
 func SkipReasonEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSkipReason, v))
 }
 
 // SkipReasonNEQ applies the NEQ predicate on the "skip_reason" field.
 func SkipReasonNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldSkipReason, v))
 }
 
 // SkipReasonIn applies the In predicate on the "skip_reason" field.
 func SkipReasonIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldSkipReason), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldSkipReason, vs...))
 }
 
 // SkipReasonNotIn applies the NotIn predicate on the "skip_reason" field.
 func SkipReasonNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldSkipReason), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldSkipReason, vs...))
 }
 
 // SkipReasonGT applies the GT predicate on the "skip_reason" field.
 func SkipReasonGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldSkipReason, v))
 }
 
 // SkipReasonGTE applies the GTE predicate on the "skip_reason" field.
 func SkipReasonGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldSkipReason, v))
 }
 
 // SkipReasonLT applies the LT predicate on the "skip_reason" field.
 func SkipReasonLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldSkipReason, v))
 }
 
 // SkipReasonLTE applies the LTE predicate on the "skip_reason" field.
 func SkipReasonLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldSkipReason, v))
 }
 
 // SkipReasonContains applies the Contains predicate on the "skip_reason" field.
 func SkipReasonContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldSkipReason, v))
 }
 
 // SkipReasonHasPrefix applies the HasPrefix predicate on the "skip_reason" field.
 func SkipReasonHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldSkipReason, v))
 }
 
 // SkipReasonHasSuffix applies the HasSuffix predicate on the "skip_reason" field.
 func SkipReasonHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldSkipReason, v))
 }
 
 // SkipReasonIsNil applies the IsNil predicate on the "skip_reason" field.
 func SkipReasonIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldSkipReason)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldSkipReason))
 }
 
 // SkipReasonNotNil applies the NotNil predicate on the "skip_reason" field.
 func SkipReasonNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldSkipReason)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldSkipReason))
 }
 
 // SkipReasonEqualFold applies the EqualFold predicate on the "skip_reason" field.
 func SkipReasonEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldSkipReason, v))
 }
 
 // SkipReasonContainsFold applies the ContainsFold predicate on the "skip_reason" field.
 func SkipReasonContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldSkipReason), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldSkipReason, v))
 }
 
 // RepositoryEQ applies the EQ predicate on the "repository" field.
 func RepositoryEQ(v Repository) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldRepository), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldRepository, v))
 }
 
 // RepositoryNEQ applies the NEQ predicate on the "repository" field.
 func RepositoryNEQ(v Repository) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldRepository), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldRepository, v))
 }
 
 // RepositoryIn applies the In predicate on the "repository" field.
 func RepositoryIn(vs ...Repository) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldRepository), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldRepository, vs...))
 }
 
 // RepositoryNotIn applies the NotIn predicate on the "repository" field.
 func RepositoryNotIn(vs ...Repository) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldRepository), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldRepository, vs...))
 }
 
 // MarchEQ applies the EQ predicate on the "march" field.
 func MarchEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldMarch, v))
 }
 
 // MarchNEQ applies the NEQ predicate on the "march" field.
 func MarchNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldMarch, v))
 }
 
 // MarchIn applies the In predicate on the "march" field.
 func MarchIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldMarch), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldMarch, vs...))
 }
 
 // MarchNotIn applies the NotIn predicate on the "march" field.
 func MarchNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldMarch), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldMarch, vs...))
 }
 
 // MarchGT applies the GT predicate on the "march" field.
 func MarchGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldMarch, v))
 }
 
 // MarchGTE applies the GTE predicate on the "march" field.
 func MarchGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldMarch, v))
 }
 
 // MarchLT applies the LT predicate on the "march" field.
 func MarchLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldMarch, v))
 }
 
 // MarchLTE applies the LTE predicate on the "march" field.
 func MarchLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldMarch, v))
 }
 
 // MarchContains applies the Contains predicate on the "march" field.
 func MarchContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldMarch, v))
 }
 
 // MarchHasPrefix applies the HasPrefix predicate on the "march" field.
 func MarchHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldMarch, v))
 }
 
 // MarchHasSuffix applies the HasSuffix predicate on the "march" field.
 func MarchHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldMarch, v))
 }
 
 // MarchEqualFold applies the EqualFold predicate on the "march" field.
 func MarchEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldMarch, v))
 }
 
 // MarchContainsFold applies the ContainsFold predicate on the "march" field.
 func MarchContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldMarch), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldMarch, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.
 func VersionEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldVersion, v))
 }
 
 // VersionNEQ applies the NEQ predicate on the "version" field.
 func VersionNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldVersion, v))
 }
 
 // VersionIn applies the In predicate on the "version" field.
 func VersionIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldVersion), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldVersion, vs...))
 }
 
 // VersionNotIn applies the NotIn predicate on the "version" field.
 func VersionNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldVersion), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldVersion, vs...))
 }
 
 // VersionGT applies the GT predicate on the "version" field.
 func VersionGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldVersion, v))
 }
 
 // VersionGTE applies the GTE predicate on the "version" field.
 func VersionGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldVersion, v))
 }
 
 // VersionLT applies the LT predicate on the "version" field.
 func VersionLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldVersion, v))
 }
 
 // VersionLTE applies the LTE predicate on the "version" field.
 func VersionLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldVersion, v))
 }
 
 // VersionContains applies the Contains predicate on the "version" field.
 func VersionContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldVersion, v))
 }
 
 // VersionHasPrefix applies the HasPrefix predicate on the "version" field.
 func VersionHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldVersion, v))
 }
 
 // VersionHasSuffix applies the HasSuffix predicate on the "version" field.
 func VersionHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldVersion, v))
 }
 
 // VersionIsNil applies the IsNil predicate on the "version" field.
 func VersionIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldVersion)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldVersion))
 }
 
 // VersionNotNil applies the NotNil predicate on the "version" field.
 func VersionNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldVersion)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldVersion))
 }
 
 // VersionEqualFold applies the EqualFold predicate on the "version" field.
 func VersionEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldVersion, v))
 }
 
 // VersionContainsFold applies the ContainsFold predicate on the "version" field.
 func VersionContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldVersion, v))
 }
 
 // RepoVersionEQ applies the EQ predicate on the "repo_version" field.
 func RepoVersionEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldRepoVersion, v))
 }
 
 // RepoVersionNEQ applies the NEQ predicate on the "repo_version" field.
 func RepoVersionNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldRepoVersion, v))
 }
 
 // RepoVersionIn applies the In predicate on the "repo_version" field.
 func RepoVersionIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldRepoVersion), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldRepoVersion, vs...))
 }
 
 // RepoVersionNotIn applies the NotIn predicate on the "repo_version" field.
 func RepoVersionNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldRepoVersion), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldRepoVersion, vs...))
 }
 
 // RepoVersionGT applies the GT predicate on the "repo_version" field.
 func RepoVersionGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldRepoVersion, v))
 }
 
 // RepoVersionGTE applies the GTE predicate on the "repo_version" field.
 func RepoVersionGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldRepoVersion, v))
 }
 
 // RepoVersionLT applies the LT predicate on the "repo_version" field.
 func RepoVersionLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldRepoVersion, v))
 }
 
 // RepoVersionLTE applies the LTE predicate on the "repo_version" field.
 func RepoVersionLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldRepoVersion, v))
 }
 
 // RepoVersionContains applies the Contains predicate on the "repo_version" field.
 func RepoVersionContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldRepoVersion, v))
 }
 
 // RepoVersionHasPrefix applies the HasPrefix predicate on the "repo_version" field.
 func RepoVersionHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldRepoVersion, v))
 }
 
 // RepoVersionHasSuffix applies the HasSuffix predicate on the "repo_version" field.
 func RepoVersionHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldRepoVersion, v))
 }
 
 // RepoVersionIsNil applies the IsNil predicate on the "repo_version" field.
 func RepoVersionIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldRepoVersion)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldRepoVersion))
 }
 
 // RepoVersionNotNil applies the NotNil predicate on the "repo_version" field.
 func RepoVersionNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldRepoVersion)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldRepoVersion))
 }
 
 // RepoVersionEqualFold applies the EqualFold predicate on the "repo_version" field.
 func RepoVersionEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldRepoVersion, v))
 }
 
 // RepoVersionContainsFold applies the ContainsFold predicate on the "repo_version" field.
 func RepoVersionContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldRepoVersion), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldRepoVersion, v))
 }
 
 // BuildTimeStartEQ applies the EQ predicate on the "build_time_start" field.
 func BuildTimeStartEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartNEQ applies the NEQ predicate on the "build_time_start" field.
 func BuildTimeStartNEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartIn applies the In predicate on the "build_time_start" field.
 func BuildTimeStartIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldBuildTimeStart), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldBuildTimeStart, vs...))
 }
 
 // BuildTimeStartNotIn applies the NotIn predicate on the "build_time_start" field.
 func BuildTimeStartNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldBuildTimeStart), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldBuildTimeStart, vs...))
 }
 
 // BuildTimeStartGT applies the GT predicate on the "build_time_start" field.
 func BuildTimeStartGT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartGTE applies the GTE predicate on the "build_time_start" field.
 func BuildTimeStartGTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartLT applies the LT predicate on the "build_time_start" field.
 func BuildTimeStartLT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartLTE applies the LTE predicate on the "build_time_start" field.
 func BuildTimeStartLTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldBuildTimeStart), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldBuildTimeStart, v))
 }
 
 // BuildTimeStartIsNil applies the IsNil predicate on the "build_time_start" field.
 func BuildTimeStartIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldBuildTimeStart)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldBuildTimeStart))
 }
 
 // BuildTimeStartNotNil applies the NotNil predicate on the "build_time_start" field.
 func BuildTimeStartNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldBuildTimeStart)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldBuildTimeStart))
 }
 
 // UpdatedEQ applies the EQ predicate on the "updated" field.
 func UpdatedEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldUpdated, v))
 }
 
 // UpdatedNEQ applies the NEQ predicate on the "updated" field.
 func UpdatedNEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldUpdated, v))
 }
 
 // UpdatedIn applies the In predicate on the "updated" field.
 func UpdatedIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldUpdated), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldUpdated, vs...))
 }
 
 // UpdatedNotIn applies the NotIn predicate on the "updated" field.
 func UpdatedNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldUpdated), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldUpdated, vs...))
 }
 
 // UpdatedGT applies the GT predicate on the "updated" field.
 func UpdatedGT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldUpdated, v))
 }
 
 // UpdatedGTE applies the GTE predicate on the "updated" field.
 func UpdatedGTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldUpdated, v))
 }
 
 // UpdatedLT applies the LT predicate on the "updated" field.
 func UpdatedLT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldUpdated, v))
 }
 
 // UpdatedLTE applies the LTE predicate on the "updated" field.
 func UpdatedLTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldUpdated), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldUpdated, v))
 }
 
 // UpdatedIsNil applies the IsNil predicate on the "updated" field.
 func UpdatedIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldUpdated)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldUpdated))
 }
 
 // UpdatedNotNil applies the NotNil predicate on the "updated" field.
 func UpdatedNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldUpdated)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldUpdated))
 }
 
 // HashEQ applies the EQ predicate on the "hash" field.
 func HashEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldHash, v))
 }
 
 // HashNEQ applies the NEQ predicate on the "hash" field.
 func HashNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldHash, v))
 }
 
 // HashIn applies the In predicate on the "hash" field.
 func HashIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldHash), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldHash, vs...))
 }
 
 // HashNotIn applies the NotIn predicate on the "hash" field.
 func HashNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldHash), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldHash, vs...))
 }
 
 // HashGT applies the GT predicate on the "hash" field.
 func HashGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldHash, v))
 }
 
 // HashGTE applies the GTE predicate on the "hash" field.
 func HashGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldHash, v))
 }
 
 // HashLT applies the LT predicate on the "hash" field.
 func HashLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldHash, v))
 }
 
 // HashLTE applies the LTE predicate on the "hash" field.
 func HashLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldHash, v))
 }
 
 // HashContains applies the Contains predicate on the "hash" field.
 func HashContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldHash, v))
 }
 
 // HashHasPrefix applies the HasPrefix predicate on the "hash" field.
 func HashHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldHash, v))
 }
 
 // HashHasSuffix applies the HasSuffix predicate on the "hash" field.
 func HashHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldHash, v))
 }
 
 // HashIsNil applies the IsNil predicate on the "hash" field.
 func HashIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldHash)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldHash))
 }
 
 // HashNotNil applies the NotNil predicate on the "hash" field.
 func HashNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldHash)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldHash))
 }
 
 // HashEqualFold applies the EqualFold predicate on the "hash" field.
 func HashEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldHash, v))
 }
 
 // HashContainsFold applies the ContainsFold predicate on the "hash" field.
 func HashContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldHash), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldHash, v))
 }
 
 // LtoEQ applies the EQ predicate on the "lto" field.
 func LtoEQ(v Lto) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLto), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldLto, v))
 }
 
 // LtoNEQ applies the NEQ predicate on the "lto" field.
 func LtoNEQ(v Lto) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldLto), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldLto, v))
 }
 
 // LtoIn applies the In predicate on the "lto" field.
 func LtoIn(vs ...Lto) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldLto), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldLto, vs...))
 }
 
 // LtoNotIn applies the NotIn predicate on the "lto" field.
 func LtoNotIn(vs ...Lto) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldLto), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldLto, vs...))
 }
 
 // LtoIsNil applies the IsNil predicate on the "lto" field.
 func LtoIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldLto)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldLto))
 }
 
 // LtoNotNil applies the NotNil predicate on the "lto" field.
 func LtoNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldLto)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldLto))
 }
 
 // LastVersionBuildEQ applies the EQ predicate on the "last_version_build" field.
 func LastVersionBuildEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildNEQ applies the NEQ predicate on the "last_version_build" field.
 func LastVersionBuildNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildIn applies the In predicate on the "last_version_build" field.
 func LastVersionBuildIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldLastVersionBuild), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldLastVersionBuild, vs...))
 }
 
 // LastVersionBuildNotIn applies the NotIn predicate on the "last_version_build" field.
 func LastVersionBuildNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldLastVersionBuild), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldLastVersionBuild, vs...))
 }
 
 // LastVersionBuildGT applies the GT predicate on the "last_version_build" field.
 func LastVersionBuildGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildGTE applies the GTE predicate on the "last_version_build" field.
 func LastVersionBuildGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildLT applies the LT predicate on the "last_version_build" field.
 func LastVersionBuildLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildLTE applies the LTE predicate on the "last_version_build" field.
 func LastVersionBuildLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildContains applies the Contains predicate on the "last_version_build" field.
 func LastVersionBuildContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildHasPrefix applies the HasPrefix predicate on the "last_version_build" field.
 func LastVersionBuildHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildHasSuffix applies the HasSuffix predicate on the "last_version_build" field.
 func LastVersionBuildHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildIsNil applies the IsNil predicate on the "last_version_build" field.
 func LastVersionBuildIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldLastVersionBuild)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldLastVersionBuild))
 }
 
 // LastVersionBuildNotNil applies the NotNil predicate on the "last_version_build" field.
 func LastVersionBuildNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldLastVersionBuild)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldLastVersionBuild))
 }
 
 // LastVersionBuildEqualFold applies the EqualFold predicate on the "last_version_build" field.
 func LastVersionBuildEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldLastVersionBuild, v))
 }
 
 // LastVersionBuildContainsFold applies the ContainsFold predicate on the "last_version_build" field.
 func LastVersionBuildContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldLastVersionBuild), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldLastVersionBuild, v))
 }
 
 // LastVerifiedEQ applies the EQ predicate on the "last_verified" field.
 func LastVerifiedEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldLastVerified, v))
 }
 
 // LastVerifiedNEQ applies the NEQ predicate on the "last_verified" field.
 func LastVerifiedNEQ(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldLastVerified, v))
 }
 
 // LastVerifiedIn applies the In predicate on the "last_verified" field.
 func LastVerifiedIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldLastVerified), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldLastVerified, vs...))
 }
 
 // LastVerifiedNotIn applies the NotIn predicate on the "last_verified" field.
 func LastVerifiedNotIn(vs ...time.Time) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldLastVerified), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldLastVerified, vs...))
 }
 
 // LastVerifiedGT applies the GT predicate on the "last_verified" field.
 func LastVerifiedGT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldLastVerified, v))
 }
 
 // LastVerifiedGTE applies the GTE predicate on the "last_verified" field.
 func LastVerifiedGTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldLastVerified, v))
 }
 
 // LastVerifiedLT applies the LT predicate on the "last_verified" field.
 func LastVerifiedLT(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldLastVerified, v))
 }
 
 // LastVerifiedLTE applies the LTE predicate on the "last_verified" field.
 func LastVerifiedLTE(v time.Time) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldLastVerified), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldLastVerified, v))
 }
 
 // LastVerifiedIsNil applies the IsNil predicate on the "last_verified" field.
 func LastVerifiedIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldLastVerified)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldLastVerified))
 }
 
 // LastVerifiedNotNil applies the NotNil predicate on the "last_verified" field.
 func LastVerifiedNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldLastVerified)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldLastVerified))
 }
 
 // DebugSymbolsEQ applies the EQ predicate on the "debug_symbols" field.
 func DebugSymbolsEQ(v DebugSymbols) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldDebugSymbols), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldDebugSymbols, v))
 }
 
 // DebugSymbolsNEQ applies the NEQ predicate on the "debug_symbols" field.
 func DebugSymbolsNEQ(v DebugSymbols) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldDebugSymbols), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldDebugSymbols, v))
 }
 
 // DebugSymbolsIn applies the In predicate on the "debug_symbols" field.
 func DebugSymbolsIn(vs ...DebugSymbols) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldDebugSymbols), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldDebugSymbols, vs...))
 }
 
 // DebugSymbolsNotIn applies the NotIn predicate on the "debug_symbols" field.
 func DebugSymbolsNotIn(vs ...DebugSymbols) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldDebugSymbols), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldDebugSymbols, vs...))
 }
 
 // DebugSymbolsIsNil applies the IsNil predicate on the "debug_symbols" field.
 func DebugSymbolsIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldDebugSymbols)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldDebugSymbols))
 }
 
 // DebugSymbolsNotNil applies the NotNil predicate on the "debug_symbols" field.
 func DebugSymbolsNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldDebugSymbols)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldDebugSymbols))
 }
 
 // MaxRssEQ applies the EQ predicate on the "max_rss" field.
 func MaxRssEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldMaxRss, v))
 }
 
 // MaxRssNEQ applies the NEQ predicate on the "max_rss" field.
 func MaxRssNEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldMaxRss, v))
 }
 
 // MaxRssIn applies the In predicate on the "max_rss" field.
 func MaxRssIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldMaxRss), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldMaxRss, vs...))
 }
 
 // MaxRssNotIn applies the NotIn predicate on the "max_rss" field.
 func MaxRssNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldMaxRss), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldMaxRss, vs...))
 }
 
 // MaxRssGT applies the GT predicate on the "max_rss" field.
 func MaxRssGT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldMaxRss, v))
 }
 
 // MaxRssGTE applies the GTE predicate on the "max_rss" field.
 func MaxRssGTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldMaxRss, v))
 }
 
 // MaxRssLT applies the LT predicate on the "max_rss" field.
 func MaxRssLT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldMaxRss, v))
 }
 
 // MaxRssLTE applies the LTE predicate on the "max_rss" field.
 func MaxRssLTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldMaxRss), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldMaxRss, v))
 }
 
 // MaxRssIsNil applies the IsNil predicate on the "max_rss" field.
 func MaxRssIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldMaxRss)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldMaxRss))
 }
 
 // MaxRssNotNil applies the NotNil predicate on the "max_rss" field.
 func MaxRssNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldMaxRss)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldMaxRss))
 }
 
 // UTimeEQ applies the EQ predicate on the "u_time" field.
 func UTimeEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldUTime, v))
 }
 
 // UTimeNEQ applies the NEQ predicate on the "u_time" field.
 func UTimeNEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldUTime, v))
 }
 
 // UTimeIn applies the In predicate on the "u_time" field.
 func UTimeIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldUTime), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldUTime, vs...))
 }
 
 // UTimeNotIn applies the NotIn predicate on the "u_time" field.
 func UTimeNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldUTime), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldUTime, vs...))
 }
 
 // UTimeGT applies the GT predicate on the "u_time" field.
 func UTimeGT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldUTime, v))
 }
 
 // UTimeGTE applies the GTE predicate on the "u_time" field.
 func UTimeGTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldUTime, v))
 }
 
 // UTimeLT applies the LT predicate on the "u_time" field.
 func UTimeLT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldUTime, v))
 }
 
 // UTimeLTE applies the LTE predicate on the "u_time" field.
 func UTimeLTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldUTime), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldUTime, v))
 }
 
 // UTimeIsNil applies the IsNil predicate on the "u_time" field.
 func UTimeIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldUTime)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldUTime))
 }
 
 // UTimeNotNil applies the NotNil predicate on the "u_time" field.
 func UTimeNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldUTime)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldUTime))
 }
 
 // STimeEQ applies the EQ predicate on the "s_time" field.
 func STimeEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSTime, v))
 }
 
 // STimeNEQ applies the NEQ predicate on the "s_time" field.
 func STimeNEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldSTime, v))
 }
 
 // STimeIn applies the In predicate on the "s_time" field.
 func STimeIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldSTime), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldSTime, vs...))
 }
 
 // STimeNotIn applies the NotIn predicate on the "s_time" field.
 func STimeNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldSTime), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldSTime, vs...))
 }
 
 // STimeGT applies the GT predicate on the "s_time" field.
 func STimeGT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldSTime, v))
 }
 
 // STimeGTE applies the GTE predicate on the "s_time" field.
 func STimeGTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldSTime, v))
 }
 
 // STimeLT applies the LT predicate on the "s_time" field.
 func STimeLT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldSTime, v))
 }
 
 // STimeLTE applies the LTE predicate on the "s_time" field.
 func STimeLTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldSTime), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldSTime, v))
 }
 
 // STimeIsNil applies the IsNil predicate on the "s_time" field.
 func STimeIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldSTime)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldSTime))
 }
 
 // STimeNotNil applies the NotNil predicate on the "s_time" field.
 func STimeNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldSTime)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldSTime))
 }
 
 // IoInEQ applies the EQ predicate on the "io_in" field.
 func IoInEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldIoIn, v))
 }
 
 // IoInNEQ applies the NEQ predicate on the "io_in" field.
 func IoInNEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldIoIn, v))
 }
 
 // IoInIn applies the In predicate on the "io_in" field.
 func IoInIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldIoIn), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldIoIn, vs...))
 }
 
 // IoInNotIn applies the NotIn predicate on the "io_in" field.
 func IoInNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldIoIn), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldIoIn, vs...))
 }
 
 // IoInGT applies the GT predicate on the "io_in" field.
 func IoInGT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldIoIn, v))
 }
 
 // IoInGTE applies the GTE predicate on the "io_in" field.
 func IoInGTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldIoIn, v))
 }
 
 // IoInLT applies the LT predicate on the "io_in" field.
 func IoInLT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldIoIn, v))
 }
 
 // IoInLTE applies the LTE predicate on the "io_in" field.
 func IoInLTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldIoIn), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldIoIn, v))
 }
 
 // IoInIsNil applies the IsNil predicate on the "io_in" field.
 func IoInIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldIoIn)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldIoIn))
 }
 
 // IoInNotNil applies the NotNil predicate on the "io_in" field.
 func IoInNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldIoIn)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldIoIn))
 }
 
 // IoOutEQ applies the EQ predicate on the "io_out" field.
 func IoOutEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldIoOut, v))
 }
 
 // IoOutNEQ applies the NEQ predicate on the "io_out" field.
 func IoOutNEQ(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldIoOut, v))
 }
 
 // IoOutIn applies the In predicate on the "io_out" field.
 func IoOutIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldIoOut), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldIoOut, vs...))
 }
 
 // IoOutNotIn applies the NotIn predicate on the "io_out" field.
 func IoOutNotIn(vs ...int64) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldIoOut), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldIoOut, vs...))
 }
 
 // IoOutGT applies the GT predicate on the "io_out" field.
 func IoOutGT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldIoOut, v))
 }
 
 // IoOutGTE applies the GTE predicate on the "io_out" field.
 func IoOutGTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldIoOut, v))
 }
 
 // IoOutLT applies the LT predicate on the "io_out" field.
 func IoOutLT(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldIoOut, v))
 }
 
 // IoOutLTE applies the LTE predicate on the "io_out" field.
 func IoOutLTE(v int64) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldIoOut), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldIoOut, v))
 }
 
 // IoOutIsNil applies the IsNil predicate on the "io_out" field.
 func IoOutIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldIoOut)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldIoOut))
 }
 
 // IoOutNotNil applies the NotNil predicate on the "io_out" field.
 func IoOutNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldIoOut)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldIoOut))
 }
 
 // SrcinfoEQ applies the EQ predicate on the "srcinfo" field.
 func SrcinfoEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSrcinfo, v))
 }
 
 // SrcinfoNEQ applies the NEQ predicate on the "srcinfo" field.
 func SrcinfoNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldSrcinfo, v))
 }
 
 // SrcinfoIn applies the In predicate on the "srcinfo" field.
 func SrcinfoIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldSrcinfo), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldSrcinfo, vs...))
 }
 
 // SrcinfoNotIn applies the NotIn predicate on the "srcinfo" field.
 func SrcinfoNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldSrcinfo), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldSrcinfo, vs...))
 }
 
 // SrcinfoGT applies the GT predicate on the "srcinfo" field.
 func SrcinfoGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldSrcinfo, v))
 }
 
 // SrcinfoGTE applies the GTE predicate on the "srcinfo" field.
 func SrcinfoGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldSrcinfo, v))
 }
 
 // SrcinfoLT applies the LT predicate on the "srcinfo" field.
 func SrcinfoLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldSrcinfo, v))
 }
 
 // SrcinfoLTE applies the LTE predicate on the "srcinfo" field.
 func SrcinfoLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldSrcinfo, v))
 }
 
 // SrcinfoContains applies the Contains predicate on the "srcinfo" field.
 func SrcinfoContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldSrcinfo, v))
 }
 
 // SrcinfoHasPrefix applies the HasPrefix predicate on the "srcinfo" field.
 func SrcinfoHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldSrcinfo, v))
 }
 
 // SrcinfoHasSuffix applies the HasSuffix predicate on the "srcinfo" field.
 func SrcinfoHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldSrcinfo, v))
 }
 
 // SrcinfoIsNil applies the IsNil predicate on the "srcinfo" field.
 func SrcinfoIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldSrcinfo)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldSrcinfo))
 }
 
 // SrcinfoNotNil applies the NotNil predicate on the "srcinfo" field.
 func SrcinfoNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldSrcinfo)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldSrcinfo))
 }
 
 // SrcinfoEqualFold applies the EqualFold predicate on the "srcinfo" field.
 func SrcinfoEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldSrcinfo, v))
 }
 
 // SrcinfoContainsFold applies the ContainsFold predicate on the "srcinfo" field.
 func SrcinfoContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldSrcinfo), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldSrcinfo, v))
 }
 
 // SrcinfoHashEQ applies the EQ predicate on the "srcinfo_hash" field.
 func SrcinfoHashEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashNEQ applies the NEQ predicate on the "srcinfo_hash" field.
 func SrcinfoHashNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashIn applies the In predicate on the "srcinfo_hash" field.
 func SrcinfoHashIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldSrcinfoHash), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldSrcinfoHash, vs...))
 }
 
 // SrcinfoHashNotIn applies the NotIn predicate on the "srcinfo_hash" field.
 func SrcinfoHashNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldSrcinfoHash), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldSrcinfoHash, vs...))
 }
 
 // SrcinfoHashGT applies the GT predicate on the "srcinfo_hash" field.
 func SrcinfoHashGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashGTE applies the GTE predicate on the "srcinfo_hash" field.
 func SrcinfoHashGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashLT applies the LT predicate on the "srcinfo_hash" field.
 func SrcinfoHashLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashLTE applies the LTE predicate on the "srcinfo_hash" field.
 func SrcinfoHashLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashContains applies the Contains predicate on the "srcinfo_hash" field.
 func SrcinfoHashContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashHasPrefix applies the HasPrefix predicate on the "srcinfo_hash" field.
 func SrcinfoHashHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashHasSuffix applies the HasSuffix predicate on the "srcinfo_hash" field.
 func SrcinfoHashHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashIsNil applies the IsNil predicate on the "srcinfo_hash" field.
 func SrcinfoHashIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldSrcinfoHash)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldSrcinfoHash))
 }
 
 // SrcinfoHashNotNil applies the NotNil predicate on the "srcinfo_hash" field.
 func SrcinfoHashNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldSrcinfoHash)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldSrcinfoHash))
 }
 
 // SrcinfoHashEqualFold applies the EqualFold predicate on the "srcinfo_hash" field.
 func SrcinfoHashEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldSrcinfoHash, v))
 }
 
 // SrcinfoHashContainsFold applies the ContainsFold predicate on the "srcinfo_hash" field.
 func SrcinfoHashContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldSrcinfoHash), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldSrcinfoHash, v))
 }
 
 // PkgbuildEQ applies the EQ predicate on the "pkgbuild" field.
 func PkgbuildEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EQ(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEQ(FieldPkgbuild, v))
 }
 
 // PkgbuildNEQ applies the NEQ predicate on the "pkgbuild" field.
 func PkgbuildNEQ(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NEQ(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldNEQ(FieldPkgbuild, v))
 }
 
 // PkgbuildIn applies the In predicate on the "pkgbuild" field.
 func PkgbuildIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldPkgbuild), v...))
-	})
+	return predicate.DbPackage(sql.FieldIn(FieldPkgbuild, vs...))
 }
 
 // PkgbuildNotIn applies the NotIn predicate on the "pkgbuild" field.
 func PkgbuildNotIn(vs ...string) predicate.DbPackage {
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldPkgbuild), v...))
-	})
+	return predicate.DbPackage(sql.FieldNotIn(FieldPkgbuild, vs...))
 }
 
 // PkgbuildGT applies the GT predicate on the "pkgbuild" field.
 func PkgbuildGT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GT(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldGT(FieldPkgbuild, v))
 }
 
 // PkgbuildGTE applies the GTE predicate on the "pkgbuild" field.
 func PkgbuildGTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.GTE(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldGTE(FieldPkgbuild, v))
 }
 
 // PkgbuildLT applies the LT predicate on the "pkgbuild" field.
 func PkgbuildLT(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LT(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldLT(FieldPkgbuild, v))
 }
 
 // PkgbuildLTE applies the LTE predicate on the "pkgbuild" field.
 func PkgbuildLTE(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.LTE(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldLTE(FieldPkgbuild, v))
 }
 
 // PkgbuildContains applies the Contains predicate on the "pkgbuild" field.
 func PkgbuildContains(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.Contains(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldContains(FieldPkgbuild, v))
 }
 
 // PkgbuildHasPrefix applies the HasPrefix predicate on the "pkgbuild" field.
 func PkgbuildHasPrefix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasPrefix(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldHasPrefix(FieldPkgbuild, v))
 }
 
 // PkgbuildHasSuffix applies the HasSuffix predicate on the "pkgbuild" field.
 func PkgbuildHasSuffix(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.HasSuffix(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldHasSuffix(FieldPkgbuild, v))
 }
 
 // PkgbuildIsNil applies the IsNil predicate on the "pkgbuild" field.
 func PkgbuildIsNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.IsNull(s.C(FieldPkgbuild)))
-	})
+	return predicate.DbPackage(sql.FieldIsNull(FieldPkgbuild))
 }
 
 // PkgbuildNotNil applies the NotNil predicate on the "pkgbuild" field.
 func PkgbuildNotNil() predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.NotNull(s.C(FieldPkgbuild)))
-	})
+	return predicate.DbPackage(sql.FieldNotNull(FieldPkgbuild))
 }
 
 // PkgbuildEqualFold applies the EqualFold predicate on the "pkgbuild" field.
 func PkgbuildEqualFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.EqualFold(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldEqualFold(FieldPkgbuild, v))
 }
 
 // PkgbuildContainsFold applies the ContainsFold predicate on the "pkgbuild" field.
 func PkgbuildContainsFold(v string) predicate.DbPackage {
-	return predicate.DbPackage(func(s *sql.Selector) {
-		s.Where(sql.ContainsFold(s.C(FieldPkgbuild), v))
-	})
+	return predicate.DbPackage(sql.FieldContainsFold(FieldPkgbuild, v))
 }
 
 // And groups predicates with the AND operator between them.

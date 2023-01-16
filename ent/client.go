@@ -27,7 +27,7 @@ type Client struct {
 
 // NewClient creates a new client configured with the given options.
 func NewClient(opts ...Option) *Client {
-	cfg := config{log: log.Println, hooks: &hooks{}}
+	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
 	cfg.options(opts...)
 	client := &Client{config: cfg}
 	client.init()
@@ -122,6 +122,22 @@ func (c *Client) Use(hooks ...Hook) {
 	c.DbPackage.Use(hooks...)
 }
 
+// Intercept adds the query interceptors to all the entity clients.
+// In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
+func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.DbPackage.Intercept(interceptors...)
+}
+
+// Mutate implements the ent.Mutator interface.
+func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
+	switch m := m.(type) {
+	case *DbPackageMutation:
+		return c.DbPackage.mutate(ctx, m)
+	default:
+		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
 // DbPackageClient is a client for the DbPackage schema.
 type DbPackageClient struct {
 	config
@@ -136,6 +152,12 @@ func NewDbPackageClient(c config) *DbPackageClient {
 // A call to `Use(f, g, h)` equals to `dbpackage.Hooks(f(g(h())))`.
 func (c *DbPackageClient) Use(hooks ...Hook) {
 	c.hooks.DbPackage = append(c.hooks.DbPackage, hooks...)
+}
+
+// Use adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dbpackage.Intercept(f(g(h())))`.
+func (c *DbPackageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DbPackage = append(c.inters.DbPackage, interceptors...)
 }
 
 // Create returns a builder for creating a DbPackage entity.
@@ -190,6 +212,7 @@ func (c *DbPackageClient) DeleteOneID(id int) *DbPackageDeleteOne {
 func (c *DbPackageClient) Query() *DbPackageQuery {
 	return &DbPackageQuery{
 		config: c.config,
+		inters: c.Interceptors(),
 	}
 }
 
@@ -210,4 +233,24 @@ func (c *DbPackageClient) GetX(ctx context.Context, id int) *DbPackage {
 // Hooks returns the client hooks.
 func (c *DbPackageClient) Hooks() []Hook {
 	return c.hooks.DbPackage
+}
+
+// Interceptors returns the client interceptors.
+func (c *DbPackageClient) Interceptors() []Interceptor {
+	return c.inters.DbPackage
+}
+
+func (c *DbPackageClient) mutate(ctx context.Context, m *DbPackageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DbPackageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DbPackageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DbPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DbPackageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DbPackage mutation op: %q", m.Op())
+	}
 }

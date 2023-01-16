@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"fmt"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -28,34 +27,7 @@ func (dpd *DbPackageDelete) Where(ps ...predicate.DbPackage) *DbPackageDelete {
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (dpd *DbPackageDelete) Exec(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(dpd.hooks) == 0 {
-		affected, err = dpd.sqlExec(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DbPackageMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			dpd.mutation = mutation
-			affected, err = dpd.sqlExec(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(dpd.hooks) - 1; i >= 0; i-- {
-			if dpd.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dpd.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, dpd.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, DbPackageMutation](ctx, dpd.sqlExec, dpd.mutation, dpd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
@@ -88,6 +60,7 @@ func (dpd *DbPackageDelete) sqlExec(ctx context.Context) (int, error) {
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
+	dpd.mutation.done = true
 	return affected, err
 }
 

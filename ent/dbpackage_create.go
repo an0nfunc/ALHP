@@ -317,50 +317,8 @@ func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 
 // Save creates the DbPackage in the database.
 func (dpc *DbPackageCreate) Save(ctx context.Context) (*DbPackage, error) {
-	var (
-		err  error
-		node *DbPackage
-	)
 	dpc.defaults()
-	if len(dpc.hooks) == 0 {
-		if err = dpc.check(); err != nil {
-			return nil, err
-		}
-		node, err = dpc.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DbPackageMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = dpc.check(); err != nil {
-				return nil, err
-			}
-			dpc.mutation = mutation
-			if node, err = dpc.sqlSave(ctx); err != nil {
-				return nil, err
-			}
-			mutation.id = &node.ID
-			mutation.done = true
-			return node, err
-		})
-		for i := len(dpc.hooks) - 1; i >= 0; i-- {
-			if dpc.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dpc.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, dpc.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*DbPackage)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from DbPackageMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*DbPackage, DbPackageMutation](ctx, dpc.sqlSave, dpc.mutation, dpc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -446,6 +404,9 @@ func (dpc *DbPackageCreate) check() error {
 }
 
 func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
+	if err := dpc.check(); err != nil {
+		return nil, err
+	}
 	_node, _spec := dpc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, dpc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
@@ -455,6 +416,8 @@ func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
 	}
 	id := _spec.ID.Value.(int64)
 	_node.ID = int(id)
+	dpc.mutation.id = &_node.ID
+	dpc.mutation.done = true
 	return _node, nil
 }
 

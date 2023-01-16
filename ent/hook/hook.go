@@ -15,11 +15,10 @@ type DbPackageFunc func(context.Context, *ent.DbPackageMutation) (ent.Value, err
 
 // Mutate calls f(ctx, m).
 func (f DbPackageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	mv, ok := m.(*ent.DbPackageMutation)
-	if !ok {
-		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DbPackageMutation", m)
+	if mv, ok := m.(*ent.DbPackageMutation); ok {
+		return f(ctx, mv)
 	}
-	return f(ctx, mv)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DbPackageMutation", m)
 }
 
 // Condition is a hook condition function.

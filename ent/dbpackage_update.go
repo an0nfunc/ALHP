@@ -476,40 +476,7 @@ func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (dpu *DbPackageUpdate) Save(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(dpu.hooks) == 0 {
-		if err = dpu.check(); err != nil {
-			return 0, err
-		}
-		affected, err = dpu.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DbPackageMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = dpu.check(); err != nil {
-				return 0, err
-			}
-			dpu.mutation = mutation
-			affected, err = dpu.sqlSave(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(dpu.hooks) - 1; i >= 0; i-- {
-			if dpu.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dpu.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, dpu.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, DbPackageMutation](ctx, dpu.sqlSave, dpu.mutation, dpu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -566,6 +533,9 @@ func (dpu *DbPackageUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DbP
 }
 
 func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := dpu.check(); err != nil {
+		return n, err
+	}
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table:   dbpackage.Table,
@@ -735,6 +705,7 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		return 0, err
 	}
+	dpu.mutation.done = true
 	return n, nil
 }
 
@@ -1200,46 +1171,7 @@ func (dpuo *DbPackageUpdateOne) Select(field string, fields ...string) *DbPackag
 
 // Save executes the query and returns the updated DbPackage entity.
 func (dpuo *DbPackageUpdateOne) Save(ctx context.Context) (*DbPackage, error) {
-	var (
-		err  error
-		node *DbPackage
-	)
-	if len(dpuo.hooks) == 0 {
-		if err = dpuo.check(); err != nil {
-			return nil, err
-		}
-		node, err = dpuo.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*DbPackageMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = dpuo.check(); err != nil {
-				return nil, err
-			}
-			dpuo.mutation = mutation
-			node, err = dpuo.sqlSave(ctx)
-			mutation.done = true
-			return node, err
-		})
-		for i := len(dpuo.hooks) - 1; i >= 0; i-- {
-			if dpuo.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = dpuo.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, dpuo.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*DbPackage)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from DbPackageMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*DbPackage, DbPackageMutation](ctx, dpuo.sqlSave, dpuo.mutation, dpuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -1296,6 +1228,9 @@ func (dpuo *DbPackageUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) 
 }
 
 func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, err error) {
+	if err := dpuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table:   dbpackage.Table,
@@ -1485,5 +1420,6 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 		}
 		return nil, err
 	}
+	dpuo.mutation.done = true
 	return _node, nil
 }
