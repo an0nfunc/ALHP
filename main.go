@@ -512,8 +512,6 @@ func main() {
 		log.Infof("Failed to drop priority: %v", err)
 	}
 
-	log.Infof("Usable %d bytes of memory ", TotalMemory())
-
 	err = os.MkdirAll(conf.Basedir.Repo, 0o755)
 	if err != nil {
 		log.Fatalf("Error creating repo dir: %v", err)

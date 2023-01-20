@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -45,7 +44,7 @@ const (
 )
 
 var (
-	reVar           = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]+)([)"])[^\S\r\n]*$`)
+	reVar           = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]*)([)"])[^\S\r\n]*$`)
 	reEnvClean      = regexp.MustCompile(`(?m) ([\s\\]+) `)
 	rePkgRel        = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
 	rePkgSource     = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
@@ -1010,14 +1009,4 @@ func (globs Globs) Expand() ([]string, error) {
 	}
 
 	return matches, nil
-}
-
-func TotalMemory() uint64 {
-	sinfo := new(syscall.Sysinfo_t)
-	err := syscall.Sysinfo(sinfo)
-	if err != nil {
-		return 0
-	}
-
-	return sinfo.Totalram * uint64(sinfo.Unit)
 }

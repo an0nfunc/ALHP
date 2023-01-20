@@ -20,8 +20,7 @@ common:
   packager: "ALHP $march$ <alhp@harting.dev>"
   makeflags: "-j$buildproc$"
   # https://git.harting.dev/ALHP/ALHP.GO/issues/110
-  rustflags: |-
-    -Copt-level=3 -Ctarget-cpu=$march$
+  rustflags: "-Copt-level=3 -Ctarget-cpu=$march$"
   ltoflags:
     - "-falign-functions=32" # https://github.com/InBetweenNames/gentooLTO/issues/164
 
