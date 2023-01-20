@@ -3,7 +3,7 @@ module git.harting.dev/ALHP/ALHP.GO
 go 1.18
 
 require (
-	entgo.io/ent v0.11.5
+	entgo.io/ent v0.11.6
 	github.com/Jguer/go-alpm/v2 v2.1.2
 	github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5
 	github.com/Morganamilo/go-srcinfo v1.0.0
@@ -19,7 +19,7 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.9.0 // indirect
+	ariga.io/atlas v0.9.1-0.20230119123307-a3ab6808892b // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect

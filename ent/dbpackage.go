@@ -254,7 +254,7 @@ func (dp *DbPackage) assignValues(columns []string, values []any) error {
 // Note that you need to call DbPackage.Unwrap() before calling this method if this DbPackage
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (dp *DbPackage) Update() *DbPackageUpdateOne {
-	return (&DbPackageClient{config: dp.config}).UpdateOne(dp)
+	return NewDbPackageClient(dp.config).UpdateOne(dp)
 }
 
 // Unwrap unwraps the DbPackage entity that was returned from a transaction after it was closed,

@@ -212,6 +212,7 @@ func (c *DbPackageClient) DeleteOneID(id int) *DbPackageDeleteOne {
 func (c *DbPackageClient) Query() *DbPackageQuery {
 	return &DbPackageQuery{
 		config: c.config,
+		ctx:    &QueryContext{Type: TypeDbPackage},
 		inters: c.Interceptors(),
 	}
 }

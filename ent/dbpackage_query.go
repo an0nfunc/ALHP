@@ -17,11 +17,8 @@ import (
 // DbPackageQuery is the builder for querying DbPackage entities.
 type DbPackageQuery struct {
 	config
-	limit      *int
-	offset     *int
-	unique     *bool
+	ctx        *QueryContext
 	order      []OrderFunc
-	fields     []string
 	inters     []Interceptor
 	predicates []predicate.DbPackage
 	modifiers  []func(*sql.Selector)
@@ -38,20 +35,20 @@ func (dpq *DbPackageQuery) Where(ps ...predicate.DbPackage) *DbPackageQuery {
 
 // Limit the number of records to be returned by this query.
 func (dpq *DbPackageQuery) Limit(limit int) *DbPackageQuery {
-	dpq.limit = &limit
+	dpq.ctx.Limit = &limit
 	return dpq
 }
 
 // Offset to start from.
 func (dpq *DbPackageQuery) Offset(offset int) *DbPackageQuery {
-	dpq.offset = &offset
+	dpq.ctx.Offset = &offset
 	return dpq
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
 func (dpq *DbPackageQuery) Unique(unique bool) *DbPackageQuery {
-	dpq.unique = &unique
+	dpq.ctx.Unique = &unique
 	return dpq
 }
 
@@ -64,7 +61,7 @@ func (dpq *DbPackageQuery) Order(o ...OrderFunc) *DbPackageQuery {
 // First returns the first DbPackage entity from the query.
 // Returns a *NotFoundError when no DbPackage was found.
 func (dpq *DbPackageQuery) First(ctx context.Context) (*DbPackage, error) {
-	nodes, err := dpq.Limit(1).All(newQueryContext(ctx, TypeDbPackage, "First"))
+	nodes, err := dpq.Limit(1).All(setContextOp(ctx, dpq.ctx, "First"))
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +84,7 @@ func (dpq *DbPackageQuery) FirstX(ctx context.Context) *DbPackage {
 // Returns a *NotFoundError when no DbPackage ID was found.
 func (dpq *DbPackageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(1).IDs(newQueryContext(ctx, TypeDbPackage, "FirstID")); err != nil {
+	if ids, err = dpq.Limit(1).IDs(setContextOp(ctx, dpq.ctx, "FirstID")); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -110,7 +107,7 @@ func (dpq *DbPackageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one DbPackage entity is found.
 // Returns a *NotFoundError when no DbPackage entities are found.
 func (dpq *DbPackageQuery) Only(ctx context.Context) (*DbPackage, error) {
-	nodes, err := dpq.Limit(2).All(newQueryContext(ctx, TypeDbPackage, "Only"))
+	nodes, err := dpq.Limit(2).All(setContextOp(ctx, dpq.ctx, "Only"))
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +135,7 @@ func (dpq *DbPackageQuery) OnlyX(ctx context.Context) *DbPackage {
 // Returns a *NotFoundError when no entities are found.
 func (dpq *DbPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(2).IDs(newQueryContext(ctx, TypeDbPackage, "OnlyID")); err != nil {
+	if ids, err = dpq.Limit(2).IDs(setContextOp(ctx, dpq.ctx, "OnlyID")); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -163,7 +160,7 @@ func (dpq *DbPackageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of DbPackages.
 func (dpq *DbPackageQuery) All(ctx context.Context) ([]*DbPackage, error) {
-	ctx = newQueryContext(ctx, TypeDbPackage, "All")
+	ctx = setContextOp(ctx, dpq.ctx, "All")
 	if err := dpq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -183,7 +180,7 @@ func (dpq *DbPackageQuery) AllX(ctx context.Context) []*DbPackage {
 // IDs executes the query and returns a list of DbPackage IDs.
 func (dpq *DbPackageQuery) IDs(ctx context.Context) ([]int, error) {
 	var ids []int
-	ctx = newQueryContext(ctx, TypeDbPackage, "IDs")
+	ctx = setContextOp(ctx, dpq.ctx, "IDs")
 	if err := dpq.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -201,7 +198,7 @@ func (dpq *DbPackageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (dpq *DbPackageQuery) Count(ctx context.Context) (int, error) {
-	ctx = newQueryContext(ctx, TypeDbPackage, "Count")
+	ctx = setContextOp(ctx, dpq.ctx, "Count")
 	if err := dpq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -219,7 +216,7 @@ func (dpq *DbPackageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (dpq *DbPackageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = newQueryContext(ctx, TypeDbPackage, "Exist")
+	ctx = setContextOp(ctx, dpq.ctx, "Exist")
 	switch _, err := dpq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -247,15 +244,13 @@ func (dpq *DbPackageQuery) Clone() *DbPackageQuery {
 	}
 	return &DbPackageQuery{
 		config:     dpq.config,
-		limit:      dpq.limit,
-		offset:     dpq.offset,
+		ctx:        dpq.ctx.Clone(),
 		order:      append([]OrderFunc{}, dpq.order...),
 		inters:     append([]Interceptor{}, dpq.inters...),
 		predicates: append([]predicate.DbPackage{}, dpq.predicates...),
 		// clone intermediate query.
-		sql:    dpq.sql.Clone(),
-		path:   dpq.path,
-		unique: dpq.unique,
+		sql:  dpq.sql.Clone(),
+		path: dpq.path,
 	}
 }
 
@@ -274,9 +269,9 @@ func (dpq *DbPackageQuery) Clone() *DbPackageQuery {
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (dpq *DbPackageQuery) GroupBy(field string, fields ...string) *DbPackageGroupBy {
-	dpq.fields = append([]string{field}, fields...)
+	dpq.ctx.Fields = append([]string{field}, fields...)
 	grbuild := &DbPackageGroupBy{build: dpq}
-	grbuild.flds = &dpq.fields
+	grbuild.flds = &dpq.ctx.Fields
 	grbuild.label = dbpackage.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
@@ -295,10 +290,10 @@ func (dpq *DbPackageQuery) GroupBy(field string, fields ...string) *DbPackageGro
 //		Select(dbpackage.FieldPkgbase).
 //		Scan(ctx, &v)
 func (dpq *DbPackageQuery) Select(fields ...string) *DbPackageSelect {
-	dpq.fields = append(dpq.fields, fields...)
+	dpq.ctx.Fields = append(dpq.ctx.Fields, fields...)
 	sbuild := &DbPackageSelect{DbPackageQuery: dpq}
 	sbuild.label = dbpackage.Label
-	sbuild.flds, sbuild.scan = &dpq.fields, sbuild.Scan
+	sbuild.flds, sbuild.scan = &dpq.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
@@ -318,7 +313,7 @@ func (dpq *DbPackageQuery) prepareQuery(ctx context.Context) error {
 			}
 		}
 	}
-	for _, f := range dpq.fields {
+	for _, f := range dpq.ctx.Fields {
 		if !dbpackage.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
@@ -366,9 +361,9 @@ func (dpq *DbPackageQuery) sqlCount(ctx context.Context) (int, error) {
 	if len(dpq.modifiers) > 0 {
 		_spec.Modifiers = dpq.modifiers
 	}
-	_spec.Node.Columns = dpq.fields
-	if len(dpq.fields) > 0 {
-		_spec.Unique = dpq.unique != nil && *dpq.unique
+	_spec.Node.Columns = dpq.ctx.Fields
+	if len(dpq.ctx.Fields) > 0 {
+		_spec.Unique = dpq.ctx.Unique != nil && *dpq.ctx.Unique
 	}
 	return sqlgraph.CountNodes(ctx, dpq.driver, _spec)
 }
@@ -386,10 +381,10 @@ func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
 		From:   dpq.sql,
 		Unique: true,
 	}
-	if unique := dpq.unique; unique != nil {
+	if unique := dpq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
 	}
-	if fields := dpq.fields; len(fields) > 0 {
+	if fields := dpq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, dbpackage.FieldID)
 		for i := range fields {
@@ -405,10 +400,10 @@ func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if limit := dpq.limit; limit != nil {
+	if limit := dpq.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := dpq.offset; offset != nil {
+	if offset := dpq.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
 	if ps := dpq.order; len(ps) > 0 {
@@ -424,7 +419,7 @@ func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
 func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(dpq.driver.Dialect())
 	t1 := builder.Table(dbpackage.Table)
-	columns := dpq.fields
+	columns := dpq.ctx.Fields
 	if len(columns) == 0 {
 		columns = dbpackage.Columns
 	}
@@ -433,7 +428,7 @@ func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector = dpq.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if dpq.unique != nil && *dpq.unique {
+	if dpq.ctx.Unique != nil && *dpq.ctx.Unique {
 		selector.Distinct()
 	}
 	for _, m := range dpq.modifiers {
@@ -445,12 +440,12 @@ func (dpq *DbPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	for _, p := range dpq.order {
 		p(selector)
 	}
-	if offset := dpq.offset; offset != nil {
+	if offset := dpq.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := dpq.limit; limit != nil {
+	if limit := dpq.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
@@ -476,7 +471,7 @@ func (dpgb *DbPackageGroupBy) Aggregate(fns ...AggregateFunc) *DbPackageGroupBy 
 
 // Scan applies the selector query and scans the result into the given value.
 func (dpgb *DbPackageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = newQueryContext(ctx, TypeDbPackage, "GroupBy")
+	ctx = setContextOp(ctx, dpgb.build.ctx, "GroupBy")
 	if err := dpgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -524,7 +519,7 @@ func (dps *DbPackageSelect) Aggregate(fns ...AggregateFunc) *DbPackageSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (dps *DbPackageSelect) Scan(ctx context.Context, v any) error {
-	ctx = newQueryContext(ctx, TypeDbPackage, "Select")
+	ctx = setContextOp(ctx, dps.ctx, "Select")
 	if err := dps.prepareQuery(ctx); err != nil {
 		return err
 	}
