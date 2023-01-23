@@ -700,6 +700,20 @@ func logHK() error {
 			continue
 		}
 
+		pkgSkipped, err := db.DbPackage.Query().Where(
+			dbpackage.Pkgbase(pkg.Pkgbase),
+			dbpackage.March(pkg.March),
+			dbpackage.StatusEQ(dbpackage.StatusSkipped),
+		).Exist(context.Background())
+		if err != nil {
+			return err
+		}
+
+		if pkgSkipped {
+			_ = os.Remove(logFile)
+			continue
+		}
+
 		logContent, err := os.ReadFile(logFile)
 		if err != nil {
 			return err
@@ -718,12 +732,11 @@ func logHK() error {
 			}
 		} else if reLdError.MatchString(sLogContent) || reRustLTOError.MatchString(sLogContent) {
 			rows, err := db.DbPackage.Update().Where(
-				dbpackage.And(
-					dbpackage.Pkgbase(pkg.Pkgbase),
-					dbpackage.March(pkg.March),
-					dbpackage.StatusEQ(dbpackage.StatusFailed),
-					dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-				)).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
+				dbpackage.Pkgbase(pkg.Pkgbase),
+				dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed),
+				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
+			).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
 			if err != nil {
 				return err
 			}
