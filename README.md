@@ -1,14 +1,17 @@
 # ALHP
 
-[![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://git.harting.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
-[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://alhp.anonfunc.dev/packages.html)
-[![](https://goreportcard.com/badge/git.harting.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/git.harting.dev/ALHP/ALHP.GO)
-[![](https://pkg.go.dev/badge/git.harting.dev/ALHP/ALHP.GO)](https://pkg.go.dev/git.harting.dev/ALHP/ALHP.GO)
+[![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
+[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://somegit.dev/packages.html)
+[![](https://goreportcard.com/badge/somegit.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/somegit.dev/ALHP/ALHP.GO)
+[![](https://pkg.go.dev/badge/somegit.dev/ALHP/ALHP.GO)](https://pkg.go.dev/somegit.dev/ALHP/ALHP.GO)
 [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
 
 Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
+
+> 📢 Project moved home from `git.harting.dev` to `somegit.dev`. The main repo moved from `alhp.harting.dev`
+> to `alhp.dev` Same project, same developer, just a domain change.
 
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
 > [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
@@ -17,7 +20,8 @@ Buildbot for Archlinux-based repos build with different
 
 ### 1. Check your system for support
 
-> **Important**: Before you enable any of these repos, check if your system supports the feature level you want to enable
+> **Important**: Before you enable any of these repos, check if your system supports the feature level you want to
+> enable
 (e.g. `x86-64-v3`).
 > **If you don't check beforehand, you might be unable to boot your system anymore and need to downgrade any package that you may have upgraded.**
 
@@ -53,9 +57,9 @@ yay -S alhp-keyring alhp-mirrorlist
 
 Edit `/etc/pacman.d/alhp-mirrorlist` and comment out/in mirrors you want to have enabled/disabled. Per default selected
 is a cloudflare-based mirror which
-[*should* provide decent speed worldwide](https://git.harting.dev/ALHP/ALHP.GO/issues/38#issuecomment-891).
-> Note: Only `alhp.harting.dev` is hosted by ALHP directly. If you have problems with a mirror,
-> open an issue at [the mirrorlist repo](https://git.harting.dev/ALHP/alhp-mirrorlist).
+[*should* provide decent speed worldwide](https://somegit.dev/ALHP/ALHP.GO/issues/38#issuecomment-891).
+> Note: Only `alhp.dev` is hosted by ALHP directly. If you have problems with a mirror,
+> open an issue at [the mirrorlist repo](https://somegit.dev/ALHP/alhp-mirrorlist).
 
 ### 4. Modify /etc/pacman.conf
 
@@ -84,8 +88,9 @@ Include = /etc/pacman.d/mirrorlist
 ```
 
 Replace `x86-64-v3` with the x86-64 feature level you want to enable.
-> ALHP only builds for `x86-64-v3` and `x86-64-v2` at the moment (list is subject to change). You can see all available repositories
-> [here](https://alhp.harting.dev/).
+> ALHP only builds for `x86-64-v3` and `x86-64-v2` at the moment (list is subject to change). You can see all available
+> repositories
+> [here](https://alhp.dev/).
 
 ### 5. Update package database and upgrade:
 
@@ -107,7 +112,7 @@ pacman -Suuy
 ### LTO
 
 Enabled for all packages build after 04 Nov 2021 12:07:00
-UTC. [More details.](https://git.harting.dev/anonfunc/ALHP.GO/issues/52)
+UTC. [More details.](https://somegit.dev/ALHP/ALHP.GO/issues/52)
 LTO status is visible per package on the package status page.
 
 ### Linux Kernel
@@ -125,22 +130,22 @@ issue is being tracked in #68, a solution is being worked on.
 ### Mirrors
 
 You want to mirror ALHP? You are welcome to do
-so, [see alhp-mirrorlist for how to become one](https://git.harting.dev/ALHP/alhp-mirrorlist#how-to-become-a-mirror).
+so, [see alhp-mirrorlist for how to become one](https://somegit.dev/ALHP/alhp-mirrorlist#how-to-become-a-mirror).
 
 ### What packages are built
 
 Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
 from building (besides all 'any' architecture packages) are being listed in issue #16.
-Also [package status page](https://alhp.anonfunc.dev/packages.html).
+Also [package status page](https://alhp.dev/packages.html).
 
 ### Debug symbols
 
-ALHP provides a debuginfod instance under `debuginfod.harting.dev`.
+ALHP provides a debuginfod instance under `debuginfod.alhp.dev`.
 
 To use it, have `debuginfod` installed on your system and add it to your `DEBUGINFOD_URLS` with:
 
 ```bash
-echo "https://debuginfod.harting.dev" > /etc/debuginfod/alhp.urls
+echo "https://debuginfod.alhp.dev" > /etc/debuginfod/alhp.urls
 ```
 
 ## Donations
@@ -153,4 +158,5 @@ work ALHP would not be possible.
 
 ## License and Legal
 
-This project including all of its source files is released under the terms of the GNU General Public License version 2 (or any later version). See [LICENSE](https://git.harting.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
+This project including all of its source files is released under the terms of the GNU General Public License version 2 (
+or any later version). See [LICENSE](https://somegit.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
