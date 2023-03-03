@@ -1,7 +1,7 @@
 # ALHP
 
 [![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
-[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://somegit.dev/packages.html)
+[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://alhp.dev/packages.html)
 [![](https://goreportcard.com/badge/somegit.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/somegit.dev/ALHP/ALHP.GO)
 [![](https://pkg.go.dev/badge/somegit.dev/ALHP/ALHP.GO)](https://pkg.go.dev/somegit.dev/ALHP/ALHP.GO)
 [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
