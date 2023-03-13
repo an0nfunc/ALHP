@@ -10,8 +10,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
-	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // DbPackageQuery is the builder for querying DbPackage entities.
@@ -178,10 +178,12 @@ func (dpq *DbPackageQuery) AllX(ctx context.Context) []*DbPackage {
 }
 
 // IDs executes the query and returns a list of DbPackage IDs.
-func (dpq *DbPackageQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
+func (dpq *DbPackageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if dpq.ctx.Unique == nil && dpq.path != nil {
+		dpq.Unique(true)
+	}
 	ctx = setContextOp(ctx, dpq.ctx, "IDs")
-	if err := dpq.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
+	if err = dpq.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -369,20 +371,12 @@ func (dpq *DbPackageQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (dpq *DbPackageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   dbpackage.Table,
-			Columns: dbpackage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: dbpackage.FieldID,
-			},
-		},
-		From:   dpq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(dbpackage.Table, dbpackage.Columns, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
+	_spec.From = dpq.sql
 	if unique := dpq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if dpq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := dpq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))

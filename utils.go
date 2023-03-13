@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"git.harting.dev/ALHP/ALHP.GO/ent"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
 	"github.com/Morganamilo/go-srcinfo"
+	"github.com/c2h5oh/datasize"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/fs"
@@ -19,11 +17,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
-	"sort"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -57,14 +53,6 @@ var (
 	reRustLTOError  = regexp.MustCompile(`(?m)^error: options \x60-C (.+)\x60 and \x60-C lto\x60 are incompatible$`)
 )
 
-type BuildManager struct {
-	repoPurge map[string]chan []*ProtoPackage
-	repoAdd   map[string]chan []*ProtoPackage
-	repoWG    sync.WaitGroup
-	alpmMutex sync.RWMutex
-	sem       *semaphore.Weighted
-}
-
 type Conf struct {
 	Arch         string
 	Repos, March []string
@@ -77,10 +65,9 @@ type Conf struct {
 		ConnectTo string `yaml:"connect_to"`
 	} `yaml:"db"`
 	Build struct {
-		Worker             int
-		Makej              int
-		Checks             bool
-		SlowQueueThreshold float64 `yaml:"slow_queue_threshold"`
+		Makej       int
+		Checks      bool
+		MemoryLimit datasize.ByteSize `yaml:"memory_limit"`
 	}
 	Logging struct {
 		Level string
@@ -116,88 +103,6 @@ func updateLastUpdated() error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (b *BuildManager) refreshSRCINFOs(ctx context.Context, path string) error {
-	pkgBuilds, err := Glob(path)
-	if err != nil {
-		return fmt.Errorf("error scanning for PKGBUILDs: %w", err)
-	}
-
-	step := int(float32(len(pkgBuilds)) / float32(runtime.NumCPU()))
-	cur := 0
-	wg := sync.WaitGroup{}
-	for i := 0; i < runtime.NumCPU(); i++ {
-		if i == runtime.NumCPU()-1 {
-			step = len(pkgBuilds) - cur
-		}
-
-		wg.Add(1)
-		go func(pkgBuilds []string) {
-			defer wg.Done()
-			for _, pkgbuild := range pkgBuilds {
-				mPkgbuild := PKGBUILD(pkgbuild)
-				if mPkgbuild.FullRepo() == "trunk" || !Contains(conf.Repos, mPkgbuild.Repo()) ||
-					containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
-					continue
-				}
-
-				for _, march := range conf.March {
-					dbPkg, dbErr := db.DbPackage.Query().Where(
-						dbpackage.And(
-							dbpackage.Pkgbase(mPkgbuild.PkgBase()),
-							dbpackage.RepositoryEQ(dbpackage.Repository(mPkgbuild.Repo())),
-							dbpackage.March(march),
-						),
-					).Only(context.Background())
-
-					if ent.IsNotFound(dbErr) {
-						log.Debugf("[%s/%s] Package not found in database", mPkgbuild.Repo(), mPkgbuild.PkgBase())
-					} else if err != nil {
-						log.Errorf("[%s/%s] Problem querying db for package: %v", mPkgbuild.Repo(), mPkgbuild.PkgBase(), dbErr)
-					}
-
-					// compare b3sum of PKGBUILD file to hash in database, only proceed if hash differs
-					// reduces the amount of PKGBUILDs that need to be parsed with makepkg, which is _really_ slow, significantly
-					b3s, err := b3sum(pkgbuild)
-					if err != nil {
-						log.Fatalf("Error hashing PKGBUILD: %v", err)
-					}
-
-					if dbPkg != nil && b3s == dbPkg.Hash {
-						log.Debugf("[%s/%s] Skipped: PKGBUILD hash matches db (%s)", mPkgbuild.Repo(), mPkgbuild.PkgBase(), b3s)
-						continue
-					} else if dbPkg != nil && b3s != dbPkg.Hash && dbPkg.SrcinfoHash != b3s {
-						log.Debugf("[%s/%s] srcinfo cleared", mPkgbuild.Repo(), mPkgbuild.PkgBase())
-						dbPkg = dbPkg.Update().ClearSrcinfo().SaveX(context.Background())
-					}
-
-					proto := &ProtoPackage{
-						Pkgbuild:  pkgbuild,
-						Pkgbase:   mPkgbuild.PkgBase(),
-						Repo:      dbpackage.Repository(mPkgbuild.Repo()),
-						March:     march,
-						FullRepo:  mPkgbuild.Repo() + "-" + march,
-						Hash:      b3s,
-						DBPackage: dbPkg,
-					}
-
-					_, err = proto.isEligible(ctx)
-					if err != nil {
-						log.Infof("Unable to determine status for package %s: %v", proto.Pkgbase, err)
-						b.repoPurge[proto.FullRepo] <- []*ProtoPackage{proto}
-					} else if proto.DBPackage != nil {
-						proto.DBPackage.Update().SetPkgbuild(proto.Pkgbuild).ExecX(ctx)
-					}
-				}
-			}
-		}(pkgBuilds[cur : cur+step])
-
-		cur += step
-	}
-
-	wg.Wait()
 	return nil
 }
 
@@ -269,37 +174,17 @@ func cleanBuildDir(dir, chrootDir string) error {
 	return nil
 }
 
-func (b *BuildManager) queue() ([]*ProtoPackage, error) {
-	unsortedQueue, err := genQueue()
-	if err != nil {
-		return nil, fmt.Errorf("error building queue: %w", err)
-	}
-
-	sort.Slice(unsortedQueue, func(i, j int) bool {
-		return unsortedQueue[i].Priority() < unsortedQueue[j].Priority()
-	})
-
-	return unsortedQueue, nil
-}
-
-func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) error {
-	for _, pkg := range queue {
-		if err := b.sem.Acquire(ctx, 1); err != nil {
-			return err
+func pkgList2MaxMem(pkgList []*ProtoPackage) datasize.ByteSize {
+	var sum uint64
+	for _, pkg := range pkgList {
+		if pkg.DBPackage.MaxRss != nil {
+			sum += uint64(*pkg.DBPackage.MaxRss)
 		}
-
-		go func(pkg *ProtoPackage) {
-			defer b.sem.Release(1)
-			dur, err := pkg.build(ctx)
-			if err != nil {
-				log.Warningf("error building package %s->%s->%s in %s: %s", pkg.March, pkg.Repo, pkg.Pkgbase, dur, err)
-				b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-			} else {
-				log.Infof("Build successful: %s (%s)", pkg.Pkgbase, dur)
-			}
-		}(pkg)
 	}
-	return nil
+
+	// multiply by Kibibyte here, since rusage is in kb
+	// https://man.archlinux.org/man/core/man-pages/getrusage.2.en#ru_maxrss
+	return datasize.ByteSize(sum) * datasize.KB
 }
 
 func genQueue() ([]*ProtoPackage, error) {
@@ -497,258 +382,6 @@ func setupChroot() error {
 	return nil
 }
 
-func housekeeping(repo, march string, wg *sync.WaitGroup) error {
-	defer wg.Done()
-	fullRepo := repo + "-" + march
-	log.Debugf("[%s] Start housekeeping", fullRepo)
-	packages, err := Glob(filepath.Join(conf.Basedir.Repo, fullRepo, "/**/*.pkg.tar.zst"))
-	if err != nil {
-		return err
-	}
-
-	log.Debugf("[HK/%s] removing orphans, signature check", fullRepo)
-	for _, path := range packages {
-		mPackage := Package(path)
-
-		dbPkg, err := mPackage.DBPackage(db)
-		if ent.IsNotFound(err) {
-			log.Infof("[HK/%s] removing orphan %s", fullRepo, filepath.Base(path))
-			pkg := &ProtoPackage{
-				FullRepo: mPackage.FullRepo(),
-				PkgFiles: []string{path},
-				March:    mPackage.MArch(),
-			}
-			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-			continue
-		} else if err != nil {
-			log.Warningf("[HK/%s] Problem fetching package from db for %s: %v", fullRepo, path, err)
-			continue
-		}
-
-		pkg := &ProtoPackage{
-			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      mPackage.Repo(),
-			FullRepo:  mPackage.FullRepo(),
-			DBPackage: dbPkg,
-			March:     mPackage.MArch(),
-			Arch:      mPackage.Arch(),
-		}
-
-		var upstream string
-		switch pkg.DBPackage.Repository {
-		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
-			upstream = "upstream-core-extra"
-		case dbpackage.RepositoryCommunity:
-			upstream = "upstream-community"
-		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos",
-			pkg.DBPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
-
-		// check if package is still part of repo
-		dbs, err := alpmHandle.SyncDBs()
-		if err != nil {
-			return err
-		}
-		buildManager.alpmMutex.Lock()
-		pkgResolved, err := dbs.FindSatisfier(mPackage.Name())
-		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DBPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
-			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
-			// package not found on mirror/db -> not part of any repo anymore
-			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, mPackage.Name())
-			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-			err = db.DbPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		if pkg.DBPackage.LastVerified.Before(pkg.DBPackage.BuildTimeStart) {
-			err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(context.Background())
-			if err != nil {
-				return err
-			}
-			// check if pkg signature is valid
-			valid, err := mPackage.HasValidSignature()
-			if err != nil {
-				return err
-			}
-			if !valid {
-				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
-				buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-				continue
-			}
-		}
-
-		// compare db-version with repo version
-		repoVer, err := pkg.repoVersion()
-		if err == nil && repoVer != dbPkg.RepoVersion {
-			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// check all packages from db for existence
-	dbPackages, err := db.DbPackage.Query().Where(
-		dbpackage.And(
-			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
-			dbpackage.March(march),
-		)).All(context.Background())
-	if err != nil {
-		return err
-	}
-
-	log.Debugf("[HK/%s] checking %d existing package-files", fullRepo, len(dbPackages))
-
-	for _, dbPkg := range dbPackages {
-		pkg := &ProtoPackage{
-			Pkgbase:   dbPkg.Pkgbase,
-			Repo:      dbPkg.Repository,
-			March:     dbPkg.March,
-			FullRepo:  dbPkg.Repository.String() + "-" + dbPkg.March,
-			DBPackage: dbPkg,
-		}
-
-		if !pkg.isAvailable(alpmHandle) {
-			log.Infof("[HK/%s/%s] not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
-			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
-			if err != nil {
-				log.Errorf("[HK] Error deleting package %s: %v", dbPkg.Pkgbase, err)
-			}
-			continue
-		}
-
-		switch {
-		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
-			var existingSplits []string
-			var missingSplits []string
-			for _, splitPkg := range dbPkg.Packages {
-				pkgFile := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch,
-					splitPkg+"-"+dbPkg.RepoVersion+"-"+conf.Arch+".pkg.tar.zst")
-				_, err = os.Stat(pkgFile)
-				switch {
-				case os.IsNotExist(err):
-					missingSplits = append(missingSplits, splitPkg)
-				case err != nil:
-					log.Warningf("[HK] error reading package-file %s: %v", splitPkg, err)
-				default:
-					existingSplits = append(existingSplits, pkgFile)
-				}
-			}
-			if len(missingSplits) > 0 {
-				log.Infof("[HK/%s] missing split-package(s) %s for pkgbase %s", fullRepo, missingSplits, dbPkg.Pkgbase)
-				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
-				if err != nil {
-					return err
-				}
-
-				pkg := &ProtoPackage{
-					FullRepo:  fullRepo,
-					PkgFiles:  existingSplits,
-					March:     march,
-					DBPackage: dbPkg,
-				}
-				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
-			}
-		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
-			log.Infof("[HK] reseting missing package %s with no repo version", dbPkg.Pkgbase)
-			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().Exec(context.Background())
-			if err != nil {
-				return err
-			}
-		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && strings.HasPrefix(dbPkg.SkipReason, "blacklisted"):
-			log.Infof("[HK] delete blacklisted package %s", dbPkg.Pkgbase)
-			pkg := &ProtoPackage{
-				FullRepo:  fullRepo,
-				March:     march,
-				DBPackage: dbPkg,
-			}
-			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
-		}
-	}
-
-	log.Debugf("[HK/%s] all tasks finished", fullRepo)
-	return nil
-}
-
-func logHK() error {
-	// check if package for log exists and if error can be fixed by rebuild
-	logFiles, err := Glob(filepath.Join(conf.Basedir.Repo, logDir, "/**/*.log"))
-	if err != nil {
-		return err
-	}
-
-	for _, logFile := range logFiles {
-		pathSplit := strings.Split(logFile, string(filepath.Separator))
-		extSplit := strings.Split(filepath.Base(logFile), ".")
-		pkgbase := strings.Join(extSplit[:len(extSplit)-1], ".")
-		march := pathSplit[len(pathSplit)-2]
-
-		pkg := ProtoPackage{
-			Pkgbase: pkgbase,
-			March:   march,
-		}
-
-		if exists, err := pkg.exists(); err != nil {
-			return err
-		} else if !exists {
-			_ = os.Remove(logFile)
-			continue
-		}
-
-		pkgSkipped, err := db.DbPackage.Query().Where(
-			dbpackage.Pkgbase(pkg.Pkgbase),
-			dbpackage.March(pkg.March),
-			dbpackage.StatusEQ(dbpackage.StatusSkipped),
-		).Exist(context.Background())
-		if err != nil {
-			return err
-		}
-
-		if pkgSkipped {
-			_ = os.Remove(logFile)
-			continue
-		}
-
-		logContent, err := os.ReadFile(logFile)
-		if err != nil {
-			return err
-		}
-		sLogContent := string(logContent)
-
-		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) {
-			rows, err := db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
-			if err != nil {
-				return err
-			}
-
-			if rows > 0 {
-				log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
-			}
-		} else if reLdError.MatchString(sLogContent) || reRustLTOError.MatchString(sLogContent) {
-			rows, err := db.DbPackage.Update().Where(
-				dbpackage.Pkgbase(pkg.Pkgbase),
-				dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed),
-				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-			).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
-			if err != nil {
-				return err
-			}
-
-			if rows > 0 {
-				log.Infof("[HK/%s/%s] fixable build-error detected (linker-error), requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
-			}
-		}
-	}
-	return nil
-}
-
 func syncMarchs() error {
 	files, err := os.ReadDir(conf.Basedir.Repo)
 	if err != nil {
@@ -781,8 +414,8 @@ func syncMarchs() error {
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
-			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, conf.Build.Worker)
-			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 10000) //nolint:gomnd
+			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, 1000)   //nolint:gomnd
+			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 1000) //nolint:gomnd
 			go buildManager.repoWorker(fRepo)
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
@@ -926,6 +559,16 @@ func setupMakepkg(march string, flags map[string]any) error {
 	return nil
 }
 
+func ContainsPkg(pkgs []*ProtoPackage, pkg *ProtoPackage, repoSensitive bool) bool {
+	for _, tPkg := range pkgs {
+		if tPkg.PkgbaseEquals(pkg, repoSensitive) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func Contains(s any, str string) bool {
 	switch v := s.(type) {
 	case []string:
@@ -956,19 +599,6 @@ func Find[T comparable](arr []T, match T) int {
 	}
 
 	return -1
-}
-
-func Unique[T comparable](arr []T) []T {
-	occurred := map[T]bool{}
-	var result []T
-	for e := range arr {
-		if !occurred[arr[e]] {
-			occurred[arr[e]] = true
-			result = append(result, arr[e])
-		}
-	}
-
-	return result
 }
 
 func Replace[T comparable](arr []T, replace, with T) []T {

@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
-	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // DbPackageDelete is the builder for deleting a DbPackage entity.
@@ -40,15 +40,7 @@ func (dpd *DbPackageDelete) ExecX(ctx context.Context) int {
 }
 
 func (dpd *DbPackageDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := &sqlgraph.DeleteSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table: dbpackage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: dbpackage.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewDeleteSpec(dbpackage.Table, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	if ps := dpd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -69,6 +61,12 @@ type DbPackageDeleteOne struct {
 	dpd *DbPackageDelete
 }
 
+// Where appends a list predicates to the DbPackageDelete builder.
+func (dpdo *DbPackageDeleteOne) Where(ps ...predicate.DbPackage) *DbPackageDeleteOne {
+	dpdo.dpd.mutation.Where(ps...)
+	return dpdo
+}
+
 // Exec executes the deletion query.
 func (dpdo *DbPackageDeleteOne) Exec(ctx context.Context) error {
 	n, err := dpdo.dpd.Exec(ctx)
@@ -84,5 +82,7 @@ func (dpdo *DbPackageDeleteOne) Exec(ctx context.Context) error {
 
 // ExecX is like Exec, but panics if an error occurs.
 func (dpdo *DbPackageDeleteOne) ExecX(ctx context.Context) {
-	dpdo.dpd.ExecX(ctx)
+	if err := dpdo.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

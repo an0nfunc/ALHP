@@ -9,11 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
-	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
-
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 const (

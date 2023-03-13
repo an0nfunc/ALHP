@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
-	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // DbPackageUpdate is the builder for updating DbPackage entities.
@@ -536,16 +536,7 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := dpu.check(); err != nil {
 		return n, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   dbpackage.Table,
-			Columns: dbpackage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: dbpackage.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(dbpackage.Table, dbpackage.Columns, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	if ps := dpu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -1162,6 +1153,12 @@ func (dpuo *DbPackageUpdateOne) Mutation() *DbPackageMutation {
 	return dpuo.mutation
 }
 
+// Where appends a list predicates to the DbPackageUpdate builder.
+func (dpuo *DbPackageUpdateOne) Where(ps ...predicate.DbPackage) *DbPackageUpdateOne {
+	dpuo.mutation.Where(ps...)
+	return dpuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (dpuo *DbPackageUpdateOne) Select(field string, fields ...string) *DbPackageUpdateOne {
@@ -1231,16 +1228,7 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	if err := dpuo.check(); err != nil {
 		return _node, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   dbpackage.Table,
-			Columns: dbpackage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: dbpackage.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(dbpackage.Table, dbpackage.Columns, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	id, ok := dpuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DbPackage.id" for update`)}

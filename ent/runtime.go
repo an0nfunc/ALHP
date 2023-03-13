@@ -3,8 +3,8 @@
 package ent
 
 import (
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
-	"git.harting.dev/ALHP/ALHP.GO/ent/schema"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/schema"
 )
 
 // The init function reads all schema descriptors with runtime code

@@ -7,19 +7,19 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"git.harting.dev/ALHP/ALHP.GO/ent"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"github.com/Jguer/go-alpm/v2"
 	"github.com/Morganamilo/go-srcinfo"
+	"github.com/c2h5oh/datasize"
 	"github.com/google/uuid"
 	"github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"somegit.dev/ALHP/ALHP.GO/ent"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strconv"
 	"strings"
 	"syscall"
@@ -68,6 +68,11 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc"):
 		log.Debugf("Skipped %s: haskell package", p.Srcinfo.Pkgbase)
 		p.DBPackage.SkipReason = "blacklisted (haskell)"
+		p.DBPackage.Status = dbpackage.StatusSkipped
+		skipping = true
+	case p.DBPackage.MaxRss != nil && datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit:
+		log.Debugf("Skipped %s: memory limit exceeded (%s)", p.Srcinfo.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
+		p.DBPackage.SkipReason = "memory limit exceeded"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case p.isPkgFailed():
@@ -141,11 +146,6 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 }
 
 func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
-	// Sleep randomly here to add some delay, avoiding two pacman instances trying to download the same package,
-	// which leads to errors when it's trying to remove the same temporary download file.
-	// This can be removed as soon as we can pass separate cache locations to makechrootpkg.
-	rand.Seed(time.Now().UnixNano())
-	time.Sleep(time.Duration(rand.Float32()*60) * time.Second) //nolint:gomnd,gosec
 	start := time.Now().UTC()
 	chroot := "build_" + uuid.New().String()
 
@@ -345,18 +345,6 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	}
 
 	return time.Since(start), nil
-}
-
-func (p *ProtoPackage) Priority() float64 {
-	if p.DBPackage == nil {
-		return 0
-	}
-
-	if p.DBPackage.STime == nil || p.DBPackage.UTime == nil {
-		return 0
-	} else {
-		return float64(*p.DBPackage.STime + *p.DBPackage.UTime)
-	}
 }
 
 func (p *ProtoPackage) setupBuildDir() (string, error) {
@@ -834,4 +822,8 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 	}
 
 	return true, nil, "", nil
+}
+
+func (p *ProtoPackage) PkgbaseEquals(p2 *ProtoPackage, marchSensitive bool) bool {
+	return (marchSensitive && (p.Pkgbase == p2.Pkgbase && p.FullRepo == p2.FullRepo)) || (!marchSensitive && p.Pkgbase == p2.Pkgbase)
 }

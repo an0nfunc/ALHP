@@ -26,9 +26,9 @@ common:
 
 lto:
   rustflags:
-    - "-Clto=fat"
     - "-Ccodegen-units=1"
-    - "-Clinker-plugin-lto"
 
   options:
     - "!lto": "lto"
+
+  cargo_profile_release_lto: "fat"

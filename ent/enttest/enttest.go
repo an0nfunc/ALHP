@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"git.harting.dev/ALHP/ALHP.GO/ent"
+	"somegit.dev/ALHP/ALHP.GO/ent"
 	// required by schema hooks.
-	_ "git.harting.dev/ALHP/ALHP.GO/ent/runtime"
+	_ "somegit.dev/ALHP/ALHP.GO/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"git.harting.dev/ALHP/ALHP.GO/ent/migrate"
+	"somegit.dev/ALHP/ALHP.GO/ent/migrate"
 )
 
 type (

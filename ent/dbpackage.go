@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
 // DbPackage is the model entity for the DbPackage schema.
@@ -359,9 +359,3 @@ func (dp *DbPackage) String() string {
 
 // DbPackages is a parsable slice of DbPackage.
 type DbPackages []*DbPackage
-
-func (dp DbPackages) config(cfg config) {
-	for _i := range dp {
-		dp[_i].config = cfg
-	}
-}

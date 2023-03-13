@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"git.harting.dev/ALHP/ALHP.GO/ent/predicate"
+	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

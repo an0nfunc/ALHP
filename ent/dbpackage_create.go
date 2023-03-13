@@ -10,7 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
 // DbPackageCreate is the builder for creating a DbPackage entity.
@@ -424,13 +424,7 @@ func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
 func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 	var (
 		_node = &DbPackage{config: dpc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: dbpackage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: dbpackage.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(dbpackage.Table, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	)
 	if value, ok := dpc.mutation.Pkgbase(); ok {
 		_spec.SetField(dbpackage.FieldPkgbase, field.TypeString, value)

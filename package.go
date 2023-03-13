@@ -5,11 +5,11 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"fmt"
-	"git.harting.dev/ALHP/ALHP.GO/ent"
-	"git.harting.dev/ALHP/ALHP.GO/ent/dbpackage"
 	log "github.com/sirupsen/logrus"
 	"os/exec"
 	"path/filepath"
+	"somegit.dev/ALHP/ALHP.GO/ent"
+	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strings"
 )
 

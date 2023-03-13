@@ -15,7 +15,8 @@ func (DbPackage) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("pkgbase").NotEmpty().Immutable(),
 		field.Strings("packages").Optional(),
-		field.Enum("status").Values("skipped", "failed", "build", "queued", "delayed", "building", "latest", "signing", "unknown").Default("unknown").Optional(),
+		field.Enum("status").Values("skipped", "failed", "build", "queued", "delayed", "building",
+			"latest", "signing", "unknown").Default("unknown").Optional(),
 		field.String("skip_reason").Optional(),
 		field.Enum("repository").Values("extra", "core", "community"),
 		field.String("march").NotEmpty().Immutable(),

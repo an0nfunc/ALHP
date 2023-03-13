@@ -62,8 +62,10 @@ build:
   worker: 4
   makej: 8
   checks: true
-  # builds over this threshold are considered slow (in cpu-time-seconds)
-  slow_queue_threshold: 14400.0
+  # how much memory ALHP should use
+  # this will also decide how many builds will run concurrently,
+  # since ALHP will try to optimise the queue for speed while not going over this limit
+  memory_limit: "16gb"
 
 logging:
   level: INFO
