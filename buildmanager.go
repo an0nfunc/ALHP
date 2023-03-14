@@ -220,7 +220,6 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 			unknownBuilds = true
 		}
 		b.buildingLock.RUnlock()
-		up = 0
 	}
 	return nil
 }

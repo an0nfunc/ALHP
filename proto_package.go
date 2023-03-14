@@ -263,11 +263,11 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			SetStatus(dbpackage.StatusFailed).
 			ClearSkipReason().
 			SetBuildTimeStart(start).
-			SetMaxRss(Rusage.Maxrss).
-			SetIoOut(Rusage.Oublock).
-			SetIoIn(Rusage.Inblock).
-			SetUTime(Rusage.Utime.Sec).
-			SetSTime(Rusage.Stime.Sec).
+			ClearMaxRss().
+			ClearIoOut().
+			ClearIoIn().
+			ClearUTime().
+			ClearSTime().
 			SetHash(p.Hash).
 			ExecX(ctx)
 		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
