@@ -234,6 +234,7 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 		Svn2GitVersion       string
 		BuildDate            string
 		BuildDuration        time.Duration
+		BuildMemory          datasize.ByteSize
 		Checked              string
 		Log                  string
 		LTO                  bool
@@ -307,6 +308,10 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 
 					if pkg.Status == dbpackage.StatusFailed {
 						addPkg.Log = fmt.Sprintf("%s/%s/%s.log", logDir, pkg.March, pkg.Pkgbase)
+					}
+
+					if pkg.MaxRss != nil {
+						addPkg.BuildMemory = datasize.ByteSize(*pkg.MaxRss) * datasize.KB
 					}
 
 					switch pkg.Lto {

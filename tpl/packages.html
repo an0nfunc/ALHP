@@ -119,7 +119,10 @@
                                    href="https://archlinux.org/packages/?q={{$pkg.Pkgbase}}" title="ArchWeb">AW</a>
                                 <a data-bs-html="true" data-bs-placement="bottom" data-bs-toggle="tooltip"
                                    href="#{{$repo.Name}}-{{$march.Name}}-{{$pkg.Pkgbase}}"
-                                   title="{{if $pkg.BuildDate}}Build on {{$pkg.BuildDate}}&#10;{{end}}{{if $pkg.BuildDuration}}CPU-Time: {{$pkg.BuildDuration}}&#10;{{end}}Last checked on {{$pkg.Checked}}">
+                                   title="{{if $pkg.BuildDate}}Build on {{$pkg.BuildDate}}&#10;{{end}}
+                                   {{if $pkg.BuildDuration}}CPU-Time: {{$pkg.BuildDuration}}&#10;{{end}}
+                                   {{if $pkg.BuildMemory}}Peak-Memory: {{$pkg.BuildMemory}}&#10;{{end}}
+                                   Last checked on {{$pkg.Checked}}">
                                     <i class="fa fa-info-circle fa-lg"></i></a>
                             </td>
                         </tr>
