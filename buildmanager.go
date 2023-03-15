@@ -114,14 +114,18 @@ func (b *BuildManager) SRCINFOWorker(ctx context.Context, workIn chan string, wg
 }
 
 func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) error {
-	var doneQ []*ProtoPackage
-	doneQLock := new(sync.RWMutex)
-	var unknownBuilds bool
+	var (
+		doneQ         []*ProtoPackage
+		doneQLock     = new(sync.RWMutex)
+		unknownBuilds bool
+		queueNoMatch  bool
+	)
 
 	for len(doneQ) != len(queue) {
 		up := 0
 		b.buildingLock.RLock()
-		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit && !unknownBuilds) || (unknownBuilds && len(b.building) < 1) {
+		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit && !unknownBuilds && !queueNoMatch) || (unknownBuilds && len(b.building) < 1) {
+			queueNoMatch = true
 			b.buildingLock.RUnlock()
 			for _, pkg := range queue {
 				// check if package is already build
@@ -184,6 +188,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 				b.buildingLock.Lock()
 				b.building = append(b.building, pkg)
 				b.buildingLock.Unlock()
+				queueNoMatch = false
 
 				go func(pkg *ProtoPackage) {
 					dur, err := pkg.build(ctx)
@@ -212,6 +217,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 			log.Debugf("[Q] memory/build limit reached, waiting for package to finish...")
 			b.buildingLock.RUnlock()
 			<-b.queueSignal
+			queueNoMatch = false
 		}
 
 		// if only unknown packages are left, enable unknown buildmode
