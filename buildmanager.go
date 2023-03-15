@@ -240,7 +240,7 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 		Svn2GitVersion       string
 		BuildDate            string
 		BuildDuration        time.Duration
-		BuildMemory          datasize.ByteSize
+		BuildMemory          *string
 		Checked              string
 		Log                  string
 		LTO                  bool
@@ -317,7 +317,8 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 					}
 
 					if pkg.MaxRss != nil {
-						addPkg.BuildMemory = datasize.ByteSize(*pkg.MaxRss) * datasize.KB
+						hrSize := (datasize.ByteSize(*pkg.MaxRss) * datasize.KB).HumanReadable()
+						addPkg.BuildMemory = &hrSize
 					}
 
 					switch pkg.Lto {
