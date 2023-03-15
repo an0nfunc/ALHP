@@ -160,14 +160,14 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
 	}
 
-	log.Infof("[%s/%s/%s] Build starting", p.FullRepo, p.Pkgbase, p.Version)
+	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)
 
 	p.toDBPackage(true)
 	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
 
 	err := p.importKeys()
 	if err != nil {
-		log.Warningf("[%s/%s/%s] Failed to import pgp keys: %v", p.FullRepo, p.Pkgbase, p.Version, err)
+		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
 	}
 
 	buildFolder, err := p.setupBuildDir()
