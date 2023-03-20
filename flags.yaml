@@ -7,7 +7,7 @@ common:
   cflags:
     - "-mtune=generic": ~
     - "-O2": "-O3"
-    - "-mpclmul" # https://git.harting.dev/ALHP/ALHP.GO/issues/92
+    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
     - "-march=x86-64": "-march=$march$"
 
   options:
@@ -16,10 +16,10 @@ common:
   buildenv:
     - "color": "!color" # color messes up the log output
 
-  goamd64: "$level$" # https://git.harting.dev/ALHP/ALHP.GO/issues/116
+  goamd64: "$level$" # https://somegit.dev/ALHP/ALHP.GO/issues/116
   packager: "ALHP $march$ <alhp@harting.dev>"
   makeflags: "-j$buildproc$"
-  # https://git.harting.dev/ALHP/ALHP.GO/issues/110
+  # https://somegit.dev/ALHP/ALHP.GO/issues/110
   rustflags: "-Copt-level=3 -Ctarget-cpu=$march$"
   ltoflags:
     - "-falign-functions=32" # https://github.com/InBetweenNames/gentooLTO/issues/164
