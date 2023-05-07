@@ -18,7 +18,7 @@ import (
 type DbPackageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []dbpackage.OrderOption
 	inters     []Interceptor
 	predicates []predicate.DbPackage
 	modifiers  []func(*sql.Selector)
@@ -53,7 +53,7 @@ func (dpq *DbPackageQuery) Unique(unique bool) *DbPackageQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (dpq *DbPackageQuery) Order(o ...OrderFunc) *DbPackageQuery {
+func (dpq *DbPackageQuery) Order(o ...dbpackage.OrderOption) *DbPackageQuery {
 	dpq.order = append(dpq.order, o...)
 	return dpq
 }
@@ -247,7 +247,7 @@ func (dpq *DbPackageQuery) Clone() *DbPackageQuery {
 	return &DbPackageQuery{
 		config:     dpq.config,
 		ctx:        dpq.ctx.Clone(),
-		order:      append([]OrderFunc{}, dpq.order...),
+		order:      append([]dbpackage.OrderOption{}, dpq.order...),
 		inters:     append([]Interceptor{}, dpq.inters...),
 		predicates: append([]predicate.DbPackage{}, dpq.predicates...),
 		// clone intermediate query.

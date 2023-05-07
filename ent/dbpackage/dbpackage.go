@@ -4,6 +4,8 @@ package dbpackage
 
 import (
 	"fmt"
+
+	"entgo.io/ent/dialect/sql"
 )
 
 const (
@@ -216,4 +218,122 @@ func DebugSymbolsValidator(ds DebugSymbols) error {
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for debug_symbols field: %q", ds)
 	}
+}
+
+// OrderOption defines the ordering options for the DbPackage queries.
+type OrderOption func(*sql.Selector)
+
+// ByID orders the results by the id field.
+func ByID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByPkgbase orders the results by the pkgbase field.
+func ByPkgbase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPkgbase, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// BySkipReason orders the results by the skip_reason field.
+func BySkipReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSkipReason, opts...).ToFunc()
+}
+
+// ByRepository orders the results by the repository field.
+func ByRepository(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRepository, opts...).ToFunc()
+}
+
+// ByMarch orders the results by the march field.
+func ByMarch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMarch, opts...).ToFunc()
+}
+
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByRepoVersion orders the results by the repo_version field.
+func ByRepoVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRepoVersion, opts...).ToFunc()
+}
+
+// ByBuildTimeStart orders the results by the build_time_start field.
+func ByBuildTimeStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBuildTimeStart, opts...).ToFunc()
+}
+
+// ByUpdated orders the results by the updated field.
+func ByUpdated(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdated, opts...).ToFunc()
+}
+
+// ByHash orders the results by the hash field.
+func ByHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHash, opts...).ToFunc()
+}
+
+// ByLto orders the results by the lto field.
+func ByLto(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLto, opts...).ToFunc()
+}
+
+// ByLastVersionBuild orders the results by the last_version_build field.
+func ByLastVersionBuild(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastVersionBuild, opts...).ToFunc()
+}
+
+// ByLastVerified orders the results by the last_verified field.
+func ByLastVerified(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastVerified, opts...).ToFunc()
+}
+
+// ByDebugSymbols orders the results by the debug_symbols field.
+func ByDebugSymbols(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDebugSymbols, opts...).ToFunc()
+}
+
+// ByMaxRss orders the results by the max_rss field.
+func ByMaxRss(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxRss, opts...).ToFunc()
+}
+
+// ByUTime orders the results by the u_time field.
+func ByUTime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUTime, opts...).ToFunc()
+}
+
+// BySTime orders the results by the s_time field.
+func BySTime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSTime, opts...).ToFunc()
+}
+
+// ByIoIn orders the results by the io_in field.
+func ByIoIn(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIoIn, opts...).ToFunc()
+}
+
+// ByIoOut orders the results by the io_out field.
+func ByIoOut(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIoOut, opts...).ToFunc()
+}
+
+// BySrcinfo orders the results by the srcinfo field.
+func BySrcinfo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSrcinfo, opts...).ToFunc()
+}
+
+// BySrcinfoHash orders the results by the srcinfo_hash field.
+func BySrcinfoHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSrcinfoHash, opts...).ToFunc()
+}
+
+// ByPkgbuild orders the results by the pkgbuild field.
+func ByPkgbuild(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPkgbuild, opts...).ToFunc()
 }

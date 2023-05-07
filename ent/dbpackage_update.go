@@ -476,7 +476,7 @@ func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (dpu *DbPackageUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, DbPackageMutation](ctx, dpu.sqlSave, dpu.mutation, dpu.hooks)
+	return withHooks(ctx, dpu.sqlSave, dpu.mutation, dpu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -1168,7 +1168,7 @@ func (dpuo *DbPackageUpdateOne) Select(field string, fields ...string) *DbPackag
 
 // Save executes the query and returns the updated DbPackage entity.
 func (dpuo *DbPackageUpdateOne) Save(ctx context.Context) (*DbPackage, error) {
-	return withHooks[*DbPackage, DbPackageMutation](ctx, dpuo.sqlSave, dpuo.mutation, dpuo.hooks)
+	return withHooks(ctx, dpuo.sqlSave, dpuo.mutation, dpuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.

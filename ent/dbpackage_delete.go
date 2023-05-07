@@ -27,7 +27,7 @@ func (dpd *DbPackageDelete) Where(ps ...predicate.DbPackage) *DbPackageDelete {
 
 // Exec executes the deletion query and returns how many vertices were deleted.
 func (dpd *DbPackageDelete) Exec(ctx context.Context) (int, error) {
-	return withHooks[int, DbPackageMutation](ctx, dpd.sqlExec, dpd.mutation, dpd.hooks)
+	return withHooks(ctx, dpd.sqlExec, dpd.mutation, dpd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.

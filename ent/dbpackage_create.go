@@ -318,7 +318,7 @@ func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
 // Save creates the DbPackage in the database.
 func (dpc *DbPackageCreate) Save(ctx context.Context) (*DbPackage, error) {
 	dpc.defaults()
-	return withHooks[*DbPackage, DbPackageMutation](ctx, dpc.sqlSave, dpc.mutation, dpc.hooks)
+	return withHooks(ctx, dpc.sqlSave, dpc.mutation, dpc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -545,8 +545,8 @@ func (dpcb *DbPackageCreateBulk) Save(ctx context.Context) ([]*DbPackage, error)
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, dpcb.builders[i+1].mutation)
 				} else {
