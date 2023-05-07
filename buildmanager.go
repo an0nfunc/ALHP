@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const MaxUnknownBuilder = 2
+
 type BuildManager struct {
 	repoPurge    map[string]chan []*ProtoPackage
 	repoAdd      map[string]chan []*ProtoPackage
@@ -124,7 +126,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 	for len(doneQ) != len(queue) {
 		up := 0
 		b.buildingLock.RLock()
-		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit && !unknownBuilds && !queueNoMatch) || (unknownBuilds && len(b.building) < 1) {
+		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit && !unknownBuilds && !queueNoMatch) || (unknownBuilds && len(b.building) < MaxUnknownBuilder) {
 			queueNoMatch = true
 			b.buildingLock.RUnlock()
 			for _, pkg := range queue {
@@ -156,7 +158,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 						continue
 					}
 
-					// check if package can be build with current memory limit
+					// check if package can be built with current memory limit
 					if datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit {
 						log.Warningf("[Q] %s->%s exeeds memory limit: %s->%s", pkg.FullRepo, pkg.Pkgbase,
 							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, conf.Build.MemoryLimit)
@@ -178,7 +180,7 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 					}
 				} else {
 					b.buildingLock.RLock()
-					if len(b.building) >= 1 {
+					if len(b.building) >= MaxUnknownBuilder {
 						b.buildingLock.RUnlock()
 						continue
 					}
