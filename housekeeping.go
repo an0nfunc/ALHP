@@ -139,6 +139,15 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 
 		switch {
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
+			// check lastVersionBuild
+			if dbPkg.LastVersionBuild != dbPkg.RepoVersion {
+				err = dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Exec(context.Background())
+				if err != nil {
+					log.Warningf("[HK/%s] error updating lastVersionBuild for %s: %v", fullRepo, dbPkg.Pkgbase, err)
+				}
+				log.Infof("[HK/%s] updated lastVersionBuild %s -> %s", fullRepo, dbPkg.LastVersionBuild, dbPkg.RepoVersion)
+			}
+
 			var existingSplits []string
 			var missingSplits []string
 			for _, splitPkg := range dbPkg.Packages {
