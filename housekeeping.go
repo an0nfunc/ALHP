@@ -141,7 +141,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
 			// check lastVersionBuild
 			if dbPkg.LastVersionBuild != dbPkg.RepoVersion {
-				err = dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Exec(context.Background())
+				dbPkg, err = dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Save(context.Background())
 				if err != nil {
 					log.Warningf("[HK/%s] error updating lastVersionBuild for %s: %v", fullRepo, dbPkg.Pkgbase, err)
 				}
