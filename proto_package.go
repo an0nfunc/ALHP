@@ -264,6 +264,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			ClearSkipReason().
 			SetBuildTimeStart(start).
 			ClearMaxRss().
+			ClearLastVersionBuild().
 			ClearIoOut().
 			ClearIoIn().
 			ClearUTime().
@@ -318,31 +319,23 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		}
 	}
 
+	updatePkg := p.DBPackage.Update().
+		SetStatus(dbpackage.StatusBuild).
+		SetLto(dbpackage.LtoEnabled).
+		SetBuildTimeStart(start).
+		SetLastVersionBuild(p.Version).
+		SetHash(p.Hash).
+		SetMaxRss(Rusage.Maxrss).
+		SetIoOut(Rusage.Oublock).
+		SetIoIn(Rusage.Inblock).
+		SetUTime(Rusage.Utime.Sec).
+		SetSTime(Rusage.Stime.Sec)
+
 	if p.DBPackage.Lto != dbpackage.LtoDisabled && p.DBPackage.Lto != dbpackage.LtoAutoDisabled {
-		p.DBPackage.Update().
-			SetStatus(dbpackage.StatusBuild).
-			SetLto(dbpackage.LtoEnabled).
-			SetBuildTimeStart(start).
-			SetLastVersionBuild(p.Version).
-			SetHash(p.Hash).
-			SetMaxRss(Rusage.Maxrss).
-			SetIoOut(Rusage.Oublock).
-			SetIoIn(Rusage.Inblock).
-			SetUTime(Rusage.Utime.Sec).
-			SetSTime(Rusage.Stime.Sec).
-			ExecX(ctx)
-	} else {
-		p.DBPackage.Update().
-			SetStatus(dbpackage.StatusBuild).
-			SetBuildTimeStart(start).
-			SetLastVersionBuild(p.Version).
-			SetMaxRss(Rusage.Maxrss).
-			SetIoOut(Rusage.Oublock).
-			SetIoIn(Rusage.Inblock).
-			SetUTime(Rusage.Utime.Sec).
-			SetSTime(Rusage.Stime.Sec).
-			SetHash(p.Hash).ExecX(ctx)
+		updatePkg.SetLto(dbpackage.LtoEnabled)
 	}
+
+	updatePkg.ExecX(ctx)
 
 	return time.Since(start), nil
 }
