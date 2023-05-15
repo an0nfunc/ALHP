@@ -27,7 +27,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 
 		dbPkg, err := mPackage.DBPackage(db)
 		if ent.IsNotFound(err) {
-			log.Infof("[HK/%s] removing orphan %s", fullRepo, filepath.Base(path))
+			log.Infof("[HK] removing orphan %s->%s", fullRepo, filepath.Base(path))
 			pkg := &ProtoPackage{
 				FullRepo: mPackage.FullRepo(),
 				PkgFiles: []string{path},
@@ -36,7 +36,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
 		} else if err != nil {
-			log.Warningf("[HK/%s] Problem fetching package from db for %s: %v", fullRepo, path, err)
+			log.Warningf("[HK] Problem fetching %s->%q from db: %v", fullRepo, path, err)
 			continue
 		}
 
@@ -70,7 +70,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		if err != nil || pkgResolved.DB().Name() != pkg.DBPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
 			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
 			// package not found on mirror/db -> not part of any repo anymore
-			log.Infof("[HK/%s/%s] not included in repo", pkg.FullRepo, mPackage.Name())
+			log.Infof("[HK] %s->%s not included in repo", pkg.FullRepo, mPackage.Name())
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			err = db.DbPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
 			if err != nil {
@@ -90,7 +90,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				return err
 			}
 			if !valid {
-				log.Infof("[HK/%s/%s] invalid package signature", pkg.FullRepo, pkg.Pkgbase)
+				log.Infof("[HK] %s->%s invalid package signature", pkg.FullRepo, pkg.Pkgbase)
 				buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 				continue
 			}
@@ -99,7 +99,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		// compare db-version with repo version
 		repoVer, err := pkg.repoVersion()
 		if err == nil && repoVer != dbPkg.RepoVersion {
-			log.Infof("[HK/%s/%s] update %s->%s in db", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
+			log.Infof("[HK] %s->%s update repoVersion %s->%s", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
 			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
 			if err != nil {
 				return err
@@ -129,7 +129,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		}
 
 		if !pkg.isAvailable(alpmHandle) {
-			log.Infof("[HK/%s/%s] not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
+			log.Infof("[HK] %s->%s not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
 			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
 			if err != nil {
 				log.Errorf("[HK] Error deleting package %s: %v", dbPkg.Pkgbase, err)
@@ -141,10 +141,10 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
 			// check lastVersionBuild
 			if dbPkg.LastVersionBuild != dbPkg.RepoVersion {
-				log.Infof("[HK/%s] updating lastVersionBuild %s -> %s", fullRepo, dbPkg.LastVersionBuild, dbPkg.RepoVersion)
+				log.Infof("[HK] %s->%s updating lastVersionBuild %s -> %s", fullRepo, dbPkg.Pkgbase, dbPkg.LastVersionBuild, dbPkg.RepoVersion)
 				dbPkg, err = dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Save(context.Background())
 				if err != nil {
-					log.Warningf("[HK/%s] error updating lastVersionBuild for %s: %v", fullRepo, dbPkg.Pkgbase, err)
+					log.Warningf("[HK] error updating lastVersionBuild for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
 				}
 			}
 
@@ -164,7 +164,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				}
 			}
 			if len(missingSplits) > 0 {
-				log.Infof("[HK/%s] missing split-package(s) %s for pkgbase %s", fullRepo, missingSplits, dbPkg.Pkgbase)
+				log.Infof("[HK] %s->%s missing split-package(s): %s", fullRepo, dbPkg.Pkgbase, missingSplits)
 				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 				if err != nil {
 					return err
@@ -179,13 +179,13 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 			}
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
-			log.Infof("[HK] reseting missing package %s with no repo version", dbPkg.Pkgbase)
+			log.Infof("[HK] reseting missing package %s->%s with no repo version", fullRepo, dbPkg.Pkgbase)
 			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
 		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && strings.HasPrefix(dbPkg.SkipReason, "blacklisted"):
-			log.Infof("[HK] delete blacklisted package %s", dbPkg.Pkgbase)
+			log.Infof("[HK] delete blacklisted package %s->%s", fullRepo, dbPkg.Pkgbase)
 			pkg := &ProtoPackage{
 				FullRepo:  fullRepo,
 				March:     march,
