@@ -10,11 +10,24 @@ Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
-> 📢 Project moved home from `git.harting.dev` to `somegit.dev`. The main repo moved from `alhp.harting.dev`
-> to `alhp.dev` Same project, same developer, just a domain change.
-
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
 > [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
+
+<!-- TOC -->
+
+* [Quickstart](#quickstart)
+* [Disable/Remove ALHP](#disableremove-alhp)
+* [FAQ](#faq)
+    * [LTO](#lto)
+    * [Linux Kernel packages](#linux-kernel-packages)
+    * [Directly linked kernel modules](#directly-linked-kernel-modules)
+    * [Mirrors](#mirrors)
+    * [What packages are built](#what-packages-are-built)
+    * [Debug symbols](#debug-symbols)
+* [Donations](#donations)
+* [License and Legal](#license-and-legal)
+
+<!-- TOC -->
 
 ## Quickstart
 
@@ -23,7 +36,8 @@ Buildbot for Archlinux-based repos build with different
 > **Important**: Before you enable any of these repos, check if your system supports the feature level you want to
 > enable
 (e.g. `x86-64-v3`).
-> **If you don't check beforehand, you might be unable to boot your system anymore and need to downgrade any package that you may have upgraded.**
+> **If you don't check beforehand, you might be unable to boot your system anymore and need to downgrade any package
+that you may have upgraded.**
 
 Check which feature-levels your CPU supports with
 
@@ -98,11 +112,12 @@ Replace `x86-64-v3` with the x86-64 feature level you want to enable.
 pacman -Suy
 ```
 
-## How to disable
+## Disable/Remove ALHP
 
 To disable ALHP remove all *x86-64-vX* entries in `/etc/pacman.conf` and remove `alhp-keyring` and `alhp-mirrorlist`.
 
 After that you can refresh pacmans databases and downgrade all packages like:
+
 ```
 pacman -Suuy
 ```
@@ -115,17 +130,15 @@ Enabled for all packages build after 04 Nov 2021 12:07:00
 UTC. [More details.](https://somegit.dev/ALHP/ALHP.GO/issues/52)
 LTO status is visible per package on the package status page.
 
-### Linux Kernel
+### Linux Kernel packages
 
-ALHP provides patched kernels (except `linux-zen`, which has these patches already applied) that build
-with `-march=x86-64-vN`. Thanks to
-[graysky](https://github.com/graysky2) for providing [these patches](https://github.com/graysky2/kernel_compiler_patch).
+`KCFLAGS`/`KCPPFLAGS` are used to build the kernel packages with our additional flags.
 
 ### Directly linked kernel modules
 
-**Above-mentioned patching breaks all directly linked modules** like `nvidia` (not `nvidia-dkms`) or
-`virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). **Their respective `dkms`-variant is not affected**. This
-issue is being tracked in #68, a solution is being worked on.
+Due to our increase in pkgrel, building the kernel packages **breaks all directly linked modules** like `nvidia`
+(not `nvidia-dkms`) or `virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). **Their respective `dkms`-variant is
+not affected**. This issue is being tracked in #68, a solution is being worked on.
 
 ### Mirrors
 
@@ -136,7 +149,7 @@ so, [see alhp-mirrorlist for how to become one](https://somegit.dev/ALHP/alhp-mi
 
 Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
 from building (besides all 'any' architecture packages) are being listed in issue #16.
-Also [package status page](https://alhp.dev/packages.html).
+Also [package status page](https://alhp.dev/packages.html) (search for `blacklisted`).
 
 ### Debug symbols
 
@@ -158,5 +171,5 @@ work ALHP would not be possible.
 
 ## License and Legal
 
-This project including all of its source files is released under the terms of the GNU General Public License version 2 (
-or any later version). See [LICENSE](https://somegit.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
+This project including all of its source files is released under the terms of the GNU General Public License version 2
+(or any later version). See [LICENSE](https://somegit.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
