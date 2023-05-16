@@ -16,7 +16,7 @@ Buildbot for Archlinux-based repos build with different
 <!-- TOC -->
 
 * [Quickstart](#quickstart)
-* [Disable/Remove ALHP](#disableremove-alhp)
+* [Remove ALHP packages](#remove-alhp-packages)
 * [FAQ](#faq)
     * [LTO](#lto)
     * [Linux Kernel packages](#linux-kernel-packages)
@@ -112,7 +112,7 @@ Replace `x86-64-v3` with the x86-64 feature level you want to enable.
 pacman -Suy
 ```
 
-## Disable/Remove ALHP
+## Remove ALHP packages
 
 To disable ALHP remove all *x86-64-vX* entries in `/etc/pacman.conf` and remove `alhp-keyring` and `alhp-mirrorlist`.
 
