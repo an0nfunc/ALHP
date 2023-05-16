@@ -13,6 +13,7 @@ Buildbot for Archlinux-based repos build with different
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
 > [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
 
+---
 <!-- TOC -->
 
 * [Quickstart](#quickstart)
@@ -28,6 +29,8 @@ Buildbot for Archlinux-based repos build with different
 * [License and Legal](#license-and-legal)
 
 <!-- TOC -->
+
+---
 
 ## Quickstart
 
