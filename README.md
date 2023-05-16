@@ -25,6 +25,7 @@ Buildbot for Archlinux-based repos build with different
     * [Mirrors](#mirrors)
     * [What packages are built](#what-packages-are-built)
     * [Debug symbols](#debug-symbols)
+* [Matrix](#matrix)
 * [Donations](#donations)
 * [License and Legal](#license-and-legal)
 
@@ -163,6 +164,12 @@ To use it, have `debuginfod` installed on your system and add it to your `DEBUGI
 ```bash
 echo "https://debuginfod.alhp.dev" > /etc/debuginfod/alhp.urls
 ```
+
+## Matrix
+
+For any non-issue questions or if you just want to chat, ALHP has a matrix
+room [here](https://matrix.to/#/#alhp:ofsg.eu) (`#alhp@ofsg.eu`). You can also find me (@idlegandalf)
+in `#archlinux:archlinux.org`.
 
 ## Donations
 
