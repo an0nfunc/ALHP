@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
@@ -14,7 +12,6 @@ import (
 	"github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -196,14 +193,6 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	err = p.increasePkgRel(buildNo)
 	if err != nil {
 		return time.Since(start), fmt.Errorf("error while increasing pkgrel: %w", err)
-	}
-
-	if Contains(conf.KernelToPatch, p.Pkgbase) {
-		err = p.prepareKernelPatches()
-		if err != nil {
-			p.DBPackage.Update().SetStatus(dbpackage.StatusFailed).SetSkipReason("failed to apply patch").SetHash(p.Hash).ExecX(ctx)
-			return time.Since(start), fmt.Errorf("error modifying PKGBUILD for kernel patch: %w", err)
-		}
 	}
 
 	p.PkgFiles = []string{}
@@ -428,100 +417,6 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 	}
 
 	p.Version += "." + strconv.Itoa(buildNo)
-	return nil
-}
-
-func (p *ProtoPackage) prepareKernelPatches() error {
-	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0o644)
-	if err != nil {
-		return err
-	}
-
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(f)
-
-	fStr, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	// choose best suited patch based on kernel version
-	var curVer string
-	for k := range conf.KernelPatches {
-		if k == p.Pkgbase {
-			curVer = k
-			break
-		}
-		if alpm.VerCmp(p.Srcinfo.Pkgver, k) >= 0 && alpm.VerCmp(k, curVer) >= 0 {
-			curVer = k
-		}
-	}
-
-	newPKGBUILD := string(fStr)
-	switch {
-	case conf.KernelPatches[curVer] == "none":
-		return fmt.Errorf("no patch available")
-	case conf.KernelPatches[curVer] == "skip":
-		log.Debugf("[KP] skipped patching for %s", p.Pkgbase)
-	default:
-		log.Debugf("[KP] choose patch %s for kernel %s", curVer, p.Srcinfo.Pkgver)
-		orgSource := rePkgSource.FindStringSubmatch(newPKGBUILD)
-		if orgSource == nil || len(orgSource) < 1 {
-			return fmt.Errorf("no source=() found")
-		}
-		sources := strings.Split(orgSource[1], "\n")
-		sources = append(sources, fmt.Sprintf("%q", conf.KernelPatches[curVer]))
-		newPKGBUILD = rePkgSource.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("source=(%s)", strings.Join(sources, "\n")))
-		resp, err := http.Get(conf.KernelPatches[curVer]) //nolint:bodyclose,noctx
-		if err != nil || resp.StatusCode != 200 {
-			return err
-		}
-		h := sha256.New()
-		_, err = io.Copy(h, resp.Body)
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
-		if err != nil {
-			return err
-		}
-		orgSums := rePkgSum.FindStringSubmatch(newPKGBUILD)
-		if orgSums == nil || len(orgSums) < 1 {
-			return fmt.Errorf("no sha256sums=() found")
-		}
-		sums := strings.Split(orgSums[1], "\n")
-		sums = append(sums, fmt.Sprintf("'%s'", hex.EncodeToString(h.Sum(nil))))
-		newPKGBUILD = rePkgSum.ReplaceAllLiteralString(newPKGBUILD, fmt.Sprintf("sha256sums=(\n%s\n)", strings.Join(sums, "\n")))
-	}
-
-	// enable config option
-	switch {
-	case strings.Contains(p.March, "v4"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU4=y >> .config\nmake olddefconfig\n", 1)
-	case strings.Contains(p.March, "v3"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU3=y >> .config\nmake olddefconfig\n", 1)
-	case strings.Contains(p.March, "v2"):
-		newPKGBUILD = strings.Replace(newPKGBUILD, "make olddefconfig\n", "echo CONFIG_GENERIC_CPU2=y >> .config\nmake olddefconfig\n", 1)
-	}
-
-	// empty file before writing
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.WriteString(newPKGBUILD)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

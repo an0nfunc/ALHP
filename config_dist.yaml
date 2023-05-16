@@ -8,19 +8,6 @@ svn2git:
   upstream-core-extra: "https://github.com/archlinux/svntogit-packages.git"
   upstream-community: "https://github.com/archlinux/svntogit-community.git"
 
-kernel_to_patch:
-  - linux
-  - linux-lts
-  - linux-zen
-  - linux-hardened
-
-kernel_patches:
-  4.19: "https://raw.githubusercontent.com/graysky2/kernel_compiler_patch/master/more-uarches-for-kernel-4.19-5.4.patch"
-  5.5: "none"
-  5.8: "https://raw.githubusercontent.com/graysky2/kernel_compiler_patch/master/more-uarches-for-kernel-5.8-5.14.patch"
-  5.15: "https://raw.githubusercontent.com/graysky2/kernel_compiler_patch/master/more-uarches-for-kernel-5.15%2B.patch"
-  linux-zen: "skip"
-
 db:
   driver: pgx
   connect_to: "postgres://username:password@localhost:5432/database_name"

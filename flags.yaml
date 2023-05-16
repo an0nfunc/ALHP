@@ -23,6 +23,8 @@ common:
   rustflags: "-Copt-level=3 -Ctarget-cpu=$march$"
   ltoflags:
     - "-falign-functions=32" # https://github.com/InBetweenNames/gentooLTO/issues/164
+  kcflags: " -march=$march$ -O3"
+  kcppflags: " -march=$march$ -O3"
 
 lto:
   rustflags:
