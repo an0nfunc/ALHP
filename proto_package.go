@@ -146,23 +146,18 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	start := time.Now().UTC()
 	chroot := "build_" + uuid.New().String()
 
-	if p.Version == "" {
-		if p.Srcinfo == nil {
-			err := p.genSrcinfo()
-			if err != nil {
-				return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
-			}
-		}
-
-		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+	err := p.genSrcinfo()
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
 	}
+	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
 
 	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)
 
 	p.toDBPackage(true)
 	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
 
-	err := p.importKeys()
+	err = p.importKeys()
 	if err != nil {
 		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
 	}
