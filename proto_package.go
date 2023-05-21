@@ -359,7 +359,7 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 		}
 		return nil
 	}); err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
 
