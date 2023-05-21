@@ -92,16 +92,10 @@ Include = /etc/pacman.d/alhp-mirrorlist
 [extra-x86-64-v3]
 Include = /etc/pacman.d/alhp-mirrorlist
 
-[community-x86-64-v3]
-Include = /etc/pacman.d/alhp-mirrorlist
-
 [core]
 Include = /etc/pacman.d/mirrorlist
 
 [extra]
-Include = /etc/pacman.d/mirrorlist
-
-[community]
 Include = /etc/pacman.d/mirrorlist
 ```
 
