@@ -347,7 +347,7 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	res, err := cmd.CombinedOutput()
 	log.Debug(string(res))
 	if err != nil {
-		log.Fatalf("error cloning package repo %s: %v", p.Pkgbase, err)
+		log.Fatalf("error cloning package repo %s: %v (%s)", p.Pkgbase, err, string(res))
 		return "", err
 	}
 	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
