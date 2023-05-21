@@ -25,7 +25,6 @@ import (
 
 type ProtoPackage struct {
 	Pkgbase   string
-	Pkgbuild  string
 	Srcinfo   *srcinfo.Srcinfo
 	Arch      string
 	PkgFiles  []string
@@ -33,54 +32,46 @@ type ProtoPackage struct {
 	March     string
 	FullRepo  string
 	Version   string
-	Hash      string
-	DBPackage *ent.DbPackage
+	DBPackage *ent.DBPackage
+	Pkgbuild  string
+	State     *StateInfo
 }
 
-func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
-	if err := p.genSrcinfo(); err != nil {
-		return false, fmt.Errorf("error generating SRCINFO: %w", err)
-	}
-	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+var (
+	ErrorNotEligible = errors.New("package is not eligible")
+)
 
+func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 	if !p.isAvailable(alpmHandle) {
-		log.Debugf("[%s/%s] Not available on mirror, skipping build", p.FullRepo, p.Pkgbase)
+		log.Debugf("[%s/%s] not available on mirror, skipping build", p.FullRepo, p.Pkgbase)
 		return false, nil
 	}
 
-	p.toDBPackage(true)
 	skipping := false
 	switch {
 	case Contains(p.Srcinfo.Arch, "any"):
-		log.Debugf("Skipped %s: any-Package", p.Srcinfo.Pkgbase)
+		log.Debugf("skipped %s: any-package", p.Srcinfo.Pkgbase)
 		p.DBPackage.SkipReason = "arch = any"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case Contains(conf.Blacklist.Packages, p.Srcinfo.Pkgbase):
-		log.Debugf("Skipped %s: blacklisted package", p.Srcinfo.Pkgbase)
+		log.Debugf("skipped %s: blacklisted package", p.Pkgbase)
 		p.DBPackage.SkipReason = "blacklisted"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	case Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
-		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc"):
-		log.Debugf("Skipped %s: haskell package", p.Srcinfo.Pkgbase)
-		p.DBPackage.SkipReason = "blacklisted (haskell)"
-		p.DBPackage.Status = dbpackage.StatusSkipped
-		skipping = true
 	case p.DBPackage.MaxRss != nil && datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit:
-		log.Debugf("Skipped %s: memory limit exceeded (%s)", p.Srcinfo.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
+		log.Debugf("skipped %s: memory limit exceeded (%s)", p.Srcinfo.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
 		p.DBPackage.SkipReason = "memory limit exceeded"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case p.isPkgFailed():
-		log.Debugf("Skipped %s: failed build", p.Srcinfo.Pkgbase)
+		log.Debugf("skipped %s: failed build", p.Srcinfo.Pkgbase)
 		skipping = true
 	}
 
 	if skipping {
-		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).
-			SetPackages(packages2slice(p.Srcinfo.Packages)).SetStatus(p.DBPackage.Status).
-			SetSkipReason(p.DBPackage.SkipReason).SetHash(p.Hash).SaveX(ctx)
+		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SetStatus(p.DBPackage.Status).
+			SetSkipReason(p.DBPackage.SkipReason).SetTagRev(p.State.TagRev).SaveX(ctx)
 		return false, nil
 	} else {
 		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
@@ -94,8 +85,8 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 	if err != nil {
 		p.DBPackage = p.DBPackage.Update().ClearRepoVersion().SaveX(ctx)
 	} else if err == nil && alpm.VerCmp(repoVer, p.Version) > 0 {
-		log.Debugf("Skipped %s: Version in repo higher than in PKGBUILD (%s < %s)", p.Srcinfo.Pkgbase, p.Version, repoVer)
-		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetHash(p.Hash).SaveX(ctx)
+		log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", p.Srcinfo.Pkgbase, p.Version, repoVer)
+		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetTagRev(p.State.TagRev).SaveX(ctx)
 		return false, nil
 	}
 
@@ -104,12 +95,12 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 		switch err.(type) {
 		default:
 			return false, fmt.Errorf("error solving deps: %w", err)
-		case MultiplePKGBUILDError:
-			log.Infof("Skipped %s: Multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
+		case MultipleStateFilesError:
+			log.Infof("skipped %s: Multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
 			return false, err
 		case UnableToSatisfyError:
-			log.Infof("Skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
+			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
 			return false, err
 		}
@@ -119,7 +110,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 
 	if !isLatest {
 		if local != nil {
-			log.Infof("Delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)",
+			log.Infof("delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)",
 				p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
 			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).
 				SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
@@ -133,7 +124,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 				return false, errors.New("overdue package waiting")
 			}
 		} else {
-			log.Infof("Delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
+			log.Infof("delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
 			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason("waiting for mirror").ExecX(ctx)
 		}
 		return false, nil
@@ -145,22 +136,6 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	start := time.Now().UTC()
 	chroot := "build_" + uuid.New().String()
-
-	err := p.genSrcinfo()
-	if err != nil {
-		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
-	}
-	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
-
-	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)
-
-	p.toDBPackage(true)
-	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
-
-	err = p.importKeys()
-	if err != nil {
-		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
-	}
 
 	buildFolder, err := p.setupBuildDir()
 	if err != nil {
@@ -174,6 +149,30 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			log.Errorf("error removing builddir/chroot %s/%s: %v", buildDir, chroot, err)
 		}
 	}()
+
+	err = p.genSrcinfo()
+	if err != nil {
+		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
+	}
+	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+
+	elig, err := p.isEligible(context.Background())
+	if err != nil {
+		log.Warningf("[QG] %s->%s: %v", p.FullRepo, p.Pkgbase, err)
+	}
+
+	if !elig {
+		return time.Since(start), ErrorNotEligible
+	}
+
+	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)
+
+	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
+
+	err = p.importKeys()
+	if err != nil {
+		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
+	}
 
 	buildNo := 1
 	versionSlice := strings.Split(p.DBPackage.LastVersionBuild, ".")
@@ -253,7 +252,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			ClearIoIn().
 			ClearUTime().
 			ClearSTime().
-			SetHash(p.Hash).
+			SetTagRev(p.State.TagRev).
 			ExecX(ctx)
 		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
 	}
@@ -308,7 +307,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		SetLto(dbpackage.LtoEnabled).
 		SetBuildTimeStart(start).
 		SetLastVersionBuild(p.Version).
-		SetHash(p.Hash).
+		SetTagRev(p.State.TagRev).
 		SetMaxRss(Rusage.Maxrss).
 		SetIoOut(Rusage.Oublock).
 		SetIoIn(Rusage.Inblock).
@@ -337,19 +336,16 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 		return "", err
 	}
 
-	files, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*"))
+	cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
+		fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", p.Pkgbase), buildDir)
+	res, err := cmd.CombinedOutput()
+	log.Debug(string(res))
 	if err != nil {
+		log.Fatalf("error cloning package repo %s: %v", p.Pkgbase, err)
 		return "", err
 	}
-
-	for _, file := range files {
-		err = copy.Copy(file, filepath.Join(buildDir, filepath.Base(file)))
-		if err != nil {
-			return "", err
-		}
-	}
-
 	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
+
 	return buildDir, nil
 }
 
@@ -444,8 +440,27 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	var pkg alpm.IPackage
 	if p.Srcinfo != nil {
 		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
-	} else {
+	} else if len(p.DBPackage.Packages) > 0 {
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
+	} else {
+		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String())
+		var res []byte
+		res, err = cmd.CombinedOutput()
+		log.Debug(string(res))
+		if err != nil || len(res) == 0 {
+			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
+			buildManager.alpmMutex.Unlock()
+			return false
+		}
+
+		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
+			splitOut := strings.Split(strings.Split(strings.TrimSpace(string(res)), "\n")[0], "/")
+			pkg, err = dbs.FindSatisfier(splitOut[1])
+		} else {
+			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
+			buildManager.alpmMutex.Unlock()
+			return false
+		}
 	}
 	buildManager.alpmMutex.Unlock()
 	if err != nil {
@@ -467,27 +482,31 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	return true
 }
 
-func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
-	if p.Pkgbuild == "" && p.Pkgbase == "" {
+func (p *ProtoPackage) GitVersion(h *alpm.Handle) (string, error) {
+	if p.Pkgbase == "" {
 		return "", fmt.Errorf("invalid arguments")
 	}
 
-	pkgBuilds, _ := Glob(filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"))
+	stateFiles, _ := Glob(filepath.Join(conf.Basedir.Work, stateDir, "**/"+p.Pkgbase))
 
-	var fPkgbuilds []string
-	for _, pkgbuild := range pkgBuilds {
-		mPkgbuild := PKGBUILD(pkgbuild)
-		if mPkgbuild.FullRepo() == "trunk" || containsSubStr(mPkgbuild.FullRepo(), conf.Blacklist.Repo) {
+	var fStateFiles []string
+	for _, stateFile := range stateFiles {
+		_, subRepo, _, err := stateFileMeta(stateFile)
+		if err != nil {
 			continue
 		}
 
-		if !Contains(fPkgbuilds, pkgbuild) {
-			fPkgbuilds = append(fPkgbuilds, pkgbuild)
+		if subRepo != nil {
+			continue
+		}
+
+		if !Contains(fStateFiles, stateFile) {
+			fStateFiles = append(fStateFiles, stateFile)
 		}
 	}
 
-	if len(fPkgbuilds) > 1 {
-		log.Infof("%s: multiple PKGBUILD found, try resolving from mirror", p.Pkgbase)
+	if len(fStateFiles) > 1 {
+		log.Infof("%s: multiple statefiles found, try resolving from mirror", p.Pkgbase)
 		dbs, err := h.SyncDBs()
 		if err != nil {
 			return "", err
@@ -501,67 +520,42 @@ func (p *ProtoPackage) SVN2GITVersion(h *alpm.Handle) (string, error) {
 		}
 
 	pkgloop:
-		for _, pkgbuild := range fPkgbuilds {
-			repo := strings.Split(filepath.Base(filepath.Dir(pkgbuild)), "-")[0]
-			upstreamA := strings.Split(filepath.Dir(pkgbuild), "/")
-			upstream := upstreamA[len(upstreamA)-4]
+		for _, stateFile := range fStateFiles {
+			repo, _, _, err := stateFileMeta(stateFile)
+			if err != nil {
+				continue
+			}
 
-			switch upstream {
-			case "upstream-core-extra":
-				if iPackage.DB().Name() == repo && (repo == "extra" || repo == "core") {
-					fPkgbuilds = []string{pkgbuild}
-					break pkgloop
-				}
-			case "upstream-community":
-				if iPackage.DB().Name() == repo && repo == "community" {
-					fPkgbuilds = []string{pkgbuild}
-					break pkgloop
-				}
+			if iPackage.DB().Name() == repo {
+				fStateFiles = []string{stateFile}
+				break pkgloop
 			}
 		}
 
-		if len(fPkgbuilds) > 1 {
-			return "", MultiplePKGBUILDError{fmt.Errorf("%s: multiple PKGBUILD found: %s", p.Pkgbase, fPkgbuilds)}
+		if len(fStateFiles) > 1 {
+			return "", MultipleStateFilesError{fmt.Errorf("%s: multiple statefiles found: %s", p.Pkgbase, fStateFiles)}
 		}
-		log.Infof("%s: resolving successful: MirrorRepo=%s; PKGBUILD chosen: %s", p.Pkgbase, iPackage.DB().Name(), fPkgbuilds[0])
-	} else if len(fPkgbuilds) == 0 {
-		return "", fmt.Errorf("%s: no matching PKGBUILD found (searched: %s, canidates: %s)", p.Pkgbase,
-			filepath.Join(conf.Basedir.Work, upstreamDir, "**/"+p.Pkgbase+"/repos/*/PKGBUILD"), pkgBuilds)
+		log.Infof("%s: resolving successful: MirrorRepo=%s; statefile chosen: %s", p.Pkgbase, iPackage.DB().Name(), fStateFiles[0])
+	} else if len(fStateFiles) == 0 {
+		return "", fmt.Errorf("%s: no matching statefile found (searched: %s, canidates: %s)", p.Pkgbase,
+			filepath.Join(conf.Basedir.Work, stateDir, "**/"+p.Pkgbase), stateFiles)
 	}
 
-	pPkg := PKGBUILD(fPkgbuilds[0])
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.RepositoryEQ(dbpackage.Repository(pPkg.Repo())),
-		dbpackage.March(p.March), dbpackage.Pkgbase(p.Pkgbase)).Only(context.Background())
-	if err == nil {
-		return dbPkg.Version, nil
-	}
-
-	cmd := exec.Command("makepkg", "--printsrcinfo")
-	cmd.Dir = filepath.Dir(fPkgbuilds[0])
-	res, err := cmd.Output()
+	rawState, err := os.ReadFile(fStateFiles[0])
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error reading statefile %s: %w", fStateFiles[0], err)
 	}
-
-	info, err := srcinfo.Parse(string(res))
+	state, err := parseState(string(rawState))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error parsing statefile: %w", err)
 	}
 
-	return constructVersion(info.Pkgver, info.Pkgrel, info.Epoch), nil
+	return state.PkgVer, nil
 }
 
 func (p *ProtoPackage) isPkgFailed() bool {
 	if p.DBPackage.Version == "" {
 		return false
-	}
-
-	if err := p.genSrcinfo(); err != nil {
-		return false
-	}
-
-	if p.Version == "" {
-		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
 	}
 
 	if alpm.VerCmp(p.DBPackage.Version, p.Version) < 0 {
@@ -575,16 +569,7 @@ func (p *ProtoPackage) genSrcinfo() error {
 		return nil
 	}
 
-	if p.DBPackage != nil && p.DBPackage.Srcinfo != nil {
-		var err error
-		p.Srcinfo, err = srcinfo.Parse(*p.DBPackage.Srcinfo)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild)) //nolint:gosec
+	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild))
 	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	res, err := cmd.CombinedOutput()
 	if err != nil {
@@ -595,11 +580,7 @@ func (p *ProtoPackage) genSrcinfo() error {
 	if err != nil {
 		return err
 	}
-
 	p.Srcinfo = info
-	if p.DBPackage != nil {
-		p.DBPackage = p.DBPackage.Update().SetSrcinfoHash(p.Hash).SetSrcinfo(string(res)).SaveX(context.Background())
-	}
 
 	return nil
 }
@@ -638,27 +619,32 @@ func (p *ProtoPackage) findPkgFiles() error {
 	return nil
 }
 
-func (p *ProtoPackage) toDBPackage(create bool) {
+func (p *ProtoPackage) toDBPackage(create bool) error {
 	if p.DBPackage != nil {
-		return
+		return nil
 	}
 
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March),
-		dbpackage.RepositoryEQ(p.Repo))).Only(context.Background())
-	if err != nil && create {
-		dbPkg = db.DbPackage.Create().
+	dbPkg, err := db.DBPackage.Query().Where(
+		dbpackage.Pkgbase(p.Pkgbase),
+		dbpackage.March(p.March),
+		dbpackage.RepositoryEQ(p.Repo),
+	).Only(context.Background())
+	if err != nil && ent.IsNotFound(err) && create {
+		dbPkg = db.DBPackage.Create().
 			SetPkgbase(p.Pkgbase).
 			SetMarch(p.March).
-			SetPackages(packages2slice(p.Srcinfo.Packages)).
 			SetRepository(p.Repo).
 			SaveX(context.Background())
+	} else if err != nil && !ent.IsNotFound(err) {
+		return err
 	}
 
 	p.DBPackage = dbPkg
+	return nil
 }
 
 func (p *ProtoPackage) exists() (bool, error) {
-	dbPkg, err := db.DbPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
+	dbPkg, err := db.DBPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
 	if err != nil {
 		return false, err
 	}
@@ -692,7 +678,7 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 		svn2gitVer, err := (&ProtoPackage{
 			Pkgbase: pkg.Base(),
 			March:   p.March,
-		}).SVN2GITVersion(h)
+		}).GitVersion(h)
 		if err != nil {
 			return false, nil, "", err
 		} else if svn2gitVer == "" {

@@ -12,26 +12,26 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
-// DbPackageDelete is the builder for deleting a DbPackage entity.
-type DbPackageDelete struct {
+// DBPackageDelete is the builder for deleting a DBPackage entity.
+type DBPackageDelete struct {
 	config
 	hooks    []Hook
-	mutation *DbPackageMutation
+	mutation *DBPackageMutation
 }
 
-// Where appends a list predicates to the DbPackageDelete builder.
-func (dpd *DbPackageDelete) Where(ps ...predicate.DbPackage) *DbPackageDelete {
+// Where appends a list predicates to the DBPackageDelete builder.
+func (dpd *DBPackageDelete) Where(ps ...predicate.DBPackage) *DBPackageDelete {
 	dpd.mutation.Where(ps...)
 	return dpd
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (dpd *DbPackageDelete) Exec(ctx context.Context) (int, error) {
+func (dpd *DBPackageDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, dpd.sqlExec, dpd.mutation, dpd.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpd *DbPackageDelete) ExecX(ctx context.Context) int {
+func (dpd *DBPackageDelete) ExecX(ctx context.Context) int {
 	n, err := dpd.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,7 +39,7 @@ func (dpd *DbPackageDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (dpd *DbPackageDelete) sqlExec(ctx context.Context) (int, error) {
+func (dpd *DBPackageDelete) sqlExec(ctx context.Context) (int, error) {
 	_spec := sqlgraph.NewDeleteSpec(dbpackage.Table, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	if ps := dpd.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -56,19 +56,19 @@ func (dpd *DbPackageDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// DbPackageDeleteOne is the builder for deleting a single DbPackage entity.
-type DbPackageDeleteOne struct {
-	dpd *DbPackageDelete
+// DBPackageDeleteOne is the builder for deleting a single DBPackage entity.
+type DBPackageDeleteOne struct {
+	dpd *DBPackageDelete
 }
 
-// Where appends a list predicates to the DbPackageDelete builder.
-func (dpdo *DbPackageDeleteOne) Where(ps ...predicate.DbPackage) *DbPackageDeleteOne {
+// Where appends a list predicates to the DBPackageDelete builder.
+func (dpdo *DBPackageDeleteOne) Where(ps ...predicate.DBPackage) *DBPackageDeleteOne {
 	dpdo.dpd.mutation.Where(ps...)
 	return dpdo
 }
 
 // Exec executes the deletion query.
-func (dpdo *DbPackageDeleteOne) Exec(ctx context.Context) error {
+func (dpdo *DBPackageDeleteOne) Exec(ctx context.Context) error {
 	n, err := dpdo.dpd.Exec(ctx)
 	switch {
 	case err != nil:
@@ -81,7 +81,7 @@ func (dpdo *DbPackageDeleteOne) Exec(ctx context.Context) error {
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpdo *DbPackageDeleteOne) ExecX(ctx context.Context) {
+func (dpdo *DBPackageDeleteOne) ExecX(ctx context.Context) {
 	if err := dpdo.Exec(ctx); err != nil {
 		panic(err)
 	}

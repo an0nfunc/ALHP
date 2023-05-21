@@ -24,11 +24,11 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeDbPackage = "DbPackage"
+	TypeDBPackage = "DBPackage"
 )
 
-// DbPackageMutation represents an operation that mutates the DbPackage nodes in the graph.
-type DbPackageMutation struct {
+// DBPackageMutation represents an operation that mutates the DBPackage nodes in the graph.
+type DBPackageMutation struct {
 	config
 	op                 Op
 	typ                string
@@ -44,7 +44,6 @@ type DbPackageMutation struct {
 	repo_version       *string
 	build_time_start   *time.Time
 	updated            *time.Time
-	hash               *string
 	lto                *dbpackage.Lto
 	last_version_build *string
 	last_verified      *time.Time
@@ -59,26 +58,24 @@ type DbPackageMutation struct {
 	addio_in           *int64
 	io_out             *int64
 	addio_out          *int64
-	srcinfo            *string
-	srcinfo_hash       *string
-	pkgbuild           *string
+	tag_rev            *string
 	clearedFields      map[string]struct{}
 	done               bool
-	oldValue           func(context.Context) (*DbPackage, error)
-	predicates         []predicate.DbPackage
+	oldValue           func(context.Context) (*DBPackage, error)
+	predicates         []predicate.DBPackage
 }
 
-var _ ent.Mutation = (*DbPackageMutation)(nil)
+var _ ent.Mutation = (*DBPackageMutation)(nil)
 
 // dbpackageOption allows management of the mutation configuration using functional options.
-type dbpackageOption func(*DbPackageMutation)
+type dbpackageOption func(*DBPackageMutation)
 
-// newDbPackageMutation creates new mutation for the DbPackage entity.
-func newDbPackageMutation(c config, op Op, opts ...dbpackageOption) *DbPackageMutation {
-	m := &DbPackageMutation{
+// newDBPackageMutation creates new mutation for the DBPackage entity.
+func newDBPackageMutation(c config, op Op, opts ...dbpackageOption) *DBPackageMutation {
+	m := &DBPackageMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeDbPackage,
+		typ:           TypeDBPackage,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -87,20 +84,20 @@ func newDbPackageMutation(c config, op Op, opts ...dbpackageOption) *DbPackageMu
 	return m
 }
 
-// withDbPackageID sets the ID field of the mutation.
-func withDbPackageID(id int) dbpackageOption {
-	return func(m *DbPackageMutation) {
+// withDBPackageID sets the ID field of the mutation.
+func withDBPackageID(id int) dbpackageOption {
+	return func(m *DBPackageMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *DbPackage
+			value *DBPackage
 		)
-		m.oldValue = func(ctx context.Context) (*DbPackage, error) {
+		m.oldValue = func(ctx context.Context) (*DBPackage, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().DbPackage.Get(ctx, id)
+					value, err = m.Client().DBPackage.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -109,10 +106,10 @@ func withDbPackageID(id int) dbpackageOption {
 	}
 }
 
-// withDbPackage sets the old DbPackage of the mutation.
-func withDbPackage(node *DbPackage) dbpackageOption {
-	return func(m *DbPackageMutation) {
-		m.oldValue = func(context.Context) (*DbPackage, error) {
+// withDBPackage sets the old DBPackage of the mutation.
+func withDBPackage(node *DBPackage) dbpackageOption {
+	return func(m *DBPackageMutation) {
+		m.oldValue = func(context.Context) (*DBPackage, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -121,7 +118,7 @@ func withDbPackage(node *DbPackage) dbpackageOption {
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m DbPackageMutation) Client() *Client {
+func (m DBPackageMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -129,7 +126,7 @@ func (m DbPackageMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m DbPackageMutation) Tx() (*Tx, error) {
+func (m DBPackageMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -140,7 +137,7 @@ func (m DbPackageMutation) Tx() (*Tx, error) {
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *DbPackageMutation) ID() (id int, exists bool) {
+func (m *DBPackageMutation) ID() (id int, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -151,7 +148,7 @@ func (m *DbPackageMutation) ID() (id int, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *DbPackageMutation) IDs(ctx context.Context) ([]int, error) {
+func (m *DBPackageMutation) IDs(ctx context.Context) ([]int, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -160,19 +157,19 @@ func (m *DbPackageMutation) IDs(ctx context.Context) ([]int, error) {
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().DbPackage.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().DBPackage.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
 // SetPkgbase sets the "pkgbase" field.
-func (m *DbPackageMutation) SetPkgbase(s string) {
+func (m *DBPackageMutation) SetPkgbase(s string) {
 	m.pkgbase = &s
 }
 
 // Pkgbase returns the value of the "pkgbase" field in the mutation.
-func (m *DbPackageMutation) Pkgbase() (r string, exists bool) {
+func (m *DBPackageMutation) Pkgbase() (r string, exists bool) {
 	v := m.pkgbase
 	if v == nil {
 		return
@@ -180,10 +177,10 @@ func (m *DbPackageMutation) Pkgbase() (r string, exists bool) {
 	return *v, true
 }
 
-// OldPkgbase returns the old "pkgbase" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldPkgbase returns the old "pkgbase" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldPkgbase(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldPkgbase(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPkgbase is only allowed on UpdateOne operations")
 	}
@@ -198,18 +195,18 @@ func (m *DbPackageMutation) OldPkgbase(ctx context.Context) (v string, err error
 }
 
 // ResetPkgbase resets all changes to the "pkgbase" field.
-func (m *DbPackageMutation) ResetPkgbase() {
+func (m *DBPackageMutation) ResetPkgbase() {
 	m.pkgbase = nil
 }
 
 // SetPackages sets the "packages" field.
-func (m *DbPackageMutation) SetPackages(s []string) {
+func (m *DBPackageMutation) SetPackages(s []string) {
 	m.packages = &s
 	m.appendpackages = nil
 }
 
 // Packages returns the value of the "packages" field in the mutation.
-func (m *DbPackageMutation) Packages() (r []string, exists bool) {
+func (m *DBPackageMutation) Packages() (r []string, exists bool) {
 	v := m.packages
 	if v == nil {
 		return
@@ -217,10 +214,10 @@ func (m *DbPackageMutation) Packages() (r []string, exists bool) {
 	return *v, true
 }
 
-// OldPackages returns the old "packages" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldPackages returns the old "packages" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldPackages(ctx context.Context) (v []string, err error) {
+func (m *DBPackageMutation) OldPackages(ctx context.Context) (v []string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPackages is only allowed on UpdateOne operations")
 	}
@@ -235,12 +232,12 @@ func (m *DbPackageMutation) OldPackages(ctx context.Context) (v []string, err er
 }
 
 // AppendPackages adds s to the "packages" field.
-func (m *DbPackageMutation) AppendPackages(s []string) {
+func (m *DBPackageMutation) AppendPackages(s []string) {
 	m.appendpackages = append(m.appendpackages, s...)
 }
 
 // AppendedPackages returns the list of values that were appended to the "packages" field in this mutation.
-func (m *DbPackageMutation) AppendedPackages() ([]string, bool) {
+func (m *DBPackageMutation) AppendedPackages() ([]string, bool) {
 	if len(m.appendpackages) == 0 {
 		return nil, false
 	}
@@ -248,32 +245,32 @@ func (m *DbPackageMutation) AppendedPackages() ([]string, bool) {
 }
 
 // ClearPackages clears the value of the "packages" field.
-func (m *DbPackageMutation) ClearPackages() {
+func (m *DBPackageMutation) ClearPackages() {
 	m.packages = nil
 	m.appendpackages = nil
 	m.clearedFields[dbpackage.FieldPackages] = struct{}{}
 }
 
 // PackagesCleared returns if the "packages" field was cleared in this mutation.
-func (m *DbPackageMutation) PackagesCleared() bool {
+func (m *DBPackageMutation) PackagesCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldPackages]
 	return ok
 }
 
 // ResetPackages resets all changes to the "packages" field.
-func (m *DbPackageMutation) ResetPackages() {
+func (m *DBPackageMutation) ResetPackages() {
 	m.packages = nil
 	m.appendpackages = nil
 	delete(m.clearedFields, dbpackage.FieldPackages)
 }
 
 // SetStatus sets the "status" field.
-func (m *DbPackageMutation) SetStatus(d dbpackage.Status) {
+func (m *DBPackageMutation) SetStatus(d dbpackage.Status) {
 	m.status = &d
 }
 
 // Status returns the value of the "status" field in the mutation.
-func (m *DbPackageMutation) Status() (r dbpackage.Status, exists bool) {
+func (m *DBPackageMutation) Status() (r dbpackage.Status, exists bool) {
 	v := m.status
 	if v == nil {
 		return
@@ -281,10 +278,10 @@ func (m *DbPackageMutation) Status() (r dbpackage.Status, exists bool) {
 	return *v, true
 }
 
-// OldStatus returns the old "status" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldStatus returns the old "status" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldStatus(ctx context.Context) (v dbpackage.Status, err error) {
+func (m *DBPackageMutation) OldStatus(ctx context.Context) (v dbpackage.Status, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
 	}
@@ -299,30 +296,30 @@ func (m *DbPackageMutation) OldStatus(ctx context.Context) (v dbpackage.Status, 
 }
 
 // ClearStatus clears the value of the "status" field.
-func (m *DbPackageMutation) ClearStatus() {
+func (m *DBPackageMutation) ClearStatus() {
 	m.status = nil
 	m.clearedFields[dbpackage.FieldStatus] = struct{}{}
 }
 
 // StatusCleared returns if the "status" field was cleared in this mutation.
-func (m *DbPackageMutation) StatusCleared() bool {
+func (m *DBPackageMutation) StatusCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldStatus]
 	return ok
 }
 
 // ResetStatus resets all changes to the "status" field.
-func (m *DbPackageMutation) ResetStatus() {
+func (m *DBPackageMutation) ResetStatus() {
 	m.status = nil
 	delete(m.clearedFields, dbpackage.FieldStatus)
 }
 
 // SetSkipReason sets the "skip_reason" field.
-func (m *DbPackageMutation) SetSkipReason(s string) {
+func (m *DBPackageMutation) SetSkipReason(s string) {
 	m.skip_reason = &s
 }
 
 // SkipReason returns the value of the "skip_reason" field in the mutation.
-func (m *DbPackageMutation) SkipReason() (r string, exists bool) {
+func (m *DBPackageMutation) SkipReason() (r string, exists bool) {
 	v := m.skip_reason
 	if v == nil {
 		return
@@ -330,10 +327,10 @@ func (m *DbPackageMutation) SkipReason() (r string, exists bool) {
 	return *v, true
 }
 
-// OldSkipReason returns the old "skip_reason" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldSkipReason returns the old "skip_reason" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldSkipReason(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldSkipReason(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldSkipReason is only allowed on UpdateOne operations")
 	}
@@ -348,30 +345,30 @@ func (m *DbPackageMutation) OldSkipReason(ctx context.Context) (v string, err er
 }
 
 // ClearSkipReason clears the value of the "skip_reason" field.
-func (m *DbPackageMutation) ClearSkipReason() {
+func (m *DBPackageMutation) ClearSkipReason() {
 	m.skip_reason = nil
 	m.clearedFields[dbpackage.FieldSkipReason] = struct{}{}
 }
 
 // SkipReasonCleared returns if the "skip_reason" field was cleared in this mutation.
-func (m *DbPackageMutation) SkipReasonCleared() bool {
+func (m *DBPackageMutation) SkipReasonCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldSkipReason]
 	return ok
 }
 
 // ResetSkipReason resets all changes to the "skip_reason" field.
-func (m *DbPackageMutation) ResetSkipReason() {
+func (m *DBPackageMutation) ResetSkipReason() {
 	m.skip_reason = nil
 	delete(m.clearedFields, dbpackage.FieldSkipReason)
 }
 
 // SetRepository sets the "repository" field.
-func (m *DbPackageMutation) SetRepository(d dbpackage.Repository) {
+func (m *DBPackageMutation) SetRepository(d dbpackage.Repository) {
 	m.repository = &d
 }
 
 // Repository returns the value of the "repository" field in the mutation.
-func (m *DbPackageMutation) Repository() (r dbpackage.Repository, exists bool) {
+func (m *DBPackageMutation) Repository() (r dbpackage.Repository, exists bool) {
 	v := m.repository
 	if v == nil {
 		return
@@ -379,10 +376,10 @@ func (m *DbPackageMutation) Repository() (r dbpackage.Repository, exists bool) {
 	return *v, true
 }
 
-// OldRepository returns the old "repository" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldRepository returns the old "repository" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldRepository(ctx context.Context) (v dbpackage.Repository, err error) {
+func (m *DBPackageMutation) OldRepository(ctx context.Context) (v dbpackage.Repository, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRepository is only allowed on UpdateOne operations")
 	}
@@ -397,17 +394,17 @@ func (m *DbPackageMutation) OldRepository(ctx context.Context) (v dbpackage.Repo
 }
 
 // ResetRepository resets all changes to the "repository" field.
-func (m *DbPackageMutation) ResetRepository() {
+func (m *DBPackageMutation) ResetRepository() {
 	m.repository = nil
 }
 
 // SetMarch sets the "march" field.
-func (m *DbPackageMutation) SetMarch(s string) {
+func (m *DBPackageMutation) SetMarch(s string) {
 	m.march = &s
 }
 
 // March returns the value of the "march" field in the mutation.
-func (m *DbPackageMutation) March() (r string, exists bool) {
+func (m *DBPackageMutation) March() (r string, exists bool) {
 	v := m.march
 	if v == nil {
 		return
@@ -415,10 +412,10 @@ func (m *DbPackageMutation) March() (r string, exists bool) {
 	return *v, true
 }
 
-// OldMarch returns the old "march" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldMarch returns the old "march" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldMarch(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldMarch(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldMarch is only allowed on UpdateOne operations")
 	}
@@ -433,17 +430,17 @@ func (m *DbPackageMutation) OldMarch(ctx context.Context) (v string, err error) 
 }
 
 // ResetMarch resets all changes to the "march" field.
-func (m *DbPackageMutation) ResetMarch() {
+func (m *DBPackageMutation) ResetMarch() {
 	m.march = nil
 }
 
 // SetVersion sets the "version" field.
-func (m *DbPackageMutation) SetVersion(s string) {
+func (m *DBPackageMutation) SetVersion(s string) {
 	m.version = &s
 }
 
 // Version returns the value of the "version" field in the mutation.
-func (m *DbPackageMutation) Version() (r string, exists bool) {
+func (m *DBPackageMutation) Version() (r string, exists bool) {
 	v := m.version
 	if v == nil {
 		return
@@ -451,10 +448,10 @@ func (m *DbPackageMutation) Version() (r string, exists bool) {
 	return *v, true
 }
 
-// OldVersion returns the old "version" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldVersion returns the old "version" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldVersion(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldVersion(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
 	}
@@ -469,30 +466,30 @@ func (m *DbPackageMutation) OldVersion(ctx context.Context) (v string, err error
 }
 
 // ClearVersion clears the value of the "version" field.
-func (m *DbPackageMutation) ClearVersion() {
+func (m *DBPackageMutation) ClearVersion() {
 	m.version = nil
 	m.clearedFields[dbpackage.FieldVersion] = struct{}{}
 }
 
 // VersionCleared returns if the "version" field was cleared in this mutation.
-func (m *DbPackageMutation) VersionCleared() bool {
+func (m *DBPackageMutation) VersionCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldVersion]
 	return ok
 }
 
 // ResetVersion resets all changes to the "version" field.
-func (m *DbPackageMutation) ResetVersion() {
+func (m *DBPackageMutation) ResetVersion() {
 	m.version = nil
 	delete(m.clearedFields, dbpackage.FieldVersion)
 }
 
 // SetRepoVersion sets the "repo_version" field.
-func (m *DbPackageMutation) SetRepoVersion(s string) {
+func (m *DBPackageMutation) SetRepoVersion(s string) {
 	m.repo_version = &s
 }
 
 // RepoVersion returns the value of the "repo_version" field in the mutation.
-func (m *DbPackageMutation) RepoVersion() (r string, exists bool) {
+func (m *DBPackageMutation) RepoVersion() (r string, exists bool) {
 	v := m.repo_version
 	if v == nil {
 		return
@@ -500,10 +497,10 @@ func (m *DbPackageMutation) RepoVersion() (r string, exists bool) {
 	return *v, true
 }
 
-// OldRepoVersion returns the old "repo_version" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldRepoVersion returns the old "repo_version" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldRepoVersion(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldRepoVersion(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRepoVersion is only allowed on UpdateOne operations")
 	}
@@ -518,30 +515,30 @@ func (m *DbPackageMutation) OldRepoVersion(ctx context.Context) (v string, err e
 }
 
 // ClearRepoVersion clears the value of the "repo_version" field.
-func (m *DbPackageMutation) ClearRepoVersion() {
+func (m *DBPackageMutation) ClearRepoVersion() {
 	m.repo_version = nil
 	m.clearedFields[dbpackage.FieldRepoVersion] = struct{}{}
 }
 
 // RepoVersionCleared returns if the "repo_version" field was cleared in this mutation.
-func (m *DbPackageMutation) RepoVersionCleared() bool {
+func (m *DBPackageMutation) RepoVersionCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldRepoVersion]
 	return ok
 }
 
 // ResetRepoVersion resets all changes to the "repo_version" field.
-func (m *DbPackageMutation) ResetRepoVersion() {
+func (m *DBPackageMutation) ResetRepoVersion() {
 	m.repo_version = nil
 	delete(m.clearedFields, dbpackage.FieldRepoVersion)
 }
 
 // SetBuildTimeStart sets the "build_time_start" field.
-func (m *DbPackageMutation) SetBuildTimeStart(t time.Time) {
+func (m *DBPackageMutation) SetBuildTimeStart(t time.Time) {
 	m.build_time_start = &t
 }
 
 // BuildTimeStart returns the value of the "build_time_start" field in the mutation.
-func (m *DbPackageMutation) BuildTimeStart() (r time.Time, exists bool) {
+func (m *DBPackageMutation) BuildTimeStart() (r time.Time, exists bool) {
 	v := m.build_time_start
 	if v == nil {
 		return
@@ -549,10 +546,10 @@ func (m *DbPackageMutation) BuildTimeStart() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldBuildTimeStart returns the old "build_time_start" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldBuildTimeStart returns the old "build_time_start" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldBuildTimeStart(ctx context.Context) (v time.Time, err error) {
+func (m *DBPackageMutation) OldBuildTimeStart(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldBuildTimeStart is only allowed on UpdateOne operations")
 	}
@@ -567,30 +564,30 @@ func (m *DbPackageMutation) OldBuildTimeStart(ctx context.Context) (v time.Time,
 }
 
 // ClearBuildTimeStart clears the value of the "build_time_start" field.
-func (m *DbPackageMutation) ClearBuildTimeStart() {
+func (m *DBPackageMutation) ClearBuildTimeStart() {
 	m.build_time_start = nil
 	m.clearedFields[dbpackage.FieldBuildTimeStart] = struct{}{}
 }
 
 // BuildTimeStartCleared returns if the "build_time_start" field was cleared in this mutation.
-func (m *DbPackageMutation) BuildTimeStartCleared() bool {
+func (m *DBPackageMutation) BuildTimeStartCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldBuildTimeStart]
 	return ok
 }
 
 // ResetBuildTimeStart resets all changes to the "build_time_start" field.
-func (m *DbPackageMutation) ResetBuildTimeStart() {
+func (m *DBPackageMutation) ResetBuildTimeStart() {
 	m.build_time_start = nil
 	delete(m.clearedFields, dbpackage.FieldBuildTimeStart)
 }
 
 // SetUpdated sets the "updated" field.
-func (m *DbPackageMutation) SetUpdated(t time.Time) {
+func (m *DBPackageMutation) SetUpdated(t time.Time) {
 	m.updated = &t
 }
 
 // Updated returns the value of the "updated" field in the mutation.
-func (m *DbPackageMutation) Updated() (r time.Time, exists bool) {
+func (m *DBPackageMutation) Updated() (r time.Time, exists bool) {
 	v := m.updated
 	if v == nil {
 		return
@@ -598,10 +595,10 @@ func (m *DbPackageMutation) Updated() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldUpdated returns the old "updated" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldUpdated returns the old "updated" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldUpdated(ctx context.Context) (v time.Time, err error) {
+func (m *DBPackageMutation) OldUpdated(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
 	}
@@ -616,79 +613,30 @@ func (m *DbPackageMutation) OldUpdated(ctx context.Context) (v time.Time, err er
 }
 
 // ClearUpdated clears the value of the "updated" field.
-func (m *DbPackageMutation) ClearUpdated() {
+func (m *DBPackageMutation) ClearUpdated() {
 	m.updated = nil
 	m.clearedFields[dbpackage.FieldUpdated] = struct{}{}
 }
 
 // UpdatedCleared returns if the "updated" field was cleared in this mutation.
-func (m *DbPackageMutation) UpdatedCleared() bool {
+func (m *DBPackageMutation) UpdatedCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldUpdated]
 	return ok
 }
 
 // ResetUpdated resets all changes to the "updated" field.
-func (m *DbPackageMutation) ResetUpdated() {
+func (m *DBPackageMutation) ResetUpdated() {
 	m.updated = nil
 	delete(m.clearedFields, dbpackage.FieldUpdated)
 }
 
-// SetHash sets the "hash" field.
-func (m *DbPackageMutation) SetHash(s string) {
-	m.hash = &s
-}
-
-// Hash returns the value of the "hash" field in the mutation.
-func (m *DbPackageMutation) Hash() (r string, exists bool) {
-	v := m.hash
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldHash returns the old "hash" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldHash(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldHash is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldHash requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldHash: %w", err)
-	}
-	return oldValue.Hash, nil
-}
-
-// ClearHash clears the value of the "hash" field.
-func (m *DbPackageMutation) ClearHash() {
-	m.hash = nil
-	m.clearedFields[dbpackage.FieldHash] = struct{}{}
-}
-
-// HashCleared returns if the "hash" field was cleared in this mutation.
-func (m *DbPackageMutation) HashCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldHash]
-	return ok
-}
-
-// ResetHash resets all changes to the "hash" field.
-func (m *DbPackageMutation) ResetHash() {
-	m.hash = nil
-	delete(m.clearedFields, dbpackage.FieldHash)
-}
-
 // SetLto sets the "lto" field.
-func (m *DbPackageMutation) SetLto(d dbpackage.Lto) {
+func (m *DBPackageMutation) SetLto(d dbpackage.Lto) {
 	m.lto = &d
 }
 
 // Lto returns the value of the "lto" field in the mutation.
-func (m *DbPackageMutation) Lto() (r dbpackage.Lto, exists bool) {
+func (m *DBPackageMutation) Lto() (r dbpackage.Lto, exists bool) {
 	v := m.lto
 	if v == nil {
 		return
@@ -696,10 +644,10 @@ func (m *DbPackageMutation) Lto() (r dbpackage.Lto, exists bool) {
 	return *v, true
 }
 
-// OldLto returns the old "lto" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldLto returns the old "lto" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldLto(ctx context.Context) (v dbpackage.Lto, err error) {
+func (m *DBPackageMutation) OldLto(ctx context.Context) (v dbpackage.Lto, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLto is only allowed on UpdateOne operations")
 	}
@@ -714,30 +662,30 @@ func (m *DbPackageMutation) OldLto(ctx context.Context) (v dbpackage.Lto, err er
 }
 
 // ClearLto clears the value of the "lto" field.
-func (m *DbPackageMutation) ClearLto() {
+func (m *DBPackageMutation) ClearLto() {
 	m.lto = nil
 	m.clearedFields[dbpackage.FieldLto] = struct{}{}
 }
 
 // LtoCleared returns if the "lto" field was cleared in this mutation.
-func (m *DbPackageMutation) LtoCleared() bool {
+func (m *DBPackageMutation) LtoCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldLto]
 	return ok
 }
 
 // ResetLto resets all changes to the "lto" field.
-func (m *DbPackageMutation) ResetLto() {
+func (m *DBPackageMutation) ResetLto() {
 	m.lto = nil
 	delete(m.clearedFields, dbpackage.FieldLto)
 }
 
 // SetLastVersionBuild sets the "last_version_build" field.
-func (m *DbPackageMutation) SetLastVersionBuild(s string) {
+func (m *DBPackageMutation) SetLastVersionBuild(s string) {
 	m.last_version_build = &s
 }
 
 // LastVersionBuild returns the value of the "last_version_build" field in the mutation.
-func (m *DbPackageMutation) LastVersionBuild() (r string, exists bool) {
+func (m *DBPackageMutation) LastVersionBuild() (r string, exists bool) {
 	v := m.last_version_build
 	if v == nil {
 		return
@@ -745,10 +693,10 @@ func (m *DbPackageMutation) LastVersionBuild() (r string, exists bool) {
 	return *v, true
 }
 
-// OldLastVersionBuild returns the old "last_version_build" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldLastVersionBuild returns the old "last_version_build" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldLastVersionBuild(ctx context.Context) (v string, err error) {
+func (m *DBPackageMutation) OldLastVersionBuild(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLastVersionBuild is only allowed on UpdateOne operations")
 	}
@@ -763,30 +711,30 @@ func (m *DbPackageMutation) OldLastVersionBuild(ctx context.Context) (v string, 
 }
 
 // ClearLastVersionBuild clears the value of the "last_version_build" field.
-func (m *DbPackageMutation) ClearLastVersionBuild() {
+func (m *DBPackageMutation) ClearLastVersionBuild() {
 	m.last_version_build = nil
 	m.clearedFields[dbpackage.FieldLastVersionBuild] = struct{}{}
 }
 
 // LastVersionBuildCleared returns if the "last_version_build" field was cleared in this mutation.
-func (m *DbPackageMutation) LastVersionBuildCleared() bool {
+func (m *DBPackageMutation) LastVersionBuildCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldLastVersionBuild]
 	return ok
 }
 
 // ResetLastVersionBuild resets all changes to the "last_version_build" field.
-func (m *DbPackageMutation) ResetLastVersionBuild() {
+func (m *DBPackageMutation) ResetLastVersionBuild() {
 	m.last_version_build = nil
 	delete(m.clearedFields, dbpackage.FieldLastVersionBuild)
 }
 
 // SetLastVerified sets the "last_verified" field.
-func (m *DbPackageMutation) SetLastVerified(t time.Time) {
+func (m *DBPackageMutation) SetLastVerified(t time.Time) {
 	m.last_verified = &t
 }
 
 // LastVerified returns the value of the "last_verified" field in the mutation.
-func (m *DbPackageMutation) LastVerified() (r time.Time, exists bool) {
+func (m *DBPackageMutation) LastVerified() (r time.Time, exists bool) {
 	v := m.last_verified
 	if v == nil {
 		return
@@ -794,10 +742,10 @@ func (m *DbPackageMutation) LastVerified() (r time.Time, exists bool) {
 	return *v, true
 }
 
-// OldLastVerified returns the old "last_verified" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldLastVerified returns the old "last_verified" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldLastVerified(ctx context.Context) (v time.Time, err error) {
+func (m *DBPackageMutation) OldLastVerified(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLastVerified is only allowed on UpdateOne operations")
 	}
@@ -812,30 +760,30 @@ func (m *DbPackageMutation) OldLastVerified(ctx context.Context) (v time.Time, e
 }
 
 // ClearLastVerified clears the value of the "last_verified" field.
-func (m *DbPackageMutation) ClearLastVerified() {
+func (m *DBPackageMutation) ClearLastVerified() {
 	m.last_verified = nil
 	m.clearedFields[dbpackage.FieldLastVerified] = struct{}{}
 }
 
 // LastVerifiedCleared returns if the "last_verified" field was cleared in this mutation.
-func (m *DbPackageMutation) LastVerifiedCleared() bool {
+func (m *DBPackageMutation) LastVerifiedCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldLastVerified]
 	return ok
 }
 
 // ResetLastVerified resets all changes to the "last_verified" field.
-func (m *DbPackageMutation) ResetLastVerified() {
+func (m *DBPackageMutation) ResetLastVerified() {
 	m.last_verified = nil
 	delete(m.clearedFields, dbpackage.FieldLastVerified)
 }
 
 // SetDebugSymbols sets the "debug_symbols" field.
-func (m *DbPackageMutation) SetDebugSymbols(ds dbpackage.DebugSymbols) {
+func (m *DBPackageMutation) SetDebugSymbols(ds dbpackage.DebugSymbols) {
 	m.debug_symbols = &ds
 }
 
 // DebugSymbols returns the value of the "debug_symbols" field in the mutation.
-func (m *DbPackageMutation) DebugSymbols() (r dbpackage.DebugSymbols, exists bool) {
+func (m *DBPackageMutation) DebugSymbols() (r dbpackage.DebugSymbols, exists bool) {
 	v := m.debug_symbols
 	if v == nil {
 		return
@@ -843,10 +791,10 @@ func (m *DbPackageMutation) DebugSymbols() (r dbpackage.DebugSymbols, exists boo
 	return *v, true
 }
 
-// OldDebugSymbols returns the old "debug_symbols" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldDebugSymbols returns the old "debug_symbols" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldDebugSymbols(ctx context.Context) (v dbpackage.DebugSymbols, err error) {
+func (m *DBPackageMutation) OldDebugSymbols(ctx context.Context) (v dbpackage.DebugSymbols, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldDebugSymbols is only allowed on UpdateOne operations")
 	}
@@ -861,31 +809,31 @@ func (m *DbPackageMutation) OldDebugSymbols(ctx context.Context) (v dbpackage.De
 }
 
 // ClearDebugSymbols clears the value of the "debug_symbols" field.
-func (m *DbPackageMutation) ClearDebugSymbols() {
+func (m *DBPackageMutation) ClearDebugSymbols() {
 	m.debug_symbols = nil
 	m.clearedFields[dbpackage.FieldDebugSymbols] = struct{}{}
 }
 
 // DebugSymbolsCleared returns if the "debug_symbols" field was cleared in this mutation.
-func (m *DbPackageMutation) DebugSymbolsCleared() bool {
+func (m *DBPackageMutation) DebugSymbolsCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldDebugSymbols]
 	return ok
 }
 
 // ResetDebugSymbols resets all changes to the "debug_symbols" field.
-func (m *DbPackageMutation) ResetDebugSymbols() {
+func (m *DBPackageMutation) ResetDebugSymbols() {
 	m.debug_symbols = nil
 	delete(m.clearedFields, dbpackage.FieldDebugSymbols)
 }
 
 // SetMaxRss sets the "max_rss" field.
-func (m *DbPackageMutation) SetMaxRss(i int64) {
+func (m *DBPackageMutation) SetMaxRss(i int64) {
 	m.max_rss = &i
 	m.addmax_rss = nil
 }
 
 // MaxRss returns the value of the "max_rss" field in the mutation.
-func (m *DbPackageMutation) MaxRss() (r int64, exists bool) {
+func (m *DBPackageMutation) MaxRss() (r int64, exists bool) {
 	v := m.max_rss
 	if v == nil {
 		return
@@ -893,10 +841,10 @@ func (m *DbPackageMutation) MaxRss() (r int64, exists bool) {
 	return *v, true
 }
 
-// OldMaxRss returns the old "max_rss" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldMaxRss returns the old "max_rss" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldMaxRss(ctx context.Context) (v *int64, err error) {
+func (m *DBPackageMutation) OldMaxRss(ctx context.Context) (v *int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldMaxRss is only allowed on UpdateOne operations")
 	}
@@ -911,7 +859,7 @@ func (m *DbPackageMutation) OldMaxRss(ctx context.Context) (v *int64, err error)
 }
 
 // AddMaxRss adds i to the "max_rss" field.
-func (m *DbPackageMutation) AddMaxRss(i int64) {
+func (m *DBPackageMutation) AddMaxRss(i int64) {
 	if m.addmax_rss != nil {
 		*m.addmax_rss += i
 	} else {
@@ -920,7 +868,7 @@ func (m *DbPackageMutation) AddMaxRss(i int64) {
 }
 
 // AddedMaxRss returns the value that was added to the "max_rss" field in this mutation.
-func (m *DbPackageMutation) AddedMaxRss() (r int64, exists bool) {
+func (m *DBPackageMutation) AddedMaxRss() (r int64, exists bool) {
 	v := m.addmax_rss
 	if v == nil {
 		return
@@ -929,33 +877,33 @@ func (m *DbPackageMutation) AddedMaxRss() (r int64, exists bool) {
 }
 
 // ClearMaxRss clears the value of the "max_rss" field.
-func (m *DbPackageMutation) ClearMaxRss() {
+func (m *DBPackageMutation) ClearMaxRss() {
 	m.max_rss = nil
 	m.addmax_rss = nil
 	m.clearedFields[dbpackage.FieldMaxRss] = struct{}{}
 }
 
 // MaxRssCleared returns if the "max_rss" field was cleared in this mutation.
-func (m *DbPackageMutation) MaxRssCleared() bool {
+func (m *DBPackageMutation) MaxRssCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldMaxRss]
 	return ok
 }
 
 // ResetMaxRss resets all changes to the "max_rss" field.
-func (m *DbPackageMutation) ResetMaxRss() {
+func (m *DBPackageMutation) ResetMaxRss() {
 	m.max_rss = nil
 	m.addmax_rss = nil
 	delete(m.clearedFields, dbpackage.FieldMaxRss)
 }
 
 // SetUTime sets the "u_time" field.
-func (m *DbPackageMutation) SetUTime(i int64) {
+func (m *DBPackageMutation) SetUTime(i int64) {
 	m.u_time = &i
 	m.addu_time = nil
 }
 
 // UTime returns the value of the "u_time" field in the mutation.
-func (m *DbPackageMutation) UTime() (r int64, exists bool) {
+func (m *DBPackageMutation) UTime() (r int64, exists bool) {
 	v := m.u_time
 	if v == nil {
 		return
@@ -963,10 +911,10 @@ func (m *DbPackageMutation) UTime() (r int64, exists bool) {
 	return *v, true
 }
 
-// OldUTime returns the old "u_time" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldUTime returns the old "u_time" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldUTime(ctx context.Context) (v *int64, err error) {
+func (m *DBPackageMutation) OldUTime(ctx context.Context) (v *int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUTime is only allowed on UpdateOne operations")
 	}
@@ -981,7 +929,7 @@ func (m *DbPackageMutation) OldUTime(ctx context.Context) (v *int64, err error) 
 }
 
 // AddUTime adds i to the "u_time" field.
-func (m *DbPackageMutation) AddUTime(i int64) {
+func (m *DBPackageMutation) AddUTime(i int64) {
 	if m.addu_time != nil {
 		*m.addu_time += i
 	} else {
@@ -990,7 +938,7 @@ func (m *DbPackageMutation) AddUTime(i int64) {
 }
 
 // AddedUTime returns the value that was added to the "u_time" field in this mutation.
-func (m *DbPackageMutation) AddedUTime() (r int64, exists bool) {
+func (m *DBPackageMutation) AddedUTime() (r int64, exists bool) {
 	v := m.addu_time
 	if v == nil {
 		return
@@ -999,33 +947,33 @@ func (m *DbPackageMutation) AddedUTime() (r int64, exists bool) {
 }
 
 // ClearUTime clears the value of the "u_time" field.
-func (m *DbPackageMutation) ClearUTime() {
+func (m *DBPackageMutation) ClearUTime() {
 	m.u_time = nil
 	m.addu_time = nil
 	m.clearedFields[dbpackage.FieldUTime] = struct{}{}
 }
 
 // UTimeCleared returns if the "u_time" field was cleared in this mutation.
-func (m *DbPackageMutation) UTimeCleared() bool {
+func (m *DBPackageMutation) UTimeCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldUTime]
 	return ok
 }
 
 // ResetUTime resets all changes to the "u_time" field.
-func (m *DbPackageMutation) ResetUTime() {
+func (m *DBPackageMutation) ResetUTime() {
 	m.u_time = nil
 	m.addu_time = nil
 	delete(m.clearedFields, dbpackage.FieldUTime)
 }
 
 // SetSTime sets the "s_time" field.
-func (m *DbPackageMutation) SetSTime(i int64) {
+func (m *DBPackageMutation) SetSTime(i int64) {
 	m.s_time = &i
 	m.adds_time = nil
 }
 
 // STime returns the value of the "s_time" field in the mutation.
-func (m *DbPackageMutation) STime() (r int64, exists bool) {
+func (m *DBPackageMutation) STime() (r int64, exists bool) {
 	v := m.s_time
 	if v == nil {
 		return
@@ -1033,10 +981,10 @@ func (m *DbPackageMutation) STime() (r int64, exists bool) {
 	return *v, true
 }
 
-// OldSTime returns the old "s_time" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldSTime returns the old "s_time" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldSTime(ctx context.Context) (v *int64, err error) {
+func (m *DBPackageMutation) OldSTime(ctx context.Context) (v *int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldSTime is only allowed on UpdateOne operations")
 	}
@@ -1051,7 +999,7 @@ func (m *DbPackageMutation) OldSTime(ctx context.Context) (v *int64, err error) 
 }
 
 // AddSTime adds i to the "s_time" field.
-func (m *DbPackageMutation) AddSTime(i int64) {
+func (m *DBPackageMutation) AddSTime(i int64) {
 	if m.adds_time != nil {
 		*m.adds_time += i
 	} else {
@@ -1060,7 +1008,7 @@ func (m *DbPackageMutation) AddSTime(i int64) {
 }
 
 // AddedSTime returns the value that was added to the "s_time" field in this mutation.
-func (m *DbPackageMutation) AddedSTime() (r int64, exists bool) {
+func (m *DBPackageMutation) AddedSTime() (r int64, exists bool) {
 	v := m.adds_time
 	if v == nil {
 		return
@@ -1069,33 +1017,33 @@ func (m *DbPackageMutation) AddedSTime() (r int64, exists bool) {
 }
 
 // ClearSTime clears the value of the "s_time" field.
-func (m *DbPackageMutation) ClearSTime() {
+func (m *DBPackageMutation) ClearSTime() {
 	m.s_time = nil
 	m.adds_time = nil
 	m.clearedFields[dbpackage.FieldSTime] = struct{}{}
 }
 
 // STimeCleared returns if the "s_time" field was cleared in this mutation.
-func (m *DbPackageMutation) STimeCleared() bool {
+func (m *DBPackageMutation) STimeCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldSTime]
 	return ok
 }
 
 // ResetSTime resets all changes to the "s_time" field.
-func (m *DbPackageMutation) ResetSTime() {
+func (m *DBPackageMutation) ResetSTime() {
 	m.s_time = nil
 	m.adds_time = nil
 	delete(m.clearedFields, dbpackage.FieldSTime)
 }
 
 // SetIoIn sets the "io_in" field.
-func (m *DbPackageMutation) SetIoIn(i int64) {
+func (m *DBPackageMutation) SetIoIn(i int64) {
 	m.io_in = &i
 	m.addio_in = nil
 }
 
 // IoIn returns the value of the "io_in" field in the mutation.
-func (m *DbPackageMutation) IoIn() (r int64, exists bool) {
+func (m *DBPackageMutation) IoIn() (r int64, exists bool) {
 	v := m.io_in
 	if v == nil {
 		return
@@ -1103,10 +1051,10 @@ func (m *DbPackageMutation) IoIn() (r int64, exists bool) {
 	return *v, true
 }
 
-// OldIoIn returns the old "io_in" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldIoIn returns the old "io_in" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldIoIn(ctx context.Context) (v *int64, err error) {
+func (m *DBPackageMutation) OldIoIn(ctx context.Context) (v *int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldIoIn is only allowed on UpdateOne operations")
 	}
@@ -1121,7 +1069,7 @@ func (m *DbPackageMutation) OldIoIn(ctx context.Context) (v *int64, err error) {
 }
 
 // AddIoIn adds i to the "io_in" field.
-func (m *DbPackageMutation) AddIoIn(i int64) {
+func (m *DBPackageMutation) AddIoIn(i int64) {
 	if m.addio_in != nil {
 		*m.addio_in += i
 	} else {
@@ -1130,7 +1078,7 @@ func (m *DbPackageMutation) AddIoIn(i int64) {
 }
 
 // AddedIoIn returns the value that was added to the "io_in" field in this mutation.
-func (m *DbPackageMutation) AddedIoIn() (r int64, exists bool) {
+func (m *DBPackageMutation) AddedIoIn() (r int64, exists bool) {
 	v := m.addio_in
 	if v == nil {
 		return
@@ -1139,33 +1087,33 @@ func (m *DbPackageMutation) AddedIoIn() (r int64, exists bool) {
 }
 
 // ClearIoIn clears the value of the "io_in" field.
-func (m *DbPackageMutation) ClearIoIn() {
+func (m *DBPackageMutation) ClearIoIn() {
 	m.io_in = nil
 	m.addio_in = nil
 	m.clearedFields[dbpackage.FieldIoIn] = struct{}{}
 }
 
 // IoInCleared returns if the "io_in" field was cleared in this mutation.
-func (m *DbPackageMutation) IoInCleared() bool {
+func (m *DBPackageMutation) IoInCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldIoIn]
 	return ok
 }
 
 // ResetIoIn resets all changes to the "io_in" field.
-func (m *DbPackageMutation) ResetIoIn() {
+func (m *DBPackageMutation) ResetIoIn() {
 	m.io_in = nil
 	m.addio_in = nil
 	delete(m.clearedFields, dbpackage.FieldIoIn)
 }
 
 // SetIoOut sets the "io_out" field.
-func (m *DbPackageMutation) SetIoOut(i int64) {
+func (m *DBPackageMutation) SetIoOut(i int64) {
 	m.io_out = &i
 	m.addio_out = nil
 }
 
 // IoOut returns the value of the "io_out" field in the mutation.
-func (m *DbPackageMutation) IoOut() (r int64, exists bool) {
+func (m *DBPackageMutation) IoOut() (r int64, exists bool) {
 	v := m.io_out
 	if v == nil {
 		return
@@ -1173,10 +1121,10 @@ func (m *DbPackageMutation) IoOut() (r int64, exists bool) {
 	return *v, true
 }
 
-// OldIoOut returns the old "io_out" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldIoOut returns the old "io_out" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldIoOut(ctx context.Context) (v *int64, err error) {
+func (m *DBPackageMutation) OldIoOut(ctx context.Context) (v *int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldIoOut is only allowed on UpdateOne operations")
 	}
@@ -1191,7 +1139,7 @@ func (m *DbPackageMutation) OldIoOut(ctx context.Context) (v *int64, err error) 
 }
 
 // AddIoOut adds i to the "io_out" field.
-func (m *DbPackageMutation) AddIoOut(i int64) {
+func (m *DBPackageMutation) AddIoOut(i int64) {
 	if m.addio_out != nil {
 		*m.addio_out += i
 	} else {
@@ -1200,7 +1148,7 @@ func (m *DbPackageMutation) AddIoOut(i int64) {
 }
 
 // AddedIoOut returns the value that was added to the "io_out" field in this mutation.
-func (m *DbPackageMutation) AddedIoOut() (r int64, exists bool) {
+func (m *DBPackageMutation) AddedIoOut() (r int64, exists bool) {
 	v := m.addio_out
 	if v == nil {
 		return
@@ -1209,181 +1157,83 @@ func (m *DbPackageMutation) AddedIoOut() (r int64, exists bool) {
 }
 
 // ClearIoOut clears the value of the "io_out" field.
-func (m *DbPackageMutation) ClearIoOut() {
+func (m *DBPackageMutation) ClearIoOut() {
 	m.io_out = nil
 	m.addio_out = nil
 	m.clearedFields[dbpackage.FieldIoOut] = struct{}{}
 }
 
 // IoOutCleared returns if the "io_out" field was cleared in this mutation.
-func (m *DbPackageMutation) IoOutCleared() bool {
+func (m *DBPackageMutation) IoOutCleared() bool {
 	_, ok := m.clearedFields[dbpackage.FieldIoOut]
 	return ok
 }
 
 // ResetIoOut resets all changes to the "io_out" field.
-func (m *DbPackageMutation) ResetIoOut() {
+func (m *DBPackageMutation) ResetIoOut() {
 	m.io_out = nil
 	m.addio_out = nil
 	delete(m.clearedFields, dbpackage.FieldIoOut)
 }
 
-// SetSrcinfo sets the "srcinfo" field.
-func (m *DbPackageMutation) SetSrcinfo(s string) {
-	m.srcinfo = &s
+// SetTagRev sets the "tag_rev" field.
+func (m *DBPackageMutation) SetTagRev(s string) {
+	m.tag_rev = &s
 }
 
-// Srcinfo returns the value of the "srcinfo" field in the mutation.
-func (m *DbPackageMutation) Srcinfo() (r string, exists bool) {
-	v := m.srcinfo
+// TagRev returns the value of the "tag_rev" field in the mutation.
+func (m *DBPackageMutation) TagRev() (r string, exists bool) {
+	v := m.tag_rev
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldSrcinfo returns the old "srcinfo" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
+// OldTagRev returns the old "tag_rev" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldSrcinfo(ctx context.Context) (v *string, err error) {
+func (m *DBPackageMutation) OldTagRev(ctx context.Context) (v *string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSrcinfo is only allowed on UpdateOne operations")
+		return v, errors.New("OldTagRev is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSrcinfo requires an ID field in the mutation")
+		return v, errors.New("OldTagRev requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSrcinfo: %w", err)
+		return v, fmt.Errorf("querying old value for OldTagRev: %w", err)
 	}
-	return oldValue.Srcinfo, nil
+	return oldValue.TagRev, nil
 }
 
-// ClearSrcinfo clears the value of the "srcinfo" field.
-func (m *DbPackageMutation) ClearSrcinfo() {
-	m.srcinfo = nil
-	m.clearedFields[dbpackage.FieldSrcinfo] = struct{}{}
+// ClearTagRev clears the value of the "tag_rev" field.
+func (m *DBPackageMutation) ClearTagRev() {
+	m.tag_rev = nil
+	m.clearedFields[dbpackage.FieldTagRev] = struct{}{}
 }
 
-// SrcinfoCleared returns if the "srcinfo" field was cleared in this mutation.
-func (m *DbPackageMutation) SrcinfoCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldSrcinfo]
+// TagRevCleared returns if the "tag_rev" field was cleared in this mutation.
+func (m *DBPackageMutation) TagRevCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldTagRev]
 	return ok
 }
 
-// ResetSrcinfo resets all changes to the "srcinfo" field.
-func (m *DbPackageMutation) ResetSrcinfo() {
-	m.srcinfo = nil
-	delete(m.clearedFields, dbpackage.FieldSrcinfo)
+// ResetTagRev resets all changes to the "tag_rev" field.
+func (m *DBPackageMutation) ResetTagRev() {
+	m.tag_rev = nil
+	delete(m.clearedFields, dbpackage.FieldTagRev)
 }
 
-// SetSrcinfoHash sets the "srcinfo_hash" field.
-func (m *DbPackageMutation) SetSrcinfoHash(s string) {
-	m.srcinfo_hash = &s
-}
-
-// SrcinfoHash returns the value of the "srcinfo_hash" field in the mutation.
-func (m *DbPackageMutation) SrcinfoHash() (r string, exists bool) {
-	v := m.srcinfo_hash
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldSrcinfoHash returns the old "srcinfo_hash" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldSrcinfoHash(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSrcinfoHash is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSrcinfoHash requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSrcinfoHash: %w", err)
-	}
-	return oldValue.SrcinfoHash, nil
-}
-
-// ClearSrcinfoHash clears the value of the "srcinfo_hash" field.
-func (m *DbPackageMutation) ClearSrcinfoHash() {
-	m.srcinfo_hash = nil
-	m.clearedFields[dbpackage.FieldSrcinfoHash] = struct{}{}
-}
-
-// SrcinfoHashCleared returns if the "srcinfo_hash" field was cleared in this mutation.
-func (m *DbPackageMutation) SrcinfoHashCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldSrcinfoHash]
-	return ok
-}
-
-// ResetSrcinfoHash resets all changes to the "srcinfo_hash" field.
-func (m *DbPackageMutation) ResetSrcinfoHash() {
-	m.srcinfo_hash = nil
-	delete(m.clearedFields, dbpackage.FieldSrcinfoHash)
-}
-
-// SetPkgbuild sets the "pkgbuild" field.
-func (m *DbPackageMutation) SetPkgbuild(s string) {
-	m.pkgbuild = &s
-}
-
-// Pkgbuild returns the value of the "pkgbuild" field in the mutation.
-func (m *DbPackageMutation) Pkgbuild() (r string, exists bool) {
-	v := m.pkgbuild
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPkgbuild returns the old "pkgbuild" field's value of the DbPackage entity.
-// If the DbPackage object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DbPackageMutation) OldPkgbuild(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPkgbuild is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPkgbuild requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPkgbuild: %w", err)
-	}
-	return oldValue.Pkgbuild, nil
-}
-
-// ClearPkgbuild clears the value of the "pkgbuild" field.
-func (m *DbPackageMutation) ClearPkgbuild() {
-	m.pkgbuild = nil
-	m.clearedFields[dbpackage.FieldPkgbuild] = struct{}{}
-}
-
-// PkgbuildCleared returns if the "pkgbuild" field was cleared in this mutation.
-func (m *DbPackageMutation) PkgbuildCleared() bool {
-	_, ok := m.clearedFields[dbpackage.FieldPkgbuild]
-	return ok
-}
-
-// ResetPkgbuild resets all changes to the "pkgbuild" field.
-func (m *DbPackageMutation) ResetPkgbuild() {
-	m.pkgbuild = nil
-	delete(m.clearedFields, dbpackage.FieldPkgbuild)
-}
-
-// Where appends a list predicates to the DbPackageMutation builder.
-func (m *DbPackageMutation) Where(ps ...predicate.DbPackage) {
+// Where appends a list predicates to the DBPackageMutation builder.
+func (m *DBPackageMutation) Where(ps ...predicate.DBPackage) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the DbPackageMutation builder. Using this method,
+// WhereP appends storage-level predicates to the DBPackageMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *DbPackageMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.DbPackage, len(ps))
+func (m *DBPackageMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DBPackage, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -1391,25 +1241,25 @@ func (m *DbPackageMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *DbPackageMutation) Op() Op {
+func (m *DBPackageMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *DbPackageMutation) SetOp(op Op) {
+func (m *DBPackageMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (DbPackage).
-func (m *DbPackageMutation) Type() string {
+// Type returns the node type of this mutation (DBPackage).
+func (m *DBPackageMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *DbPackageMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+func (m *DBPackageMutation) Fields() []string {
+	fields := make([]string, 0, 20)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -1440,9 +1290,6 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.updated != nil {
 		fields = append(fields, dbpackage.FieldUpdated)
 	}
-	if m.hash != nil {
-		fields = append(fields, dbpackage.FieldHash)
-	}
 	if m.lto != nil {
 		fields = append(fields, dbpackage.FieldLto)
 	}
@@ -1470,14 +1317,8 @@ func (m *DbPackageMutation) Fields() []string {
 	if m.io_out != nil {
 		fields = append(fields, dbpackage.FieldIoOut)
 	}
-	if m.srcinfo != nil {
-		fields = append(fields, dbpackage.FieldSrcinfo)
-	}
-	if m.srcinfo_hash != nil {
-		fields = append(fields, dbpackage.FieldSrcinfoHash)
-	}
-	if m.pkgbuild != nil {
-		fields = append(fields, dbpackage.FieldPkgbuild)
+	if m.tag_rev != nil {
+		fields = append(fields, dbpackage.FieldTagRev)
 	}
 	return fields
 }
@@ -1485,7 +1326,7 @@ func (m *DbPackageMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
+func (m *DBPackageMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case dbpackage.FieldPkgbase:
 		return m.Pkgbase()
@@ -1507,8 +1348,6 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.BuildTimeStart()
 	case dbpackage.FieldUpdated:
 		return m.Updated()
-	case dbpackage.FieldHash:
-		return m.Hash()
 	case dbpackage.FieldLto:
 		return m.Lto()
 	case dbpackage.FieldLastVersionBuild:
@@ -1527,12 +1366,8 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.IoIn()
 	case dbpackage.FieldIoOut:
 		return m.IoOut()
-	case dbpackage.FieldSrcinfo:
-		return m.Srcinfo()
-	case dbpackage.FieldSrcinfoHash:
-		return m.SrcinfoHash()
-	case dbpackage.FieldPkgbuild:
-		return m.Pkgbuild()
+	case dbpackage.FieldTagRev:
+		return m.TagRev()
 	}
 	return nil, false
 }
@@ -1540,7 +1375,7 @@ func (m *DbPackageMutation) Field(name string) (ent.Value, bool) {
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *DBPackageMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
 	case dbpackage.FieldPkgbase:
 		return m.OldPkgbase(ctx)
@@ -1562,8 +1397,6 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldBuildTimeStart(ctx)
 	case dbpackage.FieldUpdated:
 		return m.OldUpdated(ctx)
-	case dbpackage.FieldHash:
-		return m.OldHash(ctx)
 	case dbpackage.FieldLto:
 		return m.OldLto(ctx)
 	case dbpackage.FieldLastVersionBuild:
@@ -1582,20 +1415,16 @@ func (m *DbPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldIoIn(ctx)
 	case dbpackage.FieldIoOut:
 		return m.OldIoOut(ctx)
-	case dbpackage.FieldSrcinfo:
-		return m.OldSrcinfo(ctx)
-	case dbpackage.FieldSrcinfoHash:
-		return m.OldSrcinfoHash(ctx)
-	case dbpackage.FieldPkgbuild:
-		return m.OldPkgbuild(ctx)
+	case dbpackage.FieldTagRev:
+		return m.OldTagRev(ctx)
 	}
-	return nil, fmt.Errorf("unknown DbPackage field %s", name)
+	return nil, fmt.Errorf("unknown DBPackage field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
+func (m *DBPackageMutation) SetField(name string, value ent.Value) error {
 	switch name {
 	case dbpackage.FieldPkgbase:
 		v, ok := value.(string)
@@ -1667,13 +1496,6 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdated(v)
 		return nil
-	case dbpackage.FieldHash:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetHash(v)
-		return nil
 	case dbpackage.FieldLto:
 		v, ok := value.(dbpackage.Lto)
 		if !ok {
@@ -1737,34 +1559,20 @@ func (m *DbPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIoOut(v)
 		return nil
-	case dbpackage.FieldSrcinfo:
+	case dbpackage.FieldTagRev:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetSrcinfo(v)
-		return nil
-	case dbpackage.FieldSrcinfoHash:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSrcinfoHash(v)
-		return nil
-	case dbpackage.FieldPkgbuild:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPkgbuild(v)
+		m.SetTagRev(v)
 		return nil
 	}
-	return fmt.Errorf("unknown DbPackage field %s", name)
+	return fmt.Errorf("unknown DBPackage field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *DbPackageMutation) AddedFields() []string {
+func (m *DBPackageMutation) AddedFields() []string {
 	var fields []string
 	if m.addmax_rss != nil {
 		fields = append(fields, dbpackage.FieldMaxRss)
@@ -1787,7 +1595,7 @@ func (m *DbPackageMutation) AddedFields() []string {
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
+func (m *DBPackageMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case dbpackage.FieldMaxRss:
 		return m.AddedMaxRss()
@@ -1806,7 +1614,7 @@ func (m *DbPackageMutation) AddedField(name string) (ent.Value, bool) {
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *DbPackageMutation) AddField(name string, value ent.Value) error {
+func (m *DBPackageMutation) AddField(name string, value ent.Value) error {
 	switch name {
 	case dbpackage.FieldMaxRss:
 		v, ok := value.(int64)
@@ -1844,12 +1652,12 @@ func (m *DbPackageMutation) AddField(name string, value ent.Value) error {
 		m.AddIoOut(v)
 		return nil
 	}
-	return fmt.Errorf("unknown DbPackage numeric field %s", name)
+	return fmt.Errorf("unknown DBPackage numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *DbPackageMutation) ClearedFields() []string {
+func (m *DBPackageMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(dbpackage.FieldPackages) {
 		fields = append(fields, dbpackage.FieldPackages)
@@ -1871,9 +1679,6 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(dbpackage.FieldUpdated) {
 		fields = append(fields, dbpackage.FieldUpdated)
-	}
-	if m.FieldCleared(dbpackage.FieldHash) {
-		fields = append(fields, dbpackage.FieldHash)
 	}
 	if m.FieldCleared(dbpackage.FieldLto) {
 		fields = append(fields, dbpackage.FieldLto)
@@ -1902,28 +1707,22 @@ func (m *DbPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldIoOut) {
 		fields = append(fields, dbpackage.FieldIoOut)
 	}
-	if m.FieldCleared(dbpackage.FieldSrcinfo) {
-		fields = append(fields, dbpackage.FieldSrcinfo)
-	}
-	if m.FieldCleared(dbpackage.FieldSrcinfoHash) {
-		fields = append(fields, dbpackage.FieldSrcinfoHash)
-	}
-	if m.FieldCleared(dbpackage.FieldPkgbuild) {
-		fields = append(fields, dbpackage.FieldPkgbuild)
+	if m.FieldCleared(dbpackage.FieldTagRev) {
+		fields = append(fields, dbpackage.FieldTagRev)
 	}
 	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *DbPackageMutation) FieldCleared(name string) bool {
+func (m *DBPackageMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *DbPackageMutation) ClearField(name string) error {
+func (m *DBPackageMutation) ClearField(name string) error {
 	switch name {
 	case dbpackage.FieldPackages:
 		m.ClearPackages()
@@ -1945,9 +1744,6 @@ func (m *DbPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldUpdated:
 		m.ClearUpdated()
-		return nil
-	case dbpackage.FieldHash:
-		m.ClearHash()
 		return nil
 	case dbpackage.FieldLto:
 		m.ClearLto()
@@ -1976,22 +1772,16 @@ func (m *DbPackageMutation) ClearField(name string) error {
 	case dbpackage.FieldIoOut:
 		m.ClearIoOut()
 		return nil
-	case dbpackage.FieldSrcinfo:
-		m.ClearSrcinfo()
-		return nil
-	case dbpackage.FieldSrcinfoHash:
-		m.ClearSrcinfoHash()
-		return nil
-	case dbpackage.FieldPkgbuild:
-		m.ClearPkgbuild()
+	case dbpackage.FieldTagRev:
+		m.ClearTagRev()
 		return nil
 	}
-	return fmt.Errorf("unknown DbPackage nullable field %s", name)
+	return fmt.Errorf("unknown DBPackage nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *DbPackageMutation) ResetField(name string) error {
+func (m *DBPackageMutation) ResetField(name string) error {
 	switch name {
 	case dbpackage.FieldPkgbase:
 		m.ResetPkgbase()
@@ -2023,9 +1813,6 @@ func (m *DbPackageMutation) ResetField(name string) error {
 	case dbpackage.FieldUpdated:
 		m.ResetUpdated()
 		return nil
-	case dbpackage.FieldHash:
-		m.ResetHash()
-		return nil
 	case dbpackage.FieldLto:
 		m.ResetLto()
 		return nil
@@ -2053,63 +1840,57 @@ func (m *DbPackageMutation) ResetField(name string) error {
 	case dbpackage.FieldIoOut:
 		m.ResetIoOut()
 		return nil
-	case dbpackage.FieldSrcinfo:
-		m.ResetSrcinfo()
-		return nil
-	case dbpackage.FieldSrcinfoHash:
-		m.ResetSrcinfoHash()
-		return nil
-	case dbpackage.FieldPkgbuild:
-		m.ResetPkgbuild()
+	case dbpackage.FieldTagRev:
+		m.ResetTagRev()
 		return nil
 	}
-	return fmt.Errorf("unknown DbPackage field %s", name)
+	return fmt.Errorf("unknown DBPackage field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *DbPackageMutation) AddedEdges() []string {
+func (m *DBPackageMutation) AddedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *DbPackageMutation) AddedIDs(name string) []ent.Value {
+func (m *DBPackageMutation) AddedIDs(name string) []ent.Value {
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *DbPackageMutation) RemovedEdges() []string {
+func (m *DBPackageMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *DbPackageMutation) RemovedIDs(name string) []ent.Value {
+func (m *DBPackageMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *DbPackageMutation) ClearedEdges() []string {
+func (m *DBPackageMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 0)
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *DbPackageMutation) EdgeCleared(name string) bool {
+func (m *DBPackageMutation) EdgeCleared(name string) bool {
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *DbPackageMutation) ClearEdge(name string) error {
-	return fmt.Errorf("unknown DbPackage unique edge %s", name)
+func (m *DBPackageMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DBPackage unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *DbPackageMutation) ResetEdge(name string) error {
-	return fmt.Errorf("unknown DbPackage edge %s", name)
+func (m *DBPackageMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DBPackage edge %s", name)
 }

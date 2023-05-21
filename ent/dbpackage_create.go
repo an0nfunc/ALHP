@@ -13,33 +13,33 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
-// DbPackageCreate is the builder for creating a DbPackage entity.
-type DbPackageCreate struct {
+// DBPackageCreate is the builder for creating a DBPackage entity.
+type DBPackageCreate struct {
 	config
-	mutation *DbPackageMutation
+	mutation *DBPackageMutation
 	hooks    []Hook
 }
 
 // SetPkgbase sets the "pkgbase" field.
-func (dpc *DbPackageCreate) SetPkgbase(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetPkgbase(s string) *DBPackageCreate {
 	dpc.mutation.SetPkgbase(s)
 	return dpc
 }
 
 // SetPackages sets the "packages" field.
-func (dpc *DbPackageCreate) SetPackages(s []string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetPackages(s []string) *DBPackageCreate {
 	dpc.mutation.SetPackages(s)
 	return dpc
 }
 
 // SetStatus sets the "status" field.
-func (dpc *DbPackageCreate) SetStatus(d dbpackage.Status) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetStatus(d dbpackage.Status) *DBPackageCreate {
 	dpc.mutation.SetStatus(d)
 	return dpc
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableStatus(d *dbpackage.Status) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableStatus(d *dbpackage.Status) *DBPackageCreate {
 	if d != nil {
 		dpc.SetStatus(*d)
 	}
@@ -47,13 +47,13 @@ func (dpc *DbPackageCreate) SetNillableStatus(d *dbpackage.Status) *DbPackageCre
 }
 
 // SetSkipReason sets the "skip_reason" field.
-func (dpc *DbPackageCreate) SetSkipReason(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetSkipReason(s string) *DBPackageCreate {
 	dpc.mutation.SetSkipReason(s)
 	return dpc
 }
 
 // SetNillableSkipReason sets the "skip_reason" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableSkipReason(s *string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableSkipReason(s *string) *DBPackageCreate {
 	if s != nil {
 		dpc.SetSkipReason(*s)
 	}
@@ -61,25 +61,25 @@ func (dpc *DbPackageCreate) SetNillableSkipReason(s *string) *DbPackageCreate {
 }
 
 // SetRepository sets the "repository" field.
-func (dpc *DbPackageCreate) SetRepository(d dbpackage.Repository) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetRepository(d dbpackage.Repository) *DBPackageCreate {
 	dpc.mutation.SetRepository(d)
 	return dpc
 }
 
 // SetMarch sets the "march" field.
-func (dpc *DbPackageCreate) SetMarch(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetMarch(s string) *DBPackageCreate {
 	dpc.mutation.SetMarch(s)
 	return dpc
 }
 
 // SetVersion sets the "version" field.
-func (dpc *DbPackageCreate) SetVersion(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetVersion(s string) *DBPackageCreate {
 	dpc.mutation.SetVersion(s)
 	return dpc
 }
 
 // SetNillableVersion sets the "version" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableVersion(s *string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableVersion(s *string) *DBPackageCreate {
 	if s != nil {
 		dpc.SetVersion(*s)
 	}
@@ -87,13 +87,13 @@ func (dpc *DbPackageCreate) SetNillableVersion(s *string) *DbPackageCreate {
 }
 
 // SetRepoVersion sets the "repo_version" field.
-func (dpc *DbPackageCreate) SetRepoVersion(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetRepoVersion(s string) *DBPackageCreate {
 	dpc.mutation.SetRepoVersion(s)
 	return dpc
 }
 
 // SetNillableRepoVersion sets the "repo_version" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableRepoVersion(s *string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableRepoVersion(s *string) *DBPackageCreate {
 	if s != nil {
 		dpc.SetRepoVersion(*s)
 	}
@@ -101,13 +101,13 @@ func (dpc *DbPackageCreate) SetNillableRepoVersion(s *string) *DbPackageCreate {
 }
 
 // SetBuildTimeStart sets the "build_time_start" field.
-func (dpc *DbPackageCreate) SetBuildTimeStart(t time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetBuildTimeStart(t time.Time) *DBPackageCreate {
 	dpc.mutation.SetBuildTimeStart(t)
 	return dpc
 }
 
 // SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableBuildTimeStart(t *time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableBuildTimeStart(t *time.Time) *DBPackageCreate {
 	if t != nil {
 		dpc.SetBuildTimeStart(*t)
 	}
@@ -115,41 +115,27 @@ func (dpc *DbPackageCreate) SetNillableBuildTimeStart(t *time.Time) *DbPackageCr
 }
 
 // SetUpdated sets the "updated" field.
-func (dpc *DbPackageCreate) SetUpdated(t time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetUpdated(t time.Time) *DBPackageCreate {
 	dpc.mutation.SetUpdated(t)
 	return dpc
 }
 
 // SetNillableUpdated sets the "updated" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableUpdated(t *time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableUpdated(t *time.Time) *DBPackageCreate {
 	if t != nil {
 		dpc.SetUpdated(*t)
 	}
 	return dpc
 }
 
-// SetHash sets the "hash" field.
-func (dpc *DbPackageCreate) SetHash(s string) *DbPackageCreate {
-	dpc.mutation.SetHash(s)
-	return dpc
-}
-
-// SetNillableHash sets the "hash" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableHash(s *string) *DbPackageCreate {
-	if s != nil {
-		dpc.SetHash(*s)
-	}
-	return dpc
-}
-
 // SetLto sets the "lto" field.
-func (dpc *DbPackageCreate) SetLto(d dbpackage.Lto) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetLto(d dbpackage.Lto) *DBPackageCreate {
 	dpc.mutation.SetLto(d)
 	return dpc
 }
 
 // SetNillableLto sets the "lto" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableLto(d *dbpackage.Lto) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableLto(d *dbpackage.Lto) *DBPackageCreate {
 	if d != nil {
 		dpc.SetLto(*d)
 	}
@@ -157,13 +143,13 @@ func (dpc *DbPackageCreate) SetNillableLto(d *dbpackage.Lto) *DbPackageCreate {
 }
 
 // SetLastVersionBuild sets the "last_version_build" field.
-func (dpc *DbPackageCreate) SetLastVersionBuild(s string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetLastVersionBuild(s string) *DBPackageCreate {
 	dpc.mutation.SetLastVersionBuild(s)
 	return dpc
 }
 
 // SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableLastVersionBuild(s *string) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableLastVersionBuild(s *string) *DBPackageCreate {
 	if s != nil {
 		dpc.SetLastVersionBuild(*s)
 	}
@@ -171,13 +157,13 @@ func (dpc *DbPackageCreate) SetNillableLastVersionBuild(s *string) *DbPackageCre
 }
 
 // SetLastVerified sets the "last_verified" field.
-func (dpc *DbPackageCreate) SetLastVerified(t time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetLastVerified(t time.Time) *DBPackageCreate {
 	dpc.mutation.SetLastVerified(t)
 	return dpc
 }
 
 // SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableLastVerified(t *time.Time) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableLastVerified(t *time.Time) *DBPackageCreate {
 	if t != nil {
 		dpc.SetLastVerified(*t)
 	}
@@ -185,13 +171,13 @@ func (dpc *DbPackageCreate) SetNillableLastVerified(t *time.Time) *DbPackageCrea
 }
 
 // SetDebugSymbols sets the "debug_symbols" field.
-func (dpc *DbPackageCreate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DBPackageCreate {
 	dpc.mutation.SetDebugSymbols(ds)
 	return dpc
 }
 
 // SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DBPackageCreate {
 	if ds != nil {
 		dpc.SetDebugSymbols(*ds)
 	}
@@ -199,13 +185,13 @@ func (dpc *DbPackageCreate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) 
 }
 
 // SetMaxRss sets the "max_rss" field.
-func (dpc *DbPackageCreate) SetMaxRss(i int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetMaxRss(i int64) *DBPackageCreate {
 	dpc.mutation.SetMaxRss(i)
 	return dpc
 }
 
 // SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableMaxRss(i *int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableMaxRss(i *int64) *DBPackageCreate {
 	if i != nil {
 		dpc.SetMaxRss(*i)
 	}
@@ -213,13 +199,13 @@ func (dpc *DbPackageCreate) SetNillableMaxRss(i *int64) *DbPackageCreate {
 }
 
 // SetUTime sets the "u_time" field.
-func (dpc *DbPackageCreate) SetUTime(i int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetUTime(i int64) *DBPackageCreate {
 	dpc.mutation.SetUTime(i)
 	return dpc
 }
 
 // SetNillableUTime sets the "u_time" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableUTime(i *int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableUTime(i *int64) *DBPackageCreate {
 	if i != nil {
 		dpc.SetUTime(*i)
 	}
@@ -227,13 +213,13 @@ func (dpc *DbPackageCreate) SetNillableUTime(i *int64) *DbPackageCreate {
 }
 
 // SetSTime sets the "s_time" field.
-func (dpc *DbPackageCreate) SetSTime(i int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetSTime(i int64) *DBPackageCreate {
 	dpc.mutation.SetSTime(i)
 	return dpc
 }
 
 // SetNillableSTime sets the "s_time" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableSTime(i *int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableSTime(i *int64) *DBPackageCreate {
 	if i != nil {
 		dpc.SetSTime(*i)
 	}
@@ -241,13 +227,13 @@ func (dpc *DbPackageCreate) SetNillableSTime(i *int64) *DbPackageCreate {
 }
 
 // SetIoIn sets the "io_in" field.
-func (dpc *DbPackageCreate) SetIoIn(i int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetIoIn(i int64) *DBPackageCreate {
 	dpc.mutation.SetIoIn(i)
 	return dpc
 }
 
 // SetNillableIoIn sets the "io_in" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableIoIn(i *int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableIoIn(i *int64) *DBPackageCreate {
 	if i != nil {
 		dpc.SetIoIn(*i)
 	}
@@ -255,74 +241,46 @@ func (dpc *DbPackageCreate) SetNillableIoIn(i *int64) *DbPackageCreate {
 }
 
 // SetIoOut sets the "io_out" field.
-func (dpc *DbPackageCreate) SetIoOut(i int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetIoOut(i int64) *DBPackageCreate {
 	dpc.mutation.SetIoOut(i)
 	return dpc
 }
 
 // SetNillableIoOut sets the "io_out" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableIoOut(i *int64) *DbPackageCreate {
+func (dpc *DBPackageCreate) SetNillableIoOut(i *int64) *DBPackageCreate {
 	if i != nil {
 		dpc.SetIoOut(*i)
 	}
 	return dpc
 }
 
-// SetSrcinfo sets the "srcinfo" field.
-func (dpc *DbPackageCreate) SetSrcinfo(s string) *DbPackageCreate {
-	dpc.mutation.SetSrcinfo(s)
+// SetTagRev sets the "tag_rev" field.
+func (dpc *DBPackageCreate) SetTagRev(s string) *DBPackageCreate {
+	dpc.mutation.SetTagRev(s)
 	return dpc
 }
 
-// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableSrcinfo(s *string) *DbPackageCreate {
+// SetNillableTagRev sets the "tag_rev" field if the given value is not nil.
+func (dpc *DBPackageCreate) SetNillableTagRev(s *string) *DBPackageCreate {
 	if s != nil {
-		dpc.SetSrcinfo(*s)
+		dpc.SetTagRev(*s)
 	}
 	return dpc
 }
 
-// SetSrcinfoHash sets the "srcinfo_hash" field.
-func (dpc *DbPackageCreate) SetSrcinfoHash(s string) *DbPackageCreate {
-	dpc.mutation.SetSrcinfoHash(s)
-	return dpc
-}
-
-// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillableSrcinfoHash(s *string) *DbPackageCreate {
-	if s != nil {
-		dpc.SetSrcinfoHash(*s)
-	}
-	return dpc
-}
-
-// SetPkgbuild sets the "pkgbuild" field.
-func (dpc *DbPackageCreate) SetPkgbuild(s string) *DbPackageCreate {
-	dpc.mutation.SetPkgbuild(s)
-	return dpc
-}
-
-// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
-func (dpc *DbPackageCreate) SetNillablePkgbuild(s *string) *DbPackageCreate {
-	if s != nil {
-		dpc.SetPkgbuild(*s)
-	}
-	return dpc
-}
-
-// Mutation returns the DbPackageMutation object of the builder.
-func (dpc *DbPackageCreate) Mutation() *DbPackageMutation {
+// Mutation returns the DBPackageMutation object of the builder.
+func (dpc *DBPackageCreate) Mutation() *DBPackageMutation {
 	return dpc.mutation
 }
 
-// Save creates the DbPackage in the database.
-func (dpc *DbPackageCreate) Save(ctx context.Context) (*DbPackage, error) {
+// Save creates the DBPackage in the database.
+func (dpc *DBPackageCreate) Save(ctx context.Context) (*DBPackage, error) {
 	dpc.defaults()
 	return withHooks(ctx, dpc.sqlSave, dpc.mutation, dpc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (dpc *DbPackageCreate) SaveX(ctx context.Context) *DbPackage {
+func (dpc *DBPackageCreate) SaveX(ctx context.Context) *DBPackage {
 	v, err := dpc.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -331,20 +289,20 @@ func (dpc *DbPackageCreate) SaveX(ctx context.Context) *DbPackage {
 }
 
 // Exec executes the query.
-func (dpc *DbPackageCreate) Exec(ctx context.Context) error {
+func (dpc *DBPackageCreate) Exec(ctx context.Context) error {
 	_, err := dpc.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpc *DbPackageCreate) ExecX(ctx context.Context) {
+func (dpc *DBPackageCreate) ExecX(ctx context.Context) {
 	if err := dpc.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (dpc *DbPackageCreate) defaults() {
+func (dpc *DBPackageCreate) defaults() {
 	if _, ok := dpc.mutation.Status(); !ok {
 		v := dbpackage.DefaultStatus
 		dpc.mutation.SetStatus(v)
@@ -360,50 +318,50 @@ func (dpc *DbPackageCreate) defaults() {
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (dpc *DbPackageCreate) check() error {
+func (dpc *DBPackageCreate) check() error {
 	if _, ok := dpc.mutation.Pkgbase(); !ok {
-		return &ValidationError{Name: "pkgbase", err: errors.New(`ent: missing required field "DbPackage.pkgbase"`)}
+		return &ValidationError{Name: "pkgbase", err: errors.New(`ent: missing required field "DBPackage.pkgbase"`)}
 	}
 	if v, ok := dpc.mutation.Pkgbase(); ok {
 		if err := dbpackage.PkgbaseValidator(v); err != nil {
-			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "DbPackage.pkgbase": %w`, err)}
+			return &ValidationError{Name: "pkgbase", err: fmt.Errorf(`ent: validator failed for field "DBPackage.pkgbase": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DBPackage.status": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.Repository(); !ok {
-		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required field "DbPackage.repository"`)}
+		return &ValidationError{Name: "repository", err: errors.New(`ent: missing required field "DBPackage.repository"`)}
 	}
 	if v, ok := dpc.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DBPackage.repository": %w`, err)}
 		}
 	}
 	if _, ok := dpc.mutation.March(); !ok {
-		return &ValidationError{Name: "march", err: errors.New(`ent: missing required field "DbPackage.march"`)}
+		return &ValidationError{Name: "march", err: errors.New(`ent: missing required field "DBPackage.march"`)}
 	}
 	if v, ok := dpc.mutation.March(); ok {
 		if err := dbpackage.MarchValidator(v); err != nil {
-			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "DbPackage.march": %w`, err)}
+			return &ValidationError{Name: "march", err: fmt.Errorf(`ent: validator failed for field "DBPackage.march": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DBPackage.lto": %w`, err)}
 		}
 	}
 	if v, ok := dpc.mutation.DebugSymbols(); ok {
 		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
-			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DBPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
 }
 
-func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
+func (dpc *DBPackageCreate) sqlSave(ctx context.Context) (*DBPackage, error) {
 	if err := dpc.check(); err != nil {
 		return nil, err
 	}
@@ -421,9 +379,9 @@ func (dpc *DbPackageCreate) sqlSave(ctx context.Context) (*DbPackage, error) {
 	return _node, nil
 }
 
-func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
+func (dpc *DBPackageCreate) createSpec() (*DBPackage, *sqlgraph.CreateSpec) {
 	var (
-		_node = &DbPackage{config: dpc.config}
+		_node = &DBPackage{config: dpc.config}
 		_spec = sqlgraph.NewCreateSpec(dbpackage.Table, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	)
 	if value, ok := dpc.mutation.Pkgbase(); ok {
@@ -466,10 +424,6 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 		_spec.SetField(dbpackage.FieldUpdated, field.TypeTime, value)
 		_node.Updated = value
 	}
-	if value, ok := dpc.mutation.Hash(); ok {
-		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
-		_node.Hash = value
-	}
 	if value, ok := dpc.mutation.Lto(); ok {
 		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
 		_node.Lto = value
@@ -506,38 +460,30 @@ func (dpc *DbPackageCreate) createSpec() (*DbPackage, *sqlgraph.CreateSpec) {
 		_spec.SetField(dbpackage.FieldIoOut, field.TypeInt64, value)
 		_node.IoOut = &value
 	}
-	if value, ok := dpc.mutation.Srcinfo(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
-		_node.Srcinfo = &value
-	}
-	if value, ok := dpc.mutation.SrcinfoHash(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
-		_node.SrcinfoHash = value
-	}
-	if value, ok := dpc.mutation.Pkgbuild(); ok {
-		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
-		_node.Pkgbuild = value
+	if value, ok := dpc.mutation.TagRev(); ok {
+		_spec.SetField(dbpackage.FieldTagRev, field.TypeString, value)
+		_node.TagRev = &value
 	}
 	return _node, _spec
 }
 
-// DbPackageCreateBulk is the builder for creating many DbPackage entities in bulk.
-type DbPackageCreateBulk struct {
+// DBPackageCreateBulk is the builder for creating many DBPackage entities in bulk.
+type DBPackageCreateBulk struct {
 	config
-	builders []*DbPackageCreate
+	builders []*DBPackageCreate
 }
 
-// Save creates the DbPackage entities in the database.
-func (dpcb *DbPackageCreateBulk) Save(ctx context.Context) ([]*DbPackage, error) {
+// Save creates the DBPackage entities in the database.
+func (dpcb *DBPackageCreateBulk) Save(ctx context.Context) ([]*DBPackage, error) {
 	specs := make([]*sqlgraph.CreateSpec, len(dpcb.builders))
-	nodes := make([]*DbPackage, len(dpcb.builders))
+	nodes := make([]*DBPackage, len(dpcb.builders))
 	mutators := make([]Mutator, len(dpcb.builders))
 	for i := range dpcb.builders {
 		func(i int, root context.Context) {
 			builder := dpcb.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*DbPackageMutation)
+				mutation, ok := m.(*DBPackageMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -584,7 +530,7 @@ func (dpcb *DbPackageCreateBulk) Save(ctx context.Context) ([]*DbPackage, error)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (dpcb *DbPackageCreateBulk) SaveX(ctx context.Context) []*DbPackage {
+func (dpcb *DBPackageCreateBulk) SaveX(ctx context.Context) []*DBPackage {
 	v, err := dpcb.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -593,13 +539,13 @@ func (dpcb *DbPackageCreateBulk) SaveX(ctx context.Context) []*DbPackage {
 }
 
 // Exec executes the query.
-func (dpcb *DbPackageCreateBulk) Exec(ctx context.Context) error {
+func (dpcb *DBPackageCreateBulk) Exec(ctx context.Context) error {
 	_, err := dpcb.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpcb *DbPackageCreateBulk) ExecX(ctx context.Context) {
+func (dpcb *DBPackageCreateBulk) ExecX(ctx context.Context) {
 	if err := dpcb.Exec(ctx); err != nil {
 		panic(err)
 	}

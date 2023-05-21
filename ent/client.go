@@ -21,8 +21,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// DbPackage is the client for interacting with the DbPackage builders.
-	DbPackage *DbPackageClient
+	// DBPackage is the client for interacting with the DBPackage builders.
+	DBPackage *DBPackageClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -36,7 +36,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.DbPackage = NewDbPackageClient(c.config)
+	c.DBPackage = NewDBPackageClient(c.config)
 }
 
 type (
@@ -119,7 +119,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:       ctx,
 		config:    cfg,
-		DbPackage: NewDbPackageClient(cfg),
+		DBPackage: NewDBPackageClient(cfg),
 	}, nil
 }
 
@@ -139,14 +139,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:       ctx,
 		config:    cfg,
-		DbPackage: NewDbPackageClient(cfg),
+		DBPackage: NewDBPackageClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		DbPackage.
+//		DBPackage.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -168,111 +168,111 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.DbPackage.Use(hooks...)
+	c.DBPackage.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.DbPackage.Intercept(interceptors...)
+	c.DBPackage.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *DbPackageMutation:
-		return c.DbPackage.mutate(ctx, m)
+	case *DBPackageMutation:
+		return c.DBPackage.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// DbPackageClient is a client for the DbPackage schema.
-type DbPackageClient struct {
+// DBPackageClient is a client for the DBPackage schema.
+type DBPackageClient struct {
 	config
 }
 
-// NewDbPackageClient returns a client for the DbPackage from the given config.
-func NewDbPackageClient(c config) *DbPackageClient {
-	return &DbPackageClient{config: c}
+// NewDBPackageClient returns a client for the DBPackage from the given config.
+func NewDBPackageClient(c config) *DBPackageClient {
+	return &DBPackageClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
 // A call to `Use(f, g, h)` equals to `dbpackage.Hooks(f(g(h())))`.
-func (c *DbPackageClient) Use(hooks ...Hook) {
-	c.hooks.DbPackage = append(c.hooks.DbPackage, hooks...)
+func (c *DBPackageClient) Use(hooks ...Hook) {
+	c.hooks.DBPackage = append(c.hooks.DBPackage, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
 // A call to `Intercept(f, g, h)` equals to `dbpackage.Intercept(f(g(h())))`.
-func (c *DbPackageClient) Intercept(interceptors ...Interceptor) {
-	c.inters.DbPackage = append(c.inters.DbPackage, interceptors...)
+func (c *DBPackageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DBPackage = append(c.inters.DBPackage, interceptors...)
 }
 
-// Create returns a builder for creating a DbPackage entity.
-func (c *DbPackageClient) Create() *DbPackageCreate {
-	mutation := newDbPackageMutation(c.config, OpCreate)
-	return &DbPackageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a DBPackage entity.
+func (c *DBPackageClient) Create() *DBPackageCreate {
+	mutation := newDBPackageMutation(c.config, OpCreate)
+	return &DBPackageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of DbPackage entities.
-func (c *DbPackageClient) CreateBulk(builders ...*DbPackageCreate) *DbPackageCreateBulk {
-	return &DbPackageCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of DBPackage entities.
+func (c *DBPackageClient) CreateBulk(builders ...*DBPackageCreate) *DBPackageCreateBulk {
+	return &DBPackageCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for DbPackage.
-func (c *DbPackageClient) Update() *DbPackageUpdate {
-	mutation := newDbPackageMutation(c.config, OpUpdate)
-	return &DbPackageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for DBPackage.
+func (c *DBPackageClient) Update() *DBPackageUpdate {
+	mutation := newDBPackageMutation(c.config, OpUpdate)
+	return &DBPackageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *DbPackageClient) UpdateOne(dp *DbPackage) *DbPackageUpdateOne {
-	mutation := newDbPackageMutation(c.config, OpUpdateOne, withDbPackage(dp))
-	return &DbPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *DBPackageClient) UpdateOne(dp *DBPackage) *DBPackageUpdateOne {
+	mutation := newDBPackageMutation(c.config, OpUpdateOne, withDBPackage(dp))
+	return &DBPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *DbPackageClient) UpdateOneID(id int) *DbPackageUpdateOne {
-	mutation := newDbPackageMutation(c.config, OpUpdateOne, withDbPackageID(id))
-	return &DbPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *DBPackageClient) UpdateOneID(id int) *DBPackageUpdateOne {
+	mutation := newDBPackageMutation(c.config, OpUpdateOne, withDBPackageID(id))
+	return &DBPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for DbPackage.
-func (c *DbPackageClient) Delete() *DbPackageDelete {
-	mutation := newDbPackageMutation(c.config, OpDelete)
-	return &DbPackageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for DBPackage.
+func (c *DBPackageClient) Delete() *DBPackageDelete {
+	mutation := newDBPackageMutation(c.config, OpDelete)
+	return &DBPackageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *DbPackageClient) DeleteOne(dp *DbPackage) *DbPackageDeleteOne {
+func (c *DBPackageClient) DeleteOne(dp *DBPackage) *DBPackageDeleteOne {
 	return c.DeleteOneID(dp.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *DbPackageClient) DeleteOneID(id int) *DbPackageDeleteOne {
+func (c *DBPackageClient) DeleteOneID(id int) *DBPackageDeleteOne {
 	builder := c.Delete().Where(dbpackage.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &DbPackageDeleteOne{builder}
+	return &DBPackageDeleteOne{builder}
 }
 
-// Query returns a query builder for DbPackage.
-func (c *DbPackageClient) Query() *DbPackageQuery {
-	return &DbPackageQuery{
+// Query returns a query builder for DBPackage.
+func (c *DBPackageClient) Query() *DBPackageQuery {
+	return &DBPackageQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeDbPackage},
+		ctx:    &QueryContext{Type: TypeDBPackage},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a DbPackage entity by its id.
-func (c *DbPackageClient) Get(ctx context.Context, id int) (*DbPackage, error) {
+// Get returns a DBPackage entity by its id.
+func (c *DBPackageClient) Get(ctx context.Context, id int) (*DBPackage, error) {
 	return c.Query().Where(dbpackage.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *DbPackageClient) GetX(ctx context.Context, id int) *DbPackage {
+func (c *DBPackageClient) GetX(ctx context.Context, id int) *DBPackage {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -281,36 +281,36 @@ func (c *DbPackageClient) GetX(ctx context.Context, id int) *DbPackage {
 }
 
 // Hooks returns the client hooks.
-func (c *DbPackageClient) Hooks() []Hook {
-	return c.hooks.DbPackage
+func (c *DBPackageClient) Hooks() []Hook {
+	return c.hooks.DBPackage
 }
 
 // Interceptors returns the client interceptors.
-func (c *DbPackageClient) Interceptors() []Interceptor {
-	return c.inters.DbPackage
+func (c *DBPackageClient) Interceptors() []Interceptor {
+	return c.inters.DBPackage
 }
 
-func (c *DbPackageClient) mutate(ctx context.Context, m *DbPackageMutation) (Value, error) {
+func (c *DBPackageClient) mutate(ctx context.Context, m *DBPackageMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&DbPackageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DBPackageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&DbPackageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DBPackageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&DbPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&DBPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&DbPackageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&DBPackageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown DbPackage mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown DBPackage mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		DbPackage []ent.Hook
+		DBPackage []ent.Hook
 	}
 	inters struct {
-		DbPackage []ent.Interceptor
+		DBPackage []ent.Interceptor
 	}
 )

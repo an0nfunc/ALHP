@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -10,9 +8,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"io"
 	"io/fs"
-	"lukechampine.com/blake3"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,13 +20,13 @@ import (
 )
 
 const (
-	pacmanConf     = "/usr/share/devtools/pacman-extra.conf"
-	makepkgConf    = "/usr/share/devtools/makepkg-x86_64.conf"
+	pacmanConf     = "/usr/share/devtools/pacman.conf.d/extra.conf"
+	makepkgConf    = "/usr/share/devtools/makepkg.conf.d/x86_64.conf"
 	logDir         = "logs"
 	pristineChroot = "root"
 	buildDir       = "build"
 	lastUpdate     = "lastupdate"
-	upstreamDir    = "upstream"
+	stateDir       = "state"
 	chrootDir      = "chroot"
 	makepkgDir     = "makepkg"
 	waitingDir     = "to_be_moved"
@@ -43,8 +39,6 @@ var (
 	reVar           = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]*)([)"])[^\S\r\n]*$`)
 	reEnvClean      = regexp.MustCompile(`(?m) ([\s\\]+) `)
 	rePkgRel        = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgSource     = regexp.MustCompile(`(?msU)^source.*=.*\((.+)\)$`)
-	rePkgSum        = regexp.MustCompile(`(?msU)^sha256sums.*=.*\((.+)\)$`)
 	rePkgFile       = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
 	reLdError       = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
 	reDownloadError = regexp.MustCompile(`(?m)^error: could not rename .+$`)
@@ -56,7 +50,7 @@ var (
 type Conf struct {
 	Arch         string
 	Repos, March []string
-	Svn2git      map[string]string
+	StateRepo    string `yaml:"state_repo"`
 	Basedir      struct {
 		Repo, Work, Debug string
 	}
@@ -73,9 +67,8 @@ type Conf struct {
 		Level string
 	}
 	Blacklist struct {
-		Packages []string
-		Repo     []string
-		LTO      []string `yaml:"lto"`
+		Packages, Repo []string
+		LTO            []string `yaml:"lto"`
 	}
 	Housekeeping struct {
 		Interval string
@@ -85,17 +78,22 @@ type Conf struct {
 			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
 		}
 	}
-	KernelPatches map[string]string `yaml:"kernel_patches"`
-	KernelToPatch []string          `yaml:"kernel_to_patch"`
 }
 
 type Globs []string
 
-type MultiplePKGBUILDError struct {
+type MultipleStateFilesError struct {
 	error
 }
 type UnableToSatisfyError struct {
 	error
+}
+
+type StateInfo struct {
+	Pkgbase string
+	PkgVer  string
+	TagVer  string
+	TagRev  string
 }
 
 func updateLastUpdated() error {
@@ -123,22 +121,6 @@ func statusID2string(s dbpackage.Status) string {
 	default:
 		return conf.Status.Class.Unknown
 	}
-}
-
-func b3sum(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
-
-	hash := blake3.New(32, nil) //nolint:gomnd
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func containsSubStr(str string, subList []string) bool {
@@ -187,27 +169,21 @@ func pkgList2MaxMem(pkgList []*ProtoPackage) datasize.ByteSize {
 	return datasize.ByteSize(sum) * datasize.KB
 }
 
-func genQueue() ([]*ProtoPackage, error) {
-	pkgs, err := db.DbPackage.Query().Where(dbpackage.Or(dbpackage.StatusEQ(dbpackage.StatusQueued),
-		dbpackage.StatusEQ(dbpackage.StatusBuild), dbpackage.StatusEQ(dbpackage.StatusBuilding))).All(context.Background())
-	if err != nil {
-		return nil, err
+func stateFileMeta(stateFile string) (repo string, subRepo *string, arch string, err error) {
+	nameSplit := strings.Split(filepath.Base(filepath.Dir(stateFile)), "-")
+	if len(nameSplit) < 2 {
+		err = fmt.Errorf("error getting metainfo")
+		return
 	}
 
-	var pkgbuilds []*ProtoPackage
-	for _, pkg := range pkgs {
-		pkgbuilds = append(pkgbuilds, &ProtoPackage{
-			Pkgbase:   pkg.Pkgbase,
-			Repo:      pkg.Repository,
-			March:     pkg.March,
-			FullRepo:  pkg.Repository.String() + "-" + pkg.March,
-			Hash:      pkg.Hash,
-			DBPackage: pkg,
-			Pkgbuild:  pkg.Pkgbuild,
-			Version:   pkg.RepoVersion,
-		})
+	repo = nameSplit[0]
+	if len(nameSplit) == 3 {
+		subRepo = &nameSplit[1]
+		arch = nameSplit[2]
+	} else {
+		arch = nameSplit[1]
 	}
-	return pkgbuilds, nil
+	return
 }
 
 func movePackagesLive(fullRepo string) error {
@@ -238,11 +214,11 @@ func movePackagesLive(fullRepo string) error {
 					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
 				}
 				forPackage := strings.TrimSuffix(pkg.Name(), "-debug")
-				log.Debugf("[MOVE] Found debug package for package %s: %s", forPackage, pkg.Name())
+				log.Debugf("[MOVE] found debug package for package %s: %s", forPackage, pkg.Name())
 				debugPkgs++
 
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
-					log.Warningf("[MOVE] Overwrite existing debug infos for %s: %s", forPackage,
+					log.Warningf("[MOVE] overwrite existing debug infos for %s: %s", forPackage,
 						filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 				}
 
@@ -254,7 +230,7 @@ func movePackagesLive(fullRepo string) error {
 				continue
 			}
 
-			log.Warningf("[MOVE] Deleting package %s: %v", pkg.Name(), err)
+			log.Warningf("[MOVE] deleting package %s: %v", pkg.Name(), err)
 			_ = os.Remove(file)
 			_ = os.Remove(file + ".sig")
 			continue
@@ -271,7 +247,6 @@ func movePackagesLive(fullRepo string) error {
 
 		toAdd = append(toAdd, &ProtoPackage{
 			DBPackage: dbPkg,
-			Pkgbase:   dbPkg.Pkgbase,
 			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
 			Version:   pkg.Version(),
 			March:     march,
@@ -279,7 +254,7 @@ func movePackagesLive(fullRepo string) error {
 	}
 
 	if len(toAdd) > 0 {
-		log.Infof("[%s] Adding %d (%d with debug) packages", fullRepo, len(toAdd), debugPkgs)
+		log.Infof("[%s] adding %d (%d with debug) packages", fullRepo, len(toAdd), debugPkgs)
 		buildManager.repoAdd[fullRepo] <- toAdd
 	}
 	return nil
@@ -561,6 +536,20 @@ func setupMakepkg(march string, flags map[string]any) error {
 	}
 
 	return nil
+}
+
+func parseState(state string) (*StateInfo, error) {
+	ss := strings.Split(state, " ")
+	if len(ss) != 4 {
+		return nil, fmt.Errorf("invalid state file")
+	}
+
+	return &StateInfo{
+		Pkgbase: ss[0],
+		PkgVer:  ss[1],
+		TagVer:  ss[2],
+		TagRev:  strings.Trim(ss[3], "\n"),
+	}, nil
 }
 
 func ContainsPkg(pkgs []*ProtoPackage, pkg *ProtoPackage, repoSensitive bool) bool {

@@ -12,8 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
-	// DbPackage is the client for interacting with the DbPackage builders.
-	DbPackage *DbPackageClient
+	// DBPackage is the client for interacting with the DBPackage builders.
+	DBPackage *DBPackageClient
 
 	// lazily loaded.
 	client     *Client
@@ -145,7 +145,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
-	tx.DbPackage = NewDbPackageClient(tx.config)
+	tx.DBPackage = NewDBPackageClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -155,7 +155,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: DbPackage.QueryXXX(), the query will be executed
+// applies a query, for example: DBPackage.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

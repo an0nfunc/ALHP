@@ -22,9 +22,10 @@ func (pkg Package) Name() string {
 }
 
 // MArch returns package's march
-func (pkg Package) MArch() string {
+func (pkg Package) MArch() *string {
 	splitPath := strings.Split(string(pkg), string(filepath.Separator))
-	return strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
+	res := strings.Join(strings.Split(splitPath[len(splitPath)-4], "-")[1:], "-")
+	return &res
 }
 
 // Repo returns package's dbpackage.Repository
@@ -34,9 +35,9 @@ func (pkg Package) Repo() dbpackage.Repository {
 }
 
 // FullRepo returns package's dbpackage.Repository-march
-func (pkg Package) FullRepo() string {
+func (pkg Package) FullRepo() *string {
 	splitPath := strings.Split(string(pkg), string(filepath.Separator))
-	return splitPath[len(splitPath)-4]
+	return &splitPath[len(splitPath)-4]
 }
 
 // Version returns version extracted from package
@@ -46,10 +47,10 @@ func (pkg Package) Version() string {
 }
 
 // Arch returns package's Architecture
-func (pkg Package) Arch() string {
+func (pkg Package) Arch() *string {
 	fNameSplit := strings.Split(filepath.Base(string(pkg)), "-")
 	fNameSplit = strings.Split(fNameSplit[len(fNameSplit)-1], ".")
-	return fNameSplit[0]
+	return &fNameSplit[0]
 }
 
 // HasValidSignature returns if package has valid detached signature file
@@ -69,13 +70,13 @@ func (pkg Package) HasValidSignature() (bool, error) {
 }
 
 // DBPackage returns ent.DBPackage for package
-func (pkg Package) DBPackage(db *ent.Client) (*ent.DbPackage, error) {
-	return pkg.DBPackageIsolated(pkg.MArch(), pkg.Repo(), db)
+func (pkg Package) DBPackage(db *ent.Client) (*ent.DBPackage, error) {
+	return pkg.DBPackageIsolated(*pkg.MArch(), pkg.Repo(), db)
 }
 
 // DBPackageIsolated returns ent.DBPackage like DBPackage, but not relying on the path for march and repo
-func (pkg Package) DBPackageIsolated(march string, repo dbpackage.Repository, db *ent.Client) (*ent.DbPackage, error) {
-	dbPkg, err := db.DbPackage.Query().Where(func(s *sql.Selector) {
+func (pkg Package) DBPackageIsolated(march string, repo dbpackage.Repository, db *ent.Client) (*ent.DBPackage, error) {
+	dbPkg, err := db.DBPackage.Query().Where(func(s *sql.Selector) {
 		s.Where(
 			sql.And(
 				sqljson.ValueContains(dbpackage.FieldPackages, pkg.Name()),

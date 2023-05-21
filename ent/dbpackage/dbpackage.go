@@ -33,8 +33,6 @@ const (
 	FieldBuildTimeStart = "build_time_start"
 	// FieldUpdated holds the string denoting the updated field in the database.
 	FieldUpdated = "updated"
-	// FieldHash holds the string denoting the hash field in the database.
-	FieldHash = "hash"
 	// FieldLto holds the string denoting the lto field in the database.
 	FieldLto = "lto"
 	// FieldLastVersionBuild holds the string denoting the last_version_build field in the database.
@@ -53,12 +51,8 @@ const (
 	FieldIoIn = "io_in"
 	// FieldIoOut holds the string denoting the io_out field in the database.
 	FieldIoOut = "io_out"
-	// FieldSrcinfo holds the string denoting the srcinfo field in the database.
-	FieldSrcinfo = "srcinfo"
-	// FieldSrcinfoHash holds the string denoting the srcinfo_hash field in the database.
-	FieldSrcinfoHash = "srcinfo_hash"
-	// FieldPkgbuild holds the string denoting the pkgbuild field in the database.
-	FieldPkgbuild = "pkgbuild"
+	// FieldTagRev holds the string denoting the tag_rev field in the database.
+	FieldTagRev = "tag_rev"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -76,7 +70,6 @@ var Columns = []string{
 	FieldRepoVersion,
 	FieldBuildTimeStart,
 	FieldUpdated,
-	FieldHash,
 	FieldLto,
 	FieldLastVersionBuild,
 	FieldLastVerified,
@@ -86,9 +79,7 @@ var Columns = []string{
 	FieldSTime,
 	FieldIoIn,
 	FieldIoOut,
-	FieldSrcinfo,
-	FieldSrcinfoHash,
-	FieldPkgbuild,
+	FieldTagRev,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -146,9 +137,8 @@ type Repository string
 
 // Repository values.
 const (
-	RepositoryExtra     Repository = "extra"
-	RepositoryCore      Repository = "core"
-	RepositoryCommunity Repository = "community"
+	RepositoryExtra Repository = "extra"
+	RepositoryCore  Repository = "core"
 )
 
 func (r Repository) String() string {
@@ -158,7 +148,7 @@ func (r Repository) String() string {
 // RepositoryValidator is a validator for the "repository" field enum values. It is called by the builders before save.
 func RepositoryValidator(r Repository) error {
 	switch r {
-	case RepositoryExtra, RepositoryCore, RepositoryCommunity:
+	case RepositoryExtra, RepositoryCore:
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for repository field: %q", r)
@@ -220,7 +210,7 @@ func DebugSymbolsValidator(ds DebugSymbols) error {
 	}
 }
 
-// OrderOption defines the ordering options for the DbPackage queries.
+// OrderOption defines the ordering options for the DBPackage queries.
 type OrderOption func(*sql.Selector)
 
 // ByID orders the results by the id field.
@@ -273,11 +263,6 @@ func ByUpdated(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdated, opts...).ToFunc()
 }
 
-// ByHash orders the results by the hash field.
-func ByHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldHash, opts...).ToFunc()
-}
-
 // ByLto orders the results by the lto field.
 func ByLto(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLto, opts...).ToFunc()
@@ -323,17 +308,7 @@ func ByIoOut(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIoOut, opts...).ToFunc()
 }
 
-// BySrcinfo orders the results by the srcinfo field.
-func BySrcinfo(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSrcinfo, opts...).ToFunc()
-}
-
-// BySrcinfoHash orders the results by the srcinfo_hash field.
-func BySrcinfoHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSrcinfoHash, opts...).ToFunc()
-}
-
-// ByPkgbuild orders the results by the pkgbuild field.
-func ByPkgbuild(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPkgbuild, opts...).ToFunc()
+// ByTagRev orders the results by the tag_rev field.
+func ByTagRev(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTagRev, opts...).ToFunc()
 }

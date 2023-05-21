@@ -16,46 +16,46 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/predicate"
 )
 
-// DbPackageUpdate is the builder for updating DbPackage entities.
-type DbPackageUpdate struct {
+// DBPackageUpdate is the builder for updating DBPackage entities.
+type DBPackageUpdate struct {
 	config
 	hooks     []Hook
-	mutation  *DbPackageMutation
+	mutation  *DBPackageMutation
 	modifiers []func(*sql.UpdateBuilder)
 }
 
-// Where appends a list predicates to the DbPackageUpdate builder.
-func (dpu *DbPackageUpdate) Where(ps ...predicate.DbPackage) *DbPackageUpdate {
+// Where appends a list predicates to the DBPackageUpdate builder.
+func (dpu *DBPackageUpdate) Where(ps ...predicate.DBPackage) *DBPackageUpdate {
 	dpu.mutation.Where(ps...)
 	return dpu
 }
 
 // SetPackages sets the "packages" field.
-func (dpu *DbPackageUpdate) SetPackages(s []string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetPackages(s []string) *DBPackageUpdate {
 	dpu.mutation.SetPackages(s)
 	return dpu
 }
 
 // AppendPackages appends s to the "packages" field.
-func (dpu *DbPackageUpdate) AppendPackages(s []string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AppendPackages(s []string) *DBPackageUpdate {
 	dpu.mutation.AppendPackages(s)
 	return dpu
 }
 
 // ClearPackages clears the value of the "packages" field.
-func (dpu *DbPackageUpdate) ClearPackages() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearPackages() *DBPackageUpdate {
 	dpu.mutation.ClearPackages()
 	return dpu
 }
 
 // SetStatus sets the "status" field.
-func (dpu *DbPackageUpdate) SetStatus(d dbpackage.Status) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetStatus(d dbpackage.Status) *DBPackageUpdate {
 	dpu.mutation.SetStatus(d)
 	return dpu
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableStatus(d *dbpackage.Status) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableStatus(d *dbpackage.Status) *DBPackageUpdate {
 	if d != nil {
 		dpu.SetStatus(*d)
 	}
@@ -63,19 +63,19 @@ func (dpu *DbPackageUpdate) SetNillableStatus(d *dbpackage.Status) *DbPackageUpd
 }
 
 // ClearStatus clears the value of the "status" field.
-func (dpu *DbPackageUpdate) ClearStatus() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearStatus() *DBPackageUpdate {
 	dpu.mutation.ClearStatus()
 	return dpu
 }
 
 // SetSkipReason sets the "skip_reason" field.
-func (dpu *DbPackageUpdate) SetSkipReason(s string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetSkipReason(s string) *DBPackageUpdate {
 	dpu.mutation.SetSkipReason(s)
 	return dpu
 }
 
 // SetNillableSkipReason sets the "skip_reason" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableSkipReason(s *string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableSkipReason(s *string) *DBPackageUpdate {
 	if s != nil {
 		dpu.SetSkipReason(*s)
 	}
@@ -83,25 +83,25 @@ func (dpu *DbPackageUpdate) SetNillableSkipReason(s *string) *DbPackageUpdate {
 }
 
 // ClearSkipReason clears the value of the "skip_reason" field.
-func (dpu *DbPackageUpdate) ClearSkipReason() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearSkipReason() *DBPackageUpdate {
 	dpu.mutation.ClearSkipReason()
 	return dpu
 }
 
 // SetRepository sets the "repository" field.
-func (dpu *DbPackageUpdate) SetRepository(d dbpackage.Repository) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetRepository(d dbpackage.Repository) *DBPackageUpdate {
 	dpu.mutation.SetRepository(d)
 	return dpu
 }
 
 // SetVersion sets the "version" field.
-func (dpu *DbPackageUpdate) SetVersion(s string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetVersion(s string) *DBPackageUpdate {
 	dpu.mutation.SetVersion(s)
 	return dpu
 }
 
 // SetNillableVersion sets the "version" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableVersion(s *string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableVersion(s *string) *DBPackageUpdate {
 	if s != nil {
 		dpu.SetVersion(*s)
 	}
@@ -109,19 +109,19 @@ func (dpu *DbPackageUpdate) SetNillableVersion(s *string) *DbPackageUpdate {
 }
 
 // ClearVersion clears the value of the "version" field.
-func (dpu *DbPackageUpdate) ClearVersion() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearVersion() *DBPackageUpdate {
 	dpu.mutation.ClearVersion()
 	return dpu
 }
 
 // SetRepoVersion sets the "repo_version" field.
-func (dpu *DbPackageUpdate) SetRepoVersion(s string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetRepoVersion(s string) *DBPackageUpdate {
 	dpu.mutation.SetRepoVersion(s)
 	return dpu
 }
 
 // SetNillableRepoVersion sets the "repo_version" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableRepoVersion(s *string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableRepoVersion(s *string) *DBPackageUpdate {
 	if s != nil {
 		dpu.SetRepoVersion(*s)
 	}
@@ -129,19 +129,19 @@ func (dpu *DbPackageUpdate) SetNillableRepoVersion(s *string) *DbPackageUpdate {
 }
 
 // ClearRepoVersion clears the value of the "repo_version" field.
-func (dpu *DbPackageUpdate) ClearRepoVersion() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearRepoVersion() *DBPackageUpdate {
 	dpu.mutation.ClearRepoVersion()
 	return dpu
 }
 
 // SetBuildTimeStart sets the "build_time_start" field.
-func (dpu *DbPackageUpdate) SetBuildTimeStart(t time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetBuildTimeStart(t time.Time) *DBPackageUpdate {
 	dpu.mutation.SetBuildTimeStart(t)
 	return dpu
 }
 
 // SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableBuildTimeStart(t *time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableBuildTimeStart(t *time.Time) *DBPackageUpdate {
 	if t != nil {
 		dpu.SetBuildTimeStart(*t)
 	}
@@ -149,19 +149,19 @@ func (dpu *DbPackageUpdate) SetNillableBuildTimeStart(t *time.Time) *DbPackageUp
 }
 
 // ClearBuildTimeStart clears the value of the "build_time_start" field.
-func (dpu *DbPackageUpdate) ClearBuildTimeStart() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearBuildTimeStart() *DBPackageUpdate {
 	dpu.mutation.ClearBuildTimeStart()
 	return dpu
 }
 
 // SetUpdated sets the "updated" field.
-func (dpu *DbPackageUpdate) SetUpdated(t time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetUpdated(t time.Time) *DBPackageUpdate {
 	dpu.mutation.SetUpdated(t)
 	return dpu
 }
 
 // SetNillableUpdated sets the "updated" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableUpdated(t *time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableUpdated(t *time.Time) *DBPackageUpdate {
 	if t != nil {
 		dpu.SetUpdated(*t)
 	}
@@ -169,39 +169,19 @@ func (dpu *DbPackageUpdate) SetNillableUpdated(t *time.Time) *DbPackageUpdate {
 }
 
 // ClearUpdated clears the value of the "updated" field.
-func (dpu *DbPackageUpdate) ClearUpdated() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearUpdated() *DBPackageUpdate {
 	dpu.mutation.ClearUpdated()
 	return dpu
 }
 
-// SetHash sets the "hash" field.
-func (dpu *DbPackageUpdate) SetHash(s string) *DbPackageUpdate {
-	dpu.mutation.SetHash(s)
-	return dpu
-}
-
-// SetNillableHash sets the "hash" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableHash(s *string) *DbPackageUpdate {
-	if s != nil {
-		dpu.SetHash(*s)
-	}
-	return dpu
-}
-
-// ClearHash clears the value of the "hash" field.
-func (dpu *DbPackageUpdate) ClearHash() *DbPackageUpdate {
-	dpu.mutation.ClearHash()
-	return dpu
-}
-
 // SetLto sets the "lto" field.
-func (dpu *DbPackageUpdate) SetLto(d dbpackage.Lto) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetLto(d dbpackage.Lto) *DBPackageUpdate {
 	dpu.mutation.SetLto(d)
 	return dpu
 }
 
 // SetNillableLto sets the "lto" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableLto(d *dbpackage.Lto) *DBPackageUpdate {
 	if d != nil {
 		dpu.SetLto(*d)
 	}
@@ -209,19 +189,19 @@ func (dpu *DbPackageUpdate) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdate {
 }
 
 // ClearLto clears the value of the "lto" field.
-func (dpu *DbPackageUpdate) ClearLto() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearLto() *DBPackageUpdate {
 	dpu.mutation.ClearLto()
 	return dpu
 }
 
 // SetLastVersionBuild sets the "last_version_build" field.
-func (dpu *DbPackageUpdate) SetLastVersionBuild(s string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetLastVersionBuild(s string) *DBPackageUpdate {
 	dpu.mutation.SetLastVersionBuild(s)
 	return dpu
 }
 
 // SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableLastVersionBuild(s *string) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableLastVersionBuild(s *string) *DBPackageUpdate {
 	if s != nil {
 		dpu.SetLastVersionBuild(*s)
 	}
@@ -229,19 +209,19 @@ func (dpu *DbPackageUpdate) SetNillableLastVersionBuild(s *string) *DbPackageUpd
 }
 
 // ClearLastVersionBuild clears the value of the "last_version_build" field.
-func (dpu *DbPackageUpdate) ClearLastVersionBuild() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearLastVersionBuild() *DBPackageUpdate {
 	dpu.mutation.ClearLastVersionBuild()
 	return dpu
 }
 
 // SetLastVerified sets the "last_verified" field.
-func (dpu *DbPackageUpdate) SetLastVerified(t time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetLastVerified(t time.Time) *DBPackageUpdate {
 	dpu.mutation.SetLastVerified(t)
 	return dpu
 }
 
 // SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableLastVerified(t *time.Time) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableLastVerified(t *time.Time) *DBPackageUpdate {
 	if t != nil {
 		dpu.SetLastVerified(*t)
 	}
@@ -249,19 +229,19 @@ func (dpu *DbPackageUpdate) SetNillableLastVerified(t *time.Time) *DbPackageUpda
 }
 
 // ClearLastVerified clears the value of the "last_verified" field.
-func (dpu *DbPackageUpdate) ClearLastVerified() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearLastVerified() *DBPackageUpdate {
 	dpu.mutation.ClearLastVerified()
 	return dpu
 }
 
 // SetDebugSymbols sets the "debug_symbols" field.
-func (dpu *DbPackageUpdate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetDebugSymbols(ds dbpackage.DebugSymbols) *DBPackageUpdate {
 	dpu.mutation.SetDebugSymbols(ds)
 	return dpu
 }
 
 // SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DBPackageUpdate {
 	if ds != nil {
 		dpu.SetDebugSymbols(*ds)
 	}
@@ -269,20 +249,20 @@ func (dpu *DbPackageUpdate) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) 
 }
 
 // ClearDebugSymbols clears the value of the "debug_symbols" field.
-func (dpu *DbPackageUpdate) ClearDebugSymbols() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearDebugSymbols() *DBPackageUpdate {
 	dpu.mutation.ClearDebugSymbols()
 	return dpu
 }
 
 // SetMaxRss sets the "max_rss" field.
-func (dpu *DbPackageUpdate) SetMaxRss(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetMaxRss(i int64) *DBPackageUpdate {
 	dpu.mutation.ResetMaxRss()
 	dpu.mutation.SetMaxRss(i)
 	return dpu
 }
 
 // SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableMaxRss(i *int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableMaxRss(i *int64) *DBPackageUpdate {
 	if i != nil {
 		dpu.SetMaxRss(*i)
 	}
@@ -290,26 +270,26 @@ func (dpu *DbPackageUpdate) SetNillableMaxRss(i *int64) *DbPackageUpdate {
 }
 
 // AddMaxRss adds i to the "max_rss" field.
-func (dpu *DbPackageUpdate) AddMaxRss(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AddMaxRss(i int64) *DBPackageUpdate {
 	dpu.mutation.AddMaxRss(i)
 	return dpu
 }
 
 // ClearMaxRss clears the value of the "max_rss" field.
-func (dpu *DbPackageUpdate) ClearMaxRss() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearMaxRss() *DBPackageUpdate {
 	dpu.mutation.ClearMaxRss()
 	return dpu
 }
 
 // SetUTime sets the "u_time" field.
-func (dpu *DbPackageUpdate) SetUTime(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetUTime(i int64) *DBPackageUpdate {
 	dpu.mutation.ResetUTime()
 	dpu.mutation.SetUTime(i)
 	return dpu
 }
 
 // SetNillableUTime sets the "u_time" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableUTime(i *int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableUTime(i *int64) *DBPackageUpdate {
 	if i != nil {
 		dpu.SetUTime(*i)
 	}
@@ -317,26 +297,26 @@ func (dpu *DbPackageUpdate) SetNillableUTime(i *int64) *DbPackageUpdate {
 }
 
 // AddUTime adds i to the "u_time" field.
-func (dpu *DbPackageUpdate) AddUTime(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AddUTime(i int64) *DBPackageUpdate {
 	dpu.mutation.AddUTime(i)
 	return dpu
 }
 
 // ClearUTime clears the value of the "u_time" field.
-func (dpu *DbPackageUpdate) ClearUTime() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearUTime() *DBPackageUpdate {
 	dpu.mutation.ClearUTime()
 	return dpu
 }
 
 // SetSTime sets the "s_time" field.
-func (dpu *DbPackageUpdate) SetSTime(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetSTime(i int64) *DBPackageUpdate {
 	dpu.mutation.ResetSTime()
 	dpu.mutation.SetSTime(i)
 	return dpu
 }
 
 // SetNillableSTime sets the "s_time" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableSTime(i *int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableSTime(i *int64) *DBPackageUpdate {
 	if i != nil {
 		dpu.SetSTime(*i)
 	}
@@ -344,26 +324,26 @@ func (dpu *DbPackageUpdate) SetNillableSTime(i *int64) *DbPackageUpdate {
 }
 
 // AddSTime adds i to the "s_time" field.
-func (dpu *DbPackageUpdate) AddSTime(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AddSTime(i int64) *DBPackageUpdate {
 	dpu.mutation.AddSTime(i)
 	return dpu
 }
 
 // ClearSTime clears the value of the "s_time" field.
-func (dpu *DbPackageUpdate) ClearSTime() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearSTime() *DBPackageUpdate {
 	dpu.mutation.ClearSTime()
 	return dpu
 }
 
 // SetIoIn sets the "io_in" field.
-func (dpu *DbPackageUpdate) SetIoIn(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetIoIn(i int64) *DBPackageUpdate {
 	dpu.mutation.ResetIoIn()
 	dpu.mutation.SetIoIn(i)
 	return dpu
 }
 
 // SetNillableIoIn sets the "io_in" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableIoIn(i *int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableIoIn(i *int64) *DBPackageUpdate {
 	if i != nil {
 		dpu.SetIoIn(*i)
 	}
@@ -371,26 +351,26 @@ func (dpu *DbPackageUpdate) SetNillableIoIn(i *int64) *DbPackageUpdate {
 }
 
 // AddIoIn adds i to the "io_in" field.
-func (dpu *DbPackageUpdate) AddIoIn(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AddIoIn(i int64) *DBPackageUpdate {
 	dpu.mutation.AddIoIn(i)
 	return dpu
 }
 
 // ClearIoIn clears the value of the "io_in" field.
-func (dpu *DbPackageUpdate) ClearIoIn() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearIoIn() *DBPackageUpdate {
 	dpu.mutation.ClearIoIn()
 	return dpu
 }
 
 // SetIoOut sets the "io_out" field.
-func (dpu *DbPackageUpdate) SetIoOut(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetIoOut(i int64) *DBPackageUpdate {
 	dpu.mutation.ResetIoOut()
 	dpu.mutation.SetIoOut(i)
 	return dpu
 }
 
 // SetNillableIoOut sets the "io_out" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableIoOut(i *int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) SetNillableIoOut(i *int64) *DBPackageUpdate {
 	if i != nil {
 		dpu.SetIoOut(*i)
 	}
@@ -398,89 +378,49 @@ func (dpu *DbPackageUpdate) SetNillableIoOut(i *int64) *DbPackageUpdate {
 }
 
 // AddIoOut adds i to the "io_out" field.
-func (dpu *DbPackageUpdate) AddIoOut(i int64) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) AddIoOut(i int64) *DBPackageUpdate {
 	dpu.mutation.AddIoOut(i)
 	return dpu
 }
 
 // ClearIoOut clears the value of the "io_out" field.
-func (dpu *DbPackageUpdate) ClearIoOut() *DbPackageUpdate {
+func (dpu *DBPackageUpdate) ClearIoOut() *DBPackageUpdate {
 	dpu.mutation.ClearIoOut()
 	return dpu
 }
 
-// SetSrcinfo sets the "srcinfo" field.
-func (dpu *DbPackageUpdate) SetSrcinfo(s string) *DbPackageUpdate {
-	dpu.mutation.SetSrcinfo(s)
+// SetTagRev sets the "tag_rev" field.
+func (dpu *DBPackageUpdate) SetTagRev(s string) *DBPackageUpdate {
+	dpu.mutation.SetTagRev(s)
 	return dpu
 }
 
-// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableSrcinfo(s *string) *DbPackageUpdate {
+// SetNillableTagRev sets the "tag_rev" field if the given value is not nil.
+func (dpu *DBPackageUpdate) SetNillableTagRev(s *string) *DBPackageUpdate {
 	if s != nil {
-		dpu.SetSrcinfo(*s)
+		dpu.SetTagRev(*s)
 	}
 	return dpu
 }
 
-// ClearSrcinfo clears the value of the "srcinfo" field.
-func (dpu *DbPackageUpdate) ClearSrcinfo() *DbPackageUpdate {
-	dpu.mutation.ClearSrcinfo()
+// ClearTagRev clears the value of the "tag_rev" field.
+func (dpu *DBPackageUpdate) ClearTagRev() *DBPackageUpdate {
+	dpu.mutation.ClearTagRev()
 	return dpu
 }
 
-// SetSrcinfoHash sets the "srcinfo_hash" field.
-func (dpu *DbPackageUpdate) SetSrcinfoHash(s string) *DbPackageUpdate {
-	dpu.mutation.SetSrcinfoHash(s)
-	return dpu
-}
-
-// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillableSrcinfoHash(s *string) *DbPackageUpdate {
-	if s != nil {
-		dpu.SetSrcinfoHash(*s)
-	}
-	return dpu
-}
-
-// ClearSrcinfoHash clears the value of the "srcinfo_hash" field.
-func (dpu *DbPackageUpdate) ClearSrcinfoHash() *DbPackageUpdate {
-	dpu.mutation.ClearSrcinfoHash()
-	return dpu
-}
-
-// SetPkgbuild sets the "pkgbuild" field.
-func (dpu *DbPackageUpdate) SetPkgbuild(s string) *DbPackageUpdate {
-	dpu.mutation.SetPkgbuild(s)
-	return dpu
-}
-
-// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
-func (dpu *DbPackageUpdate) SetNillablePkgbuild(s *string) *DbPackageUpdate {
-	if s != nil {
-		dpu.SetPkgbuild(*s)
-	}
-	return dpu
-}
-
-// ClearPkgbuild clears the value of the "pkgbuild" field.
-func (dpu *DbPackageUpdate) ClearPkgbuild() *DbPackageUpdate {
-	dpu.mutation.ClearPkgbuild()
-	return dpu
-}
-
-// Mutation returns the DbPackageMutation object of the builder.
-func (dpu *DbPackageUpdate) Mutation() *DbPackageMutation {
+// Mutation returns the DBPackageMutation object of the builder.
+func (dpu *DBPackageUpdate) Mutation() *DBPackageMutation {
 	return dpu.mutation
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
-func (dpu *DbPackageUpdate) Save(ctx context.Context) (int, error) {
+func (dpu *DBPackageUpdate) Save(ctx context.Context) (int, error) {
 	return withHooks(ctx, dpu.sqlSave, dpu.mutation, dpu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (dpu *DbPackageUpdate) SaveX(ctx context.Context) int {
+func (dpu *DBPackageUpdate) SaveX(ctx context.Context) int {
 	affected, err := dpu.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -489,50 +429,50 @@ func (dpu *DbPackageUpdate) SaveX(ctx context.Context) int {
 }
 
 // Exec executes the query.
-func (dpu *DbPackageUpdate) Exec(ctx context.Context) error {
+func (dpu *DBPackageUpdate) Exec(ctx context.Context) error {
 	_, err := dpu.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpu *DbPackageUpdate) ExecX(ctx context.Context) {
+func (dpu *DBPackageUpdate) ExecX(ctx context.Context) {
 	if err := dpu.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (dpu *DbPackageUpdate) check() error {
+func (dpu *DBPackageUpdate) check() error {
 	if v, ok := dpu.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DBPackage.status": %w`, err)}
 		}
 	}
 	if v, ok := dpu.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DBPackage.repository": %w`, err)}
 		}
 	}
 	if v, ok := dpu.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DBPackage.lto": %w`, err)}
 		}
 	}
 	if v, ok := dpu.mutation.DebugSymbols(); ok {
 		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
-			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DBPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
-func (dpu *DbPackageUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DbPackageUpdate {
+func (dpu *DBPackageUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DBPackageUpdate {
 	dpu.modifiers = append(dpu.modifiers, modifiers...)
 	return dpu
 }
 
-func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
+func (dpu *DBPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := dpu.check(); err != nil {
 		return n, err
 	}
@@ -593,12 +533,6 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if dpu.mutation.UpdatedCleared() {
 		_spec.ClearField(dbpackage.FieldUpdated, field.TypeTime)
-	}
-	if value, ok := dpu.mutation.Hash(); ok {
-		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
-	}
-	if dpu.mutation.HashCleared() {
-		_spec.ClearField(dbpackage.FieldHash, field.TypeString)
 	}
 	if value, ok := dpu.mutation.Lto(); ok {
 		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
@@ -669,23 +603,11 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if dpu.mutation.IoOutCleared() {
 		_spec.ClearField(dbpackage.FieldIoOut, field.TypeInt64)
 	}
-	if value, ok := dpu.mutation.Srcinfo(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
+	if value, ok := dpu.mutation.TagRev(); ok {
+		_spec.SetField(dbpackage.FieldTagRev, field.TypeString, value)
 	}
-	if dpu.mutation.SrcinfoCleared() {
-		_spec.ClearField(dbpackage.FieldSrcinfo, field.TypeString)
-	}
-	if value, ok := dpu.mutation.SrcinfoHash(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
-	}
-	if dpu.mutation.SrcinfoHashCleared() {
-		_spec.ClearField(dbpackage.FieldSrcinfoHash, field.TypeString)
-	}
-	if value, ok := dpu.mutation.Pkgbuild(); ok {
-		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
-	}
-	if dpu.mutation.PkgbuildCleared() {
-		_spec.ClearField(dbpackage.FieldPkgbuild, field.TypeString)
+	if dpu.mutation.TagRevCleared() {
+		_spec.ClearField(dbpackage.FieldTagRev, field.TypeString)
 	}
 	_spec.AddModifiers(dpu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, dpu.driver, _spec); err != nil {
@@ -700,41 +622,41 @@ func (dpu *DbPackageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	return n, nil
 }
 
-// DbPackageUpdateOne is the builder for updating a single DbPackage entity.
-type DbPackageUpdateOne struct {
+// DBPackageUpdateOne is the builder for updating a single DBPackage entity.
+type DBPackageUpdateOne struct {
 	config
 	fields    []string
 	hooks     []Hook
-	mutation  *DbPackageMutation
+	mutation  *DBPackageMutation
 	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetPackages sets the "packages" field.
-func (dpuo *DbPackageUpdateOne) SetPackages(s []string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetPackages(s []string) *DBPackageUpdateOne {
 	dpuo.mutation.SetPackages(s)
 	return dpuo
 }
 
 // AppendPackages appends s to the "packages" field.
-func (dpuo *DbPackageUpdateOne) AppendPackages(s []string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AppendPackages(s []string) *DBPackageUpdateOne {
 	dpuo.mutation.AppendPackages(s)
 	return dpuo
 }
 
 // ClearPackages clears the value of the "packages" field.
-func (dpuo *DbPackageUpdateOne) ClearPackages() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearPackages() *DBPackageUpdateOne {
 	dpuo.mutation.ClearPackages()
 	return dpuo
 }
 
 // SetStatus sets the "status" field.
-func (dpuo *DbPackageUpdateOne) SetStatus(d dbpackage.Status) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetStatus(d dbpackage.Status) *DBPackageUpdateOne {
 	dpuo.mutation.SetStatus(d)
 	return dpuo
 }
 
 // SetNillableStatus sets the "status" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableStatus(d *dbpackage.Status) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableStatus(d *dbpackage.Status) *DBPackageUpdateOne {
 	if d != nil {
 		dpuo.SetStatus(*d)
 	}
@@ -742,19 +664,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableStatus(d *dbpackage.Status) *DbPackag
 }
 
 // ClearStatus clears the value of the "status" field.
-func (dpuo *DbPackageUpdateOne) ClearStatus() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearStatus() *DBPackageUpdateOne {
 	dpuo.mutation.ClearStatus()
 	return dpuo
 }
 
 // SetSkipReason sets the "skip_reason" field.
-func (dpuo *DbPackageUpdateOne) SetSkipReason(s string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetSkipReason(s string) *DBPackageUpdateOne {
 	dpuo.mutation.SetSkipReason(s)
 	return dpuo
 }
 
 // SetNillableSkipReason sets the "skip_reason" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableSkipReason(s *string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableSkipReason(s *string) *DBPackageUpdateOne {
 	if s != nil {
 		dpuo.SetSkipReason(*s)
 	}
@@ -762,25 +684,25 @@ func (dpuo *DbPackageUpdateOne) SetNillableSkipReason(s *string) *DbPackageUpdat
 }
 
 // ClearSkipReason clears the value of the "skip_reason" field.
-func (dpuo *DbPackageUpdateOne) ClearSkipReason() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearSkipReason() *DBPackageUpdateOne {
 	dpuo.mutation.ClearSkipReason()
 	return dpuo
 }
 
 // SetRepository sets the "repository" field.
-func (dpuo *DbPackageUpdateOne) SetRepository(d dbpackage.Repository) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetRepository(d dbpackage.Repository) *DBPackageUpdateOne {
 	dpuo.mutation.SetRepository(d)
 	return dpuo
 }
 
 // SetVersion sets the "version" field.
-func (dpuo *DbPackageUpdateOne) SetVersion(s string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetVersion(s string) *DBPackageUpdateOne {
 	dpuo.mutation.SetVersion(s)
 	return dpuo
 }
 
 // SetNillableVersion sets the "version" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableVersion(s *string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableVersion(s *string) *DBPackageUpdateOne {
 	if s != nil {
 		dpuo.SetVersion(*s)
 	}
@@ -788,19 +710,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableVersion(s *string) *DbPackageUpdateOn
 }
 
 // ClearVersion clears the value of the "version" field.
-func (dpuo *DbPackageUpdateOne) ClearVersion() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearVersion() *DBPackageUpdateOne {
 	dpuo.mutation.ClearVersion()
 	return dpuo
 }
 
 // SetRepoVersion sets the "repo_version" field.
-func (dpuo *DbPackageUpdateOne) SetRepoVersion(s string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetRepoVersion(s string) *DBPackageUpdateOne {
 	dpuo.mutation.SetRepoVersion(s)
 	return dpuo
 }
 
 // SetNillableRepoVersion sets the "repo_version" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableRepoVersion(s *string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableRepoVersion(s *string) *DBPackageUpdateOne {
 	if s != nil {
 		dpuo.SetRepoVersion(*s)
 	}
@@ -808,19 +730,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableRepoVersion(s *string) *DbPackageUpda
 }
 
 // ClearRepoVersion clears the value of the "repo_version" field.
-func (dpuo *DbPackageUpdateOne) ClearRepoVersion() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearRepoVersion() *DBPackageUpdateOne {
 	dpuo.mutation.ClearRepoVersion()
 	return dpuo
 }
 
 // SetBuildTimeStart sets the "build_time_start" field.
-func (dpuo *DbPackageUpdateOne) SetBuildTimeStart(t time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetBuildTimeStart(t time.Time) *DBPackageUpdateOne {
 	dpuo.mutation.SetBuildTimeStart(t)
 	return dpuo
 }
 
 // SetNillableBuildTimeStart sets the "build_time_start" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableBuildTimeStart(t *time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableBuildTimeStart(t *time.Time) *DBPackageUpdateOne {
 	if t != nil {
 		dpuo.SetBuildTimeStart(*t)
 	}
@@ -828,19 +750,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableBuildTimeStart(t *time.Time) *DbPacka
 }
 
 // ClearBuildTimeStart clears the value of the "build_time_start" field.
-func (dpuo *DbPackageUpdateOne) ClearBuildTimeStart() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearBuildTimeStart() *DBPackageUpdateOne {
 	dpuo.mutation.ClearBuildTimeStart()
 	return dpuo
 }
 
 // SetUpdated sets the "updated" field.
-func (dpuo *DbPackageUpdateOne) SetUpdated(t time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetUpdated(t time.Time) *DBPackageUpdateOne {
 	dpuo.mutation.SetUpdated(t)
 	return dpuo
 }
 
 // SetNillableUpdated sets the "updated" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableUpdated(t *time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableUpdated(t *time.Time) *DBPackageUpdateOne {
 	if t != nil {
 		dpuo.SetUpdated(*t)
 	}
@@ -848,39 +770,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableUpdated(t *time.Time) *DbPackageUpdat
 }
 
 // ClearUpdated clears the value of the "updated" field.
-func (dpuo *DbPackageUpdateOne) ClearUpdated() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearUpdated() *DBPackageUpdateOne {
 	dpuo.mutation.ClearUpdated()
 	return dpuo
 }
 
-// SetHash sets the "hash" field.
-func (dpuo *DbPackageUpdateOne) SetHash(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetHash(s)
-	return dpuo
-}
-
-// SetNillableHash sets the "hash" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableHash(s *string) *DbPackageUpdateOne {
-	if s != nil {
-		dpuo.SetHash(*s)
-	}
-	return dpuo
-}
-
-// ClearHash clears the value of the "hash" field.
-func (dpuo *DbPackageUpdateOne) ClearHash() *DbPackageUpdateOne {
-	dpuo.mutation.ClearHash()
-	return dpuo
-}
-
 // SetLto sets the "lto" field.
-func (dpuo *DbPackageUpdateOne) SetLto(d dbpackage.Lto) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetLto(d dbpackage.Lto) *DBPackageUpdateOne {
 	dpuo.mutation.SetLto(d)
 	return dpuo
 }
 
 // SetNillableLto sets the "lto" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableLto(d *dbpackage.Lto) *DBPackageUpdateOne {
 	if d != nil {
 		dpuo.SetLto(*d)
 	}
@@ -888,19 +790,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableLto(d *dbpackage.Lto) *DbPackageUpdat
 }
 
 // ClearLto clears the value of the "lto" field.
-func (dpuo *DbPackageUpdateOne) ClearLto() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearLto() *DBPackageUpdateOne {
 	dpuo.mutation.ClearLto()
 	return dpuo
 }
 
 // SetLastVersionBuild sets the "last_version_build" field.
-func (dpuo *DbPackageUpdateOne) SetLastVersionBuild(s string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetLastVersionBuild(s string) *DBPackageUpdateOne {
 	dpuo.mutation.SetLastVersionBuild(s)
 	return dpuo
 }
 
 // SetNillableLastVersionBuild sets the "last_version_build" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableLastVersionBuild(s *string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableLastVersionBuild(s *string) *DBPackageUpdateOne {
 	if s != nil {
 		dpuo.SetLastVersionBuild(*s)
 	}
@@ -908,19 +810,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableLastVersionBuild(s *string) *DbPackag
 }
 
 // ClearLastVersionBuild clears the value of the "last_version_build" field.
-func (dpuo *DbPackageUpdateOne) ClearLastVersionBuild() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearLastVersionBuild() *DBPackageUpdateOne {
 	dpuo.mutation.ClearLastVersionBuild()
 	return dpuo
 }
 
 // SetLastVerified sets the "last_verified" field.
-func (dpuo *DbPackageUpdateOne) SetLastVerified(t time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetLastVerified(t time.Time) *DBPackageUpdateOne {
 	dpuo.mutation.SetLastVerified(t)
 	return dpuo
 }
 
 // SetNillableLastVerified sets the "last_verified" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableLastVerified(t *time.Time) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableLastVerified(t *time.Time) *DBPackageUpdateOne {
 	if t != nil {
 		dpuo.SetLastVerified(*t)
 	}
@@ -928,19 +830,19 @@ func (dpuo *DbPackageUpdateOne) SetNillableLastVerified(t *time.Time) *DbPackage
 }
 
 // ClearLastVerified clears the value of the "last_verified" field.
-func (dpuo *DbPackageUpdateOne) ClearLastVerified() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearLastVerified() *DBPackageUpdateOne {
 	dpuo.mutation.ClearLastVerified()
 	return dpuo
 }
 
 // SetDebugSymbols sets the "debug_symbols" field.
-func (dpuo *DbPackageUpdateOne) SetDebugSymbols(ds dbpackage.DebugSymbols) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetDebugSymbols(ds dbpackage.DebugSymbols) *DBPackageUpdateOne {
 	dpuo.mutation.SetDebugSymbols(ds)
 	return dpuo
 }
 
 // SetNillableDebugSymbols sets the "debug_symbols" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableDebugSymbols(ds *dbpackage.DebugSymbols) *DBPackageUpdateOne {
 	if ds != nil {
 		dpuo.SetDebugSymbols(*ds)
 	}
@@ -948,20 +850,20 @@ func (dpuo *DbPackageUpdateOne) SetNillableDebugSymbols(ds *dbpackage.DebugSymbo
 }
 
 // ClearDebugSymbols clears the value of the "debug_symbols" field.
-func (dpuo *DbPackageUpdateOne) ClearDebugSymbols() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearDebugSymbols() *DBPackageUpdateOne {
 	dpuo.mutation.ClearDebugSymbols()
 	return dpuo
 }
 
 // SetMaxRss sets the "max_rss" field.
-func (dpuo *DbPackageUpdateOne) SetMaxRss(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetMaxRss(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.ResetMaxRss()
 	dpuo.mutation.SetMaxRss(i)
 	return dpuo
 }
 
 // SetNillableMaxRss sets the "max_rss" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableMaxRss(i *int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableMaxRss(i *int64) *DBPackageUpdateOne {
 	if i != nil {
 		dpuo.SetMaxRss(*i)
 	}
@@ -969,26 +871,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableMaxRss(i *int64) *DbPackageUpdateOne 
 }
 
 // AddMaxRss adds i to the "max_rss" field.
-func (dpuo *DbPackageUpdateOne) AddMaxRss(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AddMaxRss(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.AddMaxRss(i)
 	return dpuo
 }
 
 // ClearMaxRss clears the value of the "max_rss" field.
-func (dpuo *DbPackageUpdateOne) ClearMaxRss() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearMaxRss() *DBPackageUpdateOne {
 	dpuo.mutation.ClearMaxRss()
 	return dpuo
 }
 
 // SetUTime sets the "u_time" field.
-func (dpuo *DbPackageUpdateOne) SetUTime(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetUTime(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.ResetUTime()
 	dpuo.mutation.SetUTime(i)
 	return dpuo
 }
 
 // SetNillableUTime sets the "u_time" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableUTime(i *int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableUTime(i *int64) *DBPackageUpdateOne {
 	if i != nil {
 		dpuo.SetUTime(*i)
 	}
@@ -996,26 +898,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableUTime(i *int64) *DbPackageUpdateOne {
 }
 
 // AddUTime adds i to the "u_time" field.
-func (dpuo *DbPackageUpdateOne) AddUTime(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AddUTime(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.AddUTime(i)
 	return dpuo
 }
 
 // ClearUTime clears the value of the "u_time" field.
-func (dpuo *DbPackageUpdateOne) ClearUTime() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearUTime() *DBPackageUpdateOne {
 	dpuo.mutation.ClearUTime()
 	return dpuo
 }
 
 // SetSTime sets the "s_time" field.
-func (dpuo *DbPackageUpdateOne) SetSTime(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetSTime(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.ResetSTime()
 	dpuo.mutation.SetSTime(i)
 	return dpuo
 }
 
 // SetNillableSTime sets the "s_time" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableSTime(i *int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableSTime(i *int64) *DBPackageUpdateOne {
 	if i != nil {
 		dpuo.SetSTime(*i)
 	}
@@ -1023,26 +925,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableSTime(i *int64) *DbPackageUpdateOne {
 }
 
 // AddSTime adds i to the "s_time" field.
-func (dpuo *DbPackageUpdateOne) AddSTime(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AddSTime(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.AddSTime(i)
 	return dpuo
 }
 
 // ClearSTime clears the value of the "s_time" field.
-func (dpuo *DbPackageUpdateOne) ClearSTime() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearSTime() *DBPackageUpdateOne {
 	dpuo.mutation.ClearSTime()
 	return dpuo
 }
 
 // SetIoIn sets the "io_in" field.
-func (dpuo *DbPackageUpdateOne) SetIoIn(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetIoIn(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.ResetIoIn()
 	dpuo.mutation.SetIoIn(i)
 	return dpuo
 }
 
 // SetNillableIoIn sets the "io_in" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableIoIn(i *int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableIoIn(i *int64) *DBPackageUpdateOne {
 	if i != nil {
 		dpuo.SetIoIn(*i)
 	}
@@ -1050,26 +952,26 @@ func (dpuo *DbPackageUpdateOne) SetNillableIoIn(i *int64) *DbPackageUpdateOne {
 }
 
 // AddIoIn adds i to the "io_in" field.
-func (dpuo *DbPackageUpdateOne) AddIoIn(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AddIoIn(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.AddIoIn(i)
 	return dpuo
 }
 
 // ClearIoIn clears the value of the "io_in" field.
-func (dpuo *DbPackageUpdateOne) ClearIoIn() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearIoIn() *DBPackageUpdateOne {
 	dpuo.mutation.ClearIoIn()
 	return dpuo
 }
 
 // SetIoOut sets the "io_out" field.
-func (dpuo *DbPackageUpdateOne) SetIoOut(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetIoOut(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.ResetIoOut()
 	dpuo.mutation.SetIoOut(i)
 	return dpuo
 }
 
 // SetNillableIoOut sets the "io_out" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableIoOut(i *int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) SetNillableIoOut(i *int64) *DBPackageUpdateOne {
 	if i != nil {
 		dpuo.SetIoOut(*i)
 	}
@@ -1077,102 +979,62 @@ func (dpuo *DbPackageUpdateOne) SetNillableIoOut(i *int64) *DbPackageUpdateOne {
 }
 
 // AddIoOut adds i to the "io_out" field.
-func (dpuo *DbPackageUpdateOne) AddIoOut(i int64) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) AddIoOut(i int64) *DBPackageUpdateOne {
 	dpuo.mutation.AddIoOut(i)
 	return dpuo
 }
 
 // ClearIoOut clears the value of the "io_out" field.
-func (dpuo *DbPackageUpdateOne) ClearIoOut() *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) ClearIoOut() *DBPackageUpdateOne {
 	dpuo.mutation.ClearIoOut()
 	return dpuo
 }
 
-// SetSrcinfo sets the "srcinfo" field.
-func (dpuo *DbPackageUpdateOne) SetSrcinfo(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetSrcinfo(s)
+// SetTagRev sets the "tag_rev" field.
+func (dpuo *DBPackageUpdateOne) SetTagRev(s string) *DBPackageUpdateOne {
+	dpuo.mutation.SetTagRev(s)
 	return dpuo
 }
 
-// SetNillableSrcinfo sets the "srcinfo" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableSrcinfo(s *string) *DbPackageUpdateOne {
+// SetNillableTagRev sets the "tag_rev" field if the given value is not nil.
+func (dpuo *DBPackageUpdateOne) SetNillableTagRev(s *string) *DBPackageUpdateOne {
 	if s != nil {
-		dpuo.SetSrcinfo(*s)
+		dpuo.SetTagRev(*s)
 	}
 	return dpuo
 }
 
-// ClearSrcinfo clears the value of the "srcinfo" field.
-func (dpuo *DbPackageUpdateOne) ClearSrcinfo() *DbPackageUpdateOne {
-	dpuo.mutation.ClearSrcinfo()
+// ClearTagRev clears the value of the "tag_rev" field.
+func (dpuo *DBPackageUpdateOne) ClearTagRev() *DBPackageUpdateOne {
+	dpuo.mutation.ClearTagRev()
 	return dpuo
 }
 
-// SetSrcinfoHash sets the "srcinfo_hash" field.
-func (dpuo *DbPackageUpdateOne) SetSrcinfoHash(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetSrcinfoHash(s)
-	return dpuo
-}
-
-// SetNillableSrcinfoHash sets the "srcinfo_hash" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillableSrcinfoHash(s *string) *DbPackageUpdateOne {
-	if s != nil {
-		dpuo.SetSrcinfoHash(*s)
-	}
-	return dpuo
-}
-
-// ClearSrcinfoHash clears the value of the "srcinfo_hash" field.
-func (dpuo *DbPackageUpdateOne) ClearSrcinfoHash() *DbPackageUpdateOne {
-	dpuo.mutation.ClearSrcinfoHash()
-	return dpuo
-}
-
-// SetPkgbuild sets the "pkgbuild" field.
-func (dpuo *DbPackageUpdateOne) SetPkgbuild(s string) *DbPackageUpdateOne {
-	dpuo.mutation.SetPkgbuild(s)
-	return dpuo
-}
-
-// SetNillablePkgbuild sets the "pkgbuild" field if the given value is not nil.
-func (dpuo *DbPackageUpdateOne) SetNillablePkgbuild(s *string) *DbPackageUpdateOne {
-	if s != nil {
-		dpuo.SetPkgbuild(*s)
-	}
-	return dpuo
-}
-
-// ClearPkgbuild clears the value of the "pkgbuild" field.
-func (dpuo *DbPackageUpdateOne) ClearPkgbuild() *DbPackageUpdateOne {
-	dpuo.mutation.ClearPkgbuild()
-	return dpuo
-}
-
-// Mutation returns the DbPackageMutation object of the builder.
-func (dpuo *DbPackageUpdateOne) Mutation() *DbPackageMutation {
+// Mutation returns the DBPackageMutation object of the builder.
+func (dpuo *DBPackageUpdateOne) Mutation() *DBPackageMutation {
 	return dpuo.mutation
 }
 
-// Where appends a list predicates to the DbPackageUpdate builder.
-func (dpuo *DbPackageUpdateOne) Where(ps ...predicate.DbPackage) *DbPackageUpdateOne {
+// Where appends a list predicates to the DBPackageUpdate builder.
+func (dpuo *DBPackageUpdateOne) Where(ps ...predicate.DBPackage) *DBPackageUpdateOne {
 	dpuo.mutation.Where(ps...)
 	return dpuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
-func (dpuo *DbPackageUpdateOne) Select(field string, fields ...string) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) Select(field string, fields ...string) *DBPackageUpdateOne {
 	dpuo.fields = append([]string{field}, fields...)
 	return dpuo
 }
 
-// Save executes the query and returns the updated DbPackage entity.
-func (dpuo *DbPackageUpdateOne) Save(ctx context.Context) (*DbPackage, error) {
+// Save executes the query and returns the updated DBPackage entity.
+func (dpuo *DBPackageUpdateOne) Save(ctx context.Context) (*DBPackage, error) {
 	return withHooks(ctx, dpuo.sqlSave, dpuo.mutation, dpuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (dpuo *DbPackageUpdateOne) SaveX(ctx context.Context) *DbPackage {
+func (dpuo *DBPackageUpdateOne) SaveX(ctx context.Context) *DBPackage {
 	node, err := dpuo.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -1181,57 +1043,57 @@ func (dpuo *DbPackageUpdateOne) SaveX(ctx context.Context) *DbPackage {
 }
 
 // Exec executes the query on the entity.
-func (dpuo *DbPackageUpdateOne) Exec(ctx context.Context) error {
+func (dpuo *DBPackageUpdateOne) Exec(ctx context.Context) error {
 	_, err := dpuo.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (dpuo *DbPackageUpdateOne) ExecX(ctx context.Context) {
+func (dpuo *DBPackageUpdateOne) ExecX(ctx context.Context) {
 	if err := dpuo.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (dpuo *DbPackageUpdateOne) check() error {
+func (dpuo *DBPackageUpdateOne) check() error {
 	if v, ok := dpuo.mutation.Status(); ok {
 		if err := dbpackage.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DbPackage.status": %w`, err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DBPackage.status": %w`, err)}
 		}
 	}
 	if v, ok := dpuo.mutation.Repository(); ok {
 		if err := dbpackage.RepositoryValidator(v); err != nil {
-			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DbPackage.repository": %w`, err)}
+			return &ValidationError{Name: "repository", err: fmt.Errorf(`ent: validator failed for field "DBPackage.repository": %w`, err)}
 		}
 	}
 	if v, ok := dpuo.mutation.Lto(); ok {
 		if err := dbpackage.LtoValidator(v); err != nil {
-			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DbPackage.lto": %w`, err)}
+			return &ValidationError{Name: "lto", err: fmt.Errorf(`ent: validator failed for field "DBPackage.lto": %w`, err)}
 		}
 	}
 	if v, ok := dpuo.mutation.DebugSymbols(); ok {
 		if err := dbpackage.DebugSymbolsValidator(v); err != nil {
-			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DbPackage.debug_symbols": %w`, err)}
+			return &ValidationError{Name: "debug_symbols", err: fmt.Errorf(`ent: validator failed for field "DBPackage.debug_symbols": %w`, err)}
 		}
 	}
 	return nil
 }
 
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
-func (dpuo *DbPackageUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DbPackageUpdateOne {
+func (dpuo *DBPackageUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DBPackageUpdateOne {
 	dpuo.modifiers = append(dpuo.modifiers, modifiers...)
 	return dpuo
 }
 
-func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, err error) {
+func (dpuo *DBPackageUpdateOne) sqlSave(ctx context.Context) (_node *DBPackage, err error) {
 	if err := dpuo.check(); err != nil {
 		return _node, err
 	}
 	_spec := sqlgraph.NewUpdateSpec(dbpackage.Table, dbpackage.Columns, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
 	id, ok := dpuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DbPackage.id" for update`)}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DBPackage.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
 	if fields := dpuo.fields; len(fields) > 0 {
@@ -1303,12 +1165,6 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	if dpuo.mutation.UpdatedCleared() {
 		_spec.ClearField(dbpackage.FieldUpdated, field.TypeTime)
 	}
-	if value, ok := dpuo.mutation.Hash(); ok {
-		_spec.SetField(dbpackage.FieldHash, field.TypeString, value)
-	}
-	if dpuo.mutation.HashCleared() {
-		_spec.ClearField(dbpackage.FieldHash, field.TypeString)
-	}
 	if value, ok := dpuo.mutation.Lto(); ok {
 		_spec.SetField(dbpackage.FieldLto, field.TypeEnum, value)
 	}
@@ -1378,26 +1234,14 @@ func (dpuo *DbPackageUpdateOne) sqlSave(ctx context.Context) (_node *DbPackage, 
 	if dpuo.mutation.IoOutCleared() {
 		_spec.ClearField(dbpackage.FieldIoOut, field.TypeInt64)
 	}
-	if value, ok := dpuo.mutation.Srcinfo(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfo, field.TypeString, value)
+	if value, ok := dpuo.mutation.TagRev(); ok {
+		_spec.SetField(dbpackage.FieldTagRev, field.TypeString, value)
 	}
-	if dpuo.mutation.SrcinfoCleared() {
-		_spec.ClearField(dbpackage.FieldSrcinfo, field.TypeString)
-	}
-	if value, ok := dpuo.mutation.SrcinfoHash(); ok {
-		_spec.SetField(dbpackage.FieldSrcinfoHash, field.TypeString, value)
-	}
-	if dpuo.mutation.SrcinfoHashCleared() {
-		_spec.ClearField(dbpackage.FieldSrcinfoHash, field.TypeString)
-	}
-	if value, ok := dpuo.mutation.Pkgbuild(); ok {
-		_spec.SetField(dbpackage.FieldPkgbuild, field.TypeString, value)
-	}
-	if dpuo.mutation.PkgbuildCleared() {
-		_spec.ClearField(dbpackage.FieldPkgbuild, field.TypeString)
+	if dpuo.mutation.TagRevCleared() {
+		_spec.ClearField(dbpackage.FieldTagRev, field.TypeString)
 	}
 	_spec.AddModifiers(dpuo.modifiers...)
-	_node = &DbPackage{config: dpuo.config}
+	_node = &DBPackage{config: dpuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, dpuo.driver, _spec); err != nil {

@@ -9,16 +9,16 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent"
 )
 
-// The DbPackageFunc type is an adapter to allow the use of ordinary
-// function as DbPackage mutator.
-type DbPackageFunc func(context.Context, *ent.DbPackageMutation) (ent.Value, error)
+// The DBPackageFunc type is an adapter to allow the use of ordinary
+// function as DBPackage mutator.
+type DBPackageFunc func(context.Context, *ent.DBPackageMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f DbPackageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.DbPackageMutation); ok {
+func (f DBPackageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DBPackageMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DbPackageMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DBPackageMutation", m)
 }
 
 // Condition is a hook condition function.

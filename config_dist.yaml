@@ -2,11 +2,8 @@ arch: x86_64
 repos:
   - core
   - extra
-  - community
 
-svn2git:
-  upstream-core-extra: "https://github.com/archlinux/svntogit-packages.git"
-  upstream-community: "https://github.com/archlinux/svntogit-community.git"
+state_repo: "https://gitlab.archlinux.org/archlinux/packaging/state.git"
 
 db:
   driver: pgx

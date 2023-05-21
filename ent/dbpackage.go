@@ -13,8 +13,8 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 )
 
-// DbPackage is the model entity for the DbPackage schema.
-type DbPackage struct {
+// DBPackage is the model entity for the DBPackage schema.
+type DBPackage struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
@@ -38,8 +38,6 @@ type DbPackage struct {
 	BuildTimeStart time.Time `json:"build_time_start,omitempty"`
 	// Updated holds the value of the "updated" field.
 	Updated time.Time `json:"updated,omitempty"`
-	// Hash holds the value of the "hash" field.
-	Hash string `json:"hash,omitempty"`
 	// Lto holds the value of the "lto" field.
 	Lto dbpackage.Lto `json:"lto,omitempty"`
 	// LastVersionBuild holds the value of the "last_version_build" field.
@@ -58,17 +56,13 @@ type DbPackage struct {
 	IoIn *int64 `json:"io_in,omitempty"`
 	// IoOut holds the value of the "io_out" field.
 	IoOut *int64 `json:"io_out,omitempty"`
-	// Srcinfo holds the value of the "srcinfo" field.
-	Srcinfo *string `json:"srcinfo,omitempty"`
-	// SrcinfoHash holds the value of the "srcinfo_hash" field.
-	SrcinfoHash string `json:"srcinfo_hash,omitempty"`
-	// Pkgbuild holds the value of the "pkgbuild" field.
-	Pkgbuild     string `json:"pkgbuild,omitempty"`
+	// TagRev holds the value of the "tag_rev" field.
+	TagRev       *string `json:"tag_rev,omitempty"`
 	selectValues sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*DbPackage) scanValues(columns []string) ([]any, error) {
+func (*DBPackage) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
@@ -76,7 +70,7 @@ func (*DbPackage) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case dbpackage.FieldID, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldHash, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols, dbpackage.FieldSrcinfo, dbpackage.FieldSrcinfoHash, dbpackage.FieldPkgbuild:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols, dbpackage.FieldTagRev:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTimeStart, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
@@ -88,8 +82,8 @@ func (*DbPackage) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the DbPackage fields.
-func (dp *DbPackage) assignValues(columns []string, values []any) error {
+// to the DBPackage fields.
+func (dp *DBPackage) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -163,12 +157,6 @@ func (dp *DbPackage) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				dp.Updated = value.Time
 			}
-		case dbpackage.FieldHash:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field hash", values[i])
-			} else if value.Valid {
-				dp.Hash = value.String
-			}
 		case dbpackage.FieldLto:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field lto", values[i])
@@ -228,24 +216,12 @@ func (dp *DbPackage) assignValues(columns []string, values []any) error {
 				dp.IoOut = new(int64)
 				*dp.IoOut = value.Int64
 			}
-		case dbpackage.FieldSrcinfo:
+		case dbpackage.FieldTagRev:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field srcinfo", values[i])
+				return fmt.Errorf("unexpected type %T for field tag_rev", values[i])
 			} else if value.Valid {
-				dp.Srcinfo = new(string)
-				*dp.Srcinfo = value.String
-			}
-		case dbpackage.FieldSrcinfoHash:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field srcinfo_hash", values[i])
-			} else if value.Valid {
-				dp.SrcinfoHash = value.String
-			}
-		case dbpackage.FieldPkgbuild:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field pkgbuild", values[i])
-			} else if value.Valid {
-				dp.Pkgbuild = value.String
+				dp.TagRev = new(string)
+				*dp.TagRev = value.String
 			}
 		default:
 			dp.selectValues.Set(columns[i], values[i])
@@ -254,34 +230,34 @@ func (dp *DbPackage) assignValues(columns []string, values []any) error {
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the DbPackage.
+// Value returns the ent.Value that was dynamically selected and assigned to the DBPackage.
 // This includes values selected through modifiers, order, etc.
-func (dp *DbPackage) Value(name string) (ent.Value, error) {
+func (dp *DBPackage) Value(name string) (ent.Value, error) {
 	return dp.selectValues.Get(name)
 }
 
-// Update returns a builder for updating this DbPackage.
-// Note that you need to call DbPackage.Unwrap() before calling this method if this DbPackage
+// Update returns a builder for updating this DBPackage.
+// Note that you need to call DBPackage.Unwrap() before calling this method if this DBPackage
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (dp *DbPackage) Update() *DbPackageUpdateOne {
-	return NewDbPackageClient(dp.config).UpdateOne(dp)
+func (dp *DBPackage) Update() *DBPackageUpdateOne {
+	return NewDBPackageClient(dp.config).UpdateOne(dp)
 }
 
-// Unwrap unwraps the DbPackage entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the DBPackage entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (dp *DbPackage) Unwrap() *DbPackage {
+func (dp *DBPackage) Unwrap() *DBPackage {
 	_tx, ok := dp.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: DbPackage is not a transactional entity")
+		panic("ent: DBPackage is not a transactional entity")
 	}
 	dp.config.driver = _tx.drv
 	return dp
 }
 
 // String implements the fmt.Stringer.
-func (dp *DbPackage) String() string {
+func (dp *DBPackage) String() string {
 	var builder strings.Builder
-	builder.WriteString("DbPackage(")
+	builder.WriteString("DBPackage(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", dp.ID))
 	builder.WriteString("pkgbase=")
 	builder.WriteString(dp.Pkgbase)
@@ -312,9 +288,6 @@ func (dp *DbPackage) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated=")
 	builder.WriteString(dp.Updated.Format(time.ANSIC))
-	builder.WriteString(", ")
-	builder.WriteString("hash=")
-	builder.WriteString(dp.Hash)
 	builder.WriteString(", ")
 	builder.WriteString("lto=")
 	builder.WriteString(fmt.Sprintf("%v", dp.Lto))
@@ -353,19 +326,13 @@ func (dp *DbPackage) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.Srcinfo; v != nil {
-		builder.WriteString("srcinfo=")
+	if v := dp.TagRev; v != nil {
+		builder.WriteString("tag_rev=")
 		builder.WriteString(*v)
 	}
-	builder.WriteString(", ")
-	builder.WriteString("srcinfo_hash=")
-	builder.WriteString(dp.SrcinfoHash)
-	builder.WriteString(", ")
-	builder.WriteString("pkgbuild=")
-	builder.WriteString(dp.Pkgbuild)
 	builder.WriteByte(')')
 	return builder.String()
 }
 
-// DbPackages is a parsable slice of DbPackage.
-type DbPackages []*DbPackage
+// DBPackages is a parsable slice of DBPackage.
+type DBPackages []*DBPackage

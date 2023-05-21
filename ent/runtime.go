@@ -11,7 +11,7 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	dbpackageFields := schema.DbPackage{}.Fields()
+	dbpackageFields := schema.DBPackage{}.Fields()
 	_ = dbpackageFields
 	// dbpackageDescPkgbase is the schema descriptor for pkgbase field.
 	dbpackageDescPkgbase := dbpackageFields[0].Descriptor()

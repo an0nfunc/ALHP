@@ -15,7 +15,7 @@ import (
 func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
-	log.Debugf("[%s] Start housekeeping", fullRepo)
+	log.Debugf("[%s] start housekeeping", fullRepo)
 	packages, err := Glob(filepath.Join(conf.Basedir.Repo, fullRepo, "/**/*.pkg.tar.zst"))
 	if err != nil {
 		return err
@@ -29,9 +29,9 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		if ent.IsNotFound(err) {
 			log.Infof("[HK] removing orphan %s->%s", fullRepo, filepath.Base(path))
 			pkg := &ProtoPackage{
-				FullRepo: mPackage.FullRepo(),
+				FullRepo: *mPackage.FullRepo(),
 				PkgFiles: []string{path},
-				March:    mPackage.MArch(),
+				March:    *mPackage.MArch(),
 			}
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
@@ -43,21 +43,11 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		pkg := &ProtoPackage{
 			Pkgbase:   dbPkg.Pkgbase,
 			Repo:      mPackage.Repo(),
-			FullRepo:  mPackage.FullRepo(),
+			FullRepo:  *mPackage.FullRepo(),
 			DBPackage: dbPkg,
-			March:     mPackage.MArch(),
-			Arch:      mPackage.Arch(),
+			March:     *mPackage.MArch(),
+			Arch:      *mPackage.Arch(),
 		}
-
-		var upstream string
-		switch pkg.DBPackage.Repository {
-		case dbpackage.RepositoryCore, dbpackage.RepositoryExtra:
-			upstream = "upstream-core-extra"
-		case dbpackage.RepositoryCommunity:
-			upstream = "upstream-community"
-		}
-		pkg.Pkgbuild = filepath.Join(conf.Basedir.Work, upstreamDir, upstream, dbPkg.Pkgbase, "repos",
-			pkg.DBPackage.Repository.String()+"-"+conf.Arch, "PKGBUILD")
 
 		// check if package is still part of repo
 		dbs, err := alpmHandle.SyncDBs()
@@ -72,7 +62,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK] %s->%s not included in repo", pkg.FullRepo, mPackage.Name())
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-			err = db.DbPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
+			err = db.DBPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
 			if err != nil {
 				return err
 			}
@@ -100,7 +90,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		repoVer, err := pkg.repoVersion()
 		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK] %s->%s update repoVersion %s->%s", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearHash().Save(context.Background())
+			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev().Save(context.Background())
 			if err != nil {
 				return err
 			}
@@ -108,7 +98,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	}
 
 	// check all packages from db for existence
-	dbPackages, err := db.DbPackage.Query().Where(
+	dbPackages, err := db.DBPackage.Query().Where(
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
 			dbpackage.March(march),
@@ -130,9 +120,9 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 
 		if !pkg.isAvailable(alpmHandle) {
 			log.Infof("[HK] %s->%s not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
-			err = db.DbPackage.DeleteOne(dbPkg).Exec(context.Background())
+			err = db.DBPackage.DeleteOne(dbPkg).Exec(context.Background())
 			if err != nil {
-				log.Errorf("[HK] Error deleting package %s: %v", dbPkg.Pkgbase, err)
+				log.Errorf("[HK] error deleting package %s->%s: %v", pkg.FullRepo, dbPkg.Pkgbase, err)
 			}
 			continue
 		}
@@ -165,7 +155,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			}
 			if len(missingSplits) > 0 {
 				log.Infof("[HK] %s->%s missing split-package(s): %s", fullRepo, dbPkg.Pkgbase, missingSplits)
-				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 				if err != nil {
 					return err
 				}
@@ -180,7 +170,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			}
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
 			log.Infof("[HK] reseting missing package %s->%s with no repo version", fullRepo, dbPkg.Pkgbase)
-			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearHash().ClearRepoVersion().Exec(context.Background())
+			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().ClearRepoVersion().Exec(context.Background())
 			if err != nil {
 				return err
 			}
@@ -224,7 +214,7 @@ func logHK() error {
 			continue
 		}
 
-		pkgSkipped, err := db.DbPackage.Query().Where(
+		pkgSkipped, err := db.DBPackage.Query().Where(
 			dbpackage.Pkgbase(pkg.Pkgbase),
 			dbpackage.March(pkg.March),
 			dbpackage.StatusEQ(dbpackage.StatusSkipped),
@@ -245,8 +235,8 @@ func logHK() error {
 		sLogContent := string(logContent)
 
 		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) {
-			rows, err := db.DbPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearHash().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+			rows, err := db.DBPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 			if err != nil {
 				return err
 			}
@@ -255,12 +245,12 @@ func logHK() error {
 				log.Infof("[HK/%s/%s] fixable build-error detected, requeueing package (%d)", pkg.March, pkg.Pkgbase, rows)
 			}
 		} else if reLdError.MatchString(sLogContent) || reRustLTOError.MatchString(sLogContent) {
-			rows, err := db.DbPackage.Update().Where(
+			rows, err := db.DBPackage.Update().Where(
 				dbpackage.Pkgbase(pkg.Pkgbase),
 				dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed),
 				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-			).ClearHash().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
+			).ClearTagRev().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
 			if err != nil {
 				return err
 			}

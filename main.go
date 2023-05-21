@@ -40,17 +40,17 @@ func main() {
 
 	confStr, err := os.ReadFile("config.yaml")
 	if err != nil {
-		log.Fatalf("Error reading config file: %v", err)
+		log.Fatalf("error reading config file: %v", err)
 	}
 
 	err = yaml.Unmarshal(confStr, &conf)
 	if err != nil {
-		log.Fatalf("Error parsing config file: %v", err)
+		log.Fatalf("error parsing config file: %v", err)
 	}
 
 	lvl, err := log.ParseLevel(conf.Logging.Level)
 	if err != nil {
-		log.Fatalf("Error parsing log level from config: %v", err)
+		log.Fatalf("error parsing log level from config: %v", err)
 	}
 	log.SetLevel(lvl)
 	if *journalLog {
@@ -59,18 +59,18 @@ func main() {
 
 	err = syscall.Setpriority(syscall.PRIO_PROCESS, 0, 5)
 	if err != nil {
-		log.Infof("Failed to drop priority: %v", err)
+		log.Infof("failed to drop priority: %v", err)
 	}
 
 	err = os.MkdirAll(conf.Basedir.Repo, 0o755)
 	if err != nil {
-		log.Fatalf("Error creating repo dir: %v", err)
+		log.Fatalf("error creating repo dir: %v", err)
 	}
 
 	if conf.DB.Driver == "pgx" {
 		pdb, err := sql.Open("pgx", conf.DB.ConnectTo)
 		if err != nil {
-			log.Fatalf("Failed to open database %s: %v", conf.DB.ConnectTo, err)
+			log.Fatalf("failed to open database %s: %v", conf.DB.ConnectTo, err)
 		}
 
 		drv := sql.OpenDB(dialect.Postgres, pdb.DB())
@@ -78,7 +78,7 @@ func main() {
 	} else {
 		db, err = ent.Open(conf.DB.Driver, conf.DB.ConnectTo)
 		if err != nil {
-			log.Panicf("Failed to open database %s: %v", conf.DB.ConnectTo, err)
+			log.Panicf("failed to open database %s: %v", conf.DB.ConnectTo, err)
 		}
 		defer func(Client *ent.Client) {
 			_ = Client.Close()
@@ -86,7 +86,7 @@ func main() {
 	}
 
 	if err := db.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
-		log.Panicf("Automigrate failed: %v", err)
+		log.Panicf("automigrate failed: %v", err)
 	}
 
 	buildManager = &BuildManager{
@@ -101,17 +101,17 @@ func main() {
 
 	err = setupChroot()
 	if err != nil {
-		log.Panicf("Unable to setup chroot: %v", err)
+		log.Panicf("unable to setup chroot: %v", err)
 	}
 	err = syncMarchs()
 	if err != nil {
-		log.Panicf("Error syncing marchs: %v", err)
+		log.Panicf("error syncing marchs: %v", err)
 	}
 
 	alpmHandle, err = initALPM(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot),
 		filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "/var/lib/pacman"))
 	if err != nil {
-		log.Panicf("Error while ALPM-init: %v", err)
+		log.Panicf("error while ALPM-init: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -129,20 +129,20 @@ killLoop:
 		case <-reloadSignals:
 			confStr, err := os.ReadFile("config.yaml")
 			if err != nil {
-				log.Panicf("Unable to open config: %v", err)
+				log.Panicf("unable to open config: %v", err)
 			}
 
 			err = yaml.Unmarshal(confStr, &conf)
 			if err != nil {
-				log.Panicf("Unable to parse config: %v", err)
+				log.Panicf("unable to parse config: %v", err)
 			}
 
 			lvl, err := log.ParseLevel(conf.Logging.Level)
 			if err != nil {
-				log.Panicf("Failure setting logging level: %v", err)
+				log.Panicf("failure setting logging level: %v", err)
 			}
 			log.SetLevel(lvl)
-			log.Infof("Config reloaded")
+			log.Infof("config reloaded")
 		}
 	}
 
