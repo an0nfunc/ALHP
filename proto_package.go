@@ -336,8 +336,14 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 		return "", err
 	}
 
+	gitlabPath := reReplaceSinglePlus.ReplaceAllString(p.Pkgbase, "$1-$2")
+	gitlabPath = reReplaceRemainingPlus.ReplaceAllString(gitlabPath, "plus")
+	gitlabPath = reReplaceSpecialChars.ReplaceAllString(gitlabPath, "-")
+	gitlabPath = reReplaceUnderscore.ReplaceAllString(gitlabPath, "-")
+	gitlabPath = reReplaceTree.ReplaceAllString(gitlabPath, "unix-tree")
+
 	cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
-		fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", p.Pkgbase), buildDir)
+		fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
 	res, err := cmd.CombinedOutput()
 	log.Debug(string(res))
 	if err != nil {
