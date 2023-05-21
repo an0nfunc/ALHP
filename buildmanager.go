@@ -114,6 +114,9 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 						b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					} else if err == nil {
 						log.Infof("[Q] build successful: %s->%s (%s)", pkg.FullRepo, pkg.Pkgbase, dur)
+					} else if err != nil {
+						log.Warningf("[Q] error building package %s->%s in %s: %s", pkg.FullRepo, pkg.Pkgbase, dur, err)
+						b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					}
 					doneQLock.Lock()
 					b.buildingLock.Lock()
