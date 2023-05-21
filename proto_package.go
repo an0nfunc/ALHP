@@ -453,8 +453,11 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		var res []byte
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
-		if err != nil || len(res) == 0 {
+		if err != nil {
 			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
+			buildManager.alpmMutex.Unlock()
+			return false
+		} else if len(res) == 0 {
 			buildManager.alpmMutex.Unlock()
 			return false
 		}
