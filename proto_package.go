@@ -10,6 +10,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	"github.com/google/uuid"
 	"github.com/otiai10/copy"
+	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -342,13 +343,23 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	gitlabPath = reReplaceUnderscore.ReplaceAllString(gitlabPath, "-")
 	gitlabPath = reReplaceTree.ReplaceAllString(gitlabPath, "unix-tree")
 
-	cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
-		fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
-	res, err := cmd.CombinedOutput()
-	log.Debug(string(res))
-	if err != nil {
-		log.Fatalf("error cloning package repo %s: %v (%s)", p.Pkgbase, err, string(res))
-		return "", err
+	if err := retry.Fibonacci(context.Background(), 1*time.Second, func(ctx context.Context) error {
+		cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
+			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
+		res, err := cmd.CombinedOutput()
+		log.Debug(string(res))
+		if err != nil {
+			gitHTTPMatch := reGitHTTPError.FindAllStringSubmatch(string(res), -1)
+			if len(gitHTTPMatch) > 0 && gitHTTPMatch[0][1] == "429" {
+				log.Infof("unable to clone %s->%s repo, trying again later", p.March, p.Pkgbase)
+				return retry.RetryableError(err)
+			} else {
+				return fmt.Errorf("git clone failed: %s", string(res))
+			}
+		}
+		return nil
+	}); err != nil {
+		log.Fatal(err)
 	}
 	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
 

@@ -50,6 +50,7 @@ var (
 	reReplaceSpecialChars  = regexp.MustCompile(`(?m)[^a-zA-Z0-9_\-.]`)
 	reReplaceUnderscore    = regexp.MustCompile(`(?m)[_\-]{2,}`)
 	reReplaceTree          = regexp.MustCompile(`(?m)^tree$`)
+	reGitHTTPError         = regexp.MustCompile(`(?mi)The requested URL returned error: (\d+)`)
 )
 
 type Conf struct {
