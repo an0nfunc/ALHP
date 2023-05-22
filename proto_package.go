@@ -42,43 +42,43 @@ var (
 	ErrorNotEligible = errors.New("package is not eligible")
 )
 
-func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
+func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	if !p.isAvailable(alpmHandle) {
 		log.Debugf("[%s/%s] not available on mirror, skipping build", p.FullRepo, p.Pkgbase)
-		return false, nil
+		return false
 	}
 
 	skipping := false
 	switch {
-	case Contains(p.Srcinfo.Arch, "any"):
-		log.Debugf("skipped %s: any-package", p.Srcinfo.Pkgbase)
+	case p.Arch == "any":
+		log.Debugf("skipped %s: any-package", p.Pkgbase)
 		p.DBPackage.SkipReason = "arch = any"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	case Contains(conf.Blacklist.Packages, p.Srcinfo.Pkgbase):
+	case Contains(conf.Blacklist.Packages, p.Pkgbase):
 		log.Debugf("skipped %s: blacklisted package", p.Pkgbase)
 		p.DBPackage.SkipReason = "blacklisted"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case p.DBPackage.MaxRss != nil && datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit:
-		log.Debugf("skipped %s: memory limit exceeded (%s)", p.Srcinfo.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
+		log.Debugf("skipped %s: memory limit exceeded (%s)", p.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
 		p.DBPackage.SkipReason = "memory limit exceeded"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case p.isPkgFailed():
-		log.Debugf("skipped %s: failed build", p.Srcinfo.Pkgbase)
+		log.Debugf("skipped %s: failed build", p.Pkgbase)
 		skipping = true
 	}
 
 	if skipping {
-		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SetStatus(p.DBPackage.Status).
+		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).SetStatus(p.DBPackage.Status).
 			SetSkipReason(p.DBPackage.SkipReason).SetTagRev(p.State.TagRev).SaveX(ctx)
-		return false, nil
+		return false
 	} else {
-		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetPackages(packages2slice(p.Srcinfo.Packages)).SetVersion(p.Version).SaveX(ctx)
+		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).SaveX(ctx)
 	}
 
-	if Contains(conf.Blacklist.LTO, p.Pkgbase) {
+	if Contains(conf.Blacklist.LTO, p.Pkgbase) && p.DBPackage.Lto != dbpackage.LtoDisabled {
 		p.DBPackage = p.DBPackage.Update().SetLto(dbpackage.LtoDisabled).SaveX(ctx)
 	}
 
@@ -88,50 +88,10 @@ func (p *ProtoPackage) isEligible(ctx context.Context) (bool, error) {
 	} else if err == nil && alpm.VerCmp(repoVer, p.Version) > 0 {
 		log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", p.Srcinfo.Pkgbase, p.Version, repoVer)
 		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetTagRev(p.State.TagRev).SaveX(ctx)
-		return false, nil
+		return false
 	}
 
-	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
-	if err != nil {
-		switch err.(type) {
-		default:
-			return false, fmt.Errorf("error solving deps: %w", err)
-		case MultipleStateFilesError:
-			log.Infof("skipped %s: Multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
-			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
-			return false, err
-		case UnableToSatisfyError:
-			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
-			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
-			return false, err
-		}
-	}
-
-	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).SaveX(ctx)
-
-	if !isLatest {
-		if local != nil {
-			log.Infof("delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)",
-				p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
-			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).
-				SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
-
-			// Returning an error here causes the package to be purged.
-			// Purge delayed packages in case delay is caused by inconsistencies in svn2git.
-			// Worst case would be clients downloading a package update twice, once from their official mirror,
-			// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
-			// in an outdated version.
-			if time.Since(local.BuildDate()).Hours() >= 48 && p.DBPackage.RepoVersion != "" {
-				return false, errors.New("overdue package waiting")
-			}
-		} else {
-			log.Infof("delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
-			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason("waiting for mirror").ExecX(ctx)
-		}
-		return false, nil
-	}
-
-	return true, nil
+	return true
 }
 
 func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
@@ -156,14 +116,45 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
 	}
 	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+	p.DBPackage = p.DBPackage.Update().SetPackages(packages2slice(p.Srcinfo.Packages)).SaveX(ctx)
 
-	elig, err := p.isEligible(context.Background())
+	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
 	if err != nil {
-		log.Warningf("[QG] %s->%s: %v", p.FullRepo, p.Pkgbase, err)
+		switch err.(type) {
+		default:
+			return 0, fmt.Errorf("error solving deps: %w", err)
+		case MultipleStateFilesError:
+			log.Infof("skipped %s: multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
+			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
+			return 0, err
+		case UnableToSatisfyError:
+			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
+			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
+			return 0, err
+		}
 	}
 
-	if !elig {
-		return time.Since(start), ErrorNotEligible
+	if !isLatest {
+		if local != nil {
+			log.Infof("delayed %s: not all dependencies are up to date (local: %s==%s, sync: %s==%s)",
+				p.Srcinfo.Pkgbase, local.Name(), local.Version(), local.Name(), syncVersion)
+			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).
+				SetSkipReason(fmt.Sprintf("waiting for %s==%s", local.Name(), syncVersion)).ExecX(ctx)
+
+			// Returning an error here causes the package to be purged.
+			// Purge delayed packages in case delay is caused by inconsistencies in state.
+			// Worst case would be clients downloading a package update twice, once from their official mirror,
+			// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
+			// in an outdated version.
+			if time.Since(local.BuildDate()).Hours() >= 48 && p.DBPackage.RepoVersion != "" {
+				return 0, errors.New("overdue package waiting")
+			}
+		} else {
+			log.Infof("delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
+			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason("waiting for mirror").ExecX(ctx)
+		}
+
+		return 0, ErrorNotEligible
 	}
 
 	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)

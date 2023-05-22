@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Jguer/go-alpm/v2"
 	"github.com/c2h5oh/datasize"
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
@@ -595,47 +594,7 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
-			if !pkg.isAvailable(alpmHandle) {
-				log.Debugf("[%s/%s] not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
-				continue
-			}
-
-			skipping := false
-			switch {
-			case arch == "any":
-				log.Debugf("skipped %s: any-package", pkg.Pkgbase)
-				pkg.DBPackage.SkipReason = "arch = any"
-				pkg.DBPackage.Status = dbpackage.StatusSkipped
-				skipping = true
-			case Contains(conf.Blacklist.Packages, pkg.Pkgbase):
-				log.Debugf("skipped %s: blacklisted package", pkg.Pkgbase)
-				pkg.DBPackage.SkipReason = "blacklisted"
-				pkg.DBPackage.Status = dbpackage.StatusSkipped
-				skipping = true
-			case pkg.DBPackage.MaxRss != nil && datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit:
-				log.Debugf("skipped %s: memory limit exceeded (%s)", pkg.Pkgbase, datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB)
-				pkg.DBPackage.SkipReason = "memory limit exceeded"
-				pkg.DBPackage.Status = dbpackage.StatusSkipped
-				skipping = true
-			case pkg.isPkgFailed():
-				log.Debugf("skipped %s: failed build", pkg.Pkgbase)
-				skipping = true
-			}
-
-			if skipping {
-				pkg.DBPackage = pkg.DBPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SetStatus(pkg.DBPackage.Status).
-					SetSkipReason(pkg.DBPackage.SkipReason).SetTagRev(pkg.State.TagRev).SaveX(context.Background())
-				continue
-			} else {
-				pkg.DBPackage = pkg.DBPackage.Update().SetUpdated(time.Now()).SetVersion(pkg.Version).SaveX(context.Background())
-			}
-
-			repoVer, err := pkg.repoVersion()
-			if err != nil {
-				pkg.DBPackage = pkg.DBPackage.Update().ClearRepoVersion().SaveX(context.Background())
-			} else if err == nil && alpm.VerCmp(repoVer, pkg.Version) > 0 {
-				log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", pkg.Pkgbase, pkg.Version, repoVer)
-				pkg.DBPackage = pkg.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetTagRev(pkg.State.TagRev).SaveX(context.Background())
+			if !pkg.isEligible(context.Background()) {
 				continue
 			}
 
