@@ -86,7 +86,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	if err != nil {
 		p.DBPackage = p.DBPackage.Update().ClearRepoVersion().SaveX(ctx)
 	} else if err == nil && alpm.VerCmp(repoVer, p.Version) > 0 {
-		log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", p.Srcinfo.Pkgbase, p.Version, repoVer)
+		log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", p.Pkgbase, p.Version, repoVer)
 		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetTagRev(p.State.TagRev).SaveX(ctx)
 		return false
 	}
