@@ -118,7 +118,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
 		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("haskell").SetTagRev(p.State.TagRev).SaveX(ctx)
 		buildManager.repoPurge[p.FullRepo] <- []*ProtoPackage{p}
-		return time.Since(start), nil
+		return time.Since(start), ErrorNotEligible
 	}
 
 	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
