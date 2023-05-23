@@ -118,19 +118,26 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
 	p.DBPackage = p.DBPackage.Update().SetPackages(packages2slice(p.Srcinfo.Packages)).SaveX(ctx)
 
+	// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
+	if Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
+		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
+		buildManager.repoPurge[p.FullRepo] <- []*ProtoPackage{p}
+		return time.Since(start), nil
+	}
+
 	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
 	if err != nil {
 		switch err.(type) {
 		default:
-			return 0, fmt.Errorf("error solving deps: %w", err)
+			return time.Since(start), fmt.Errorf("error solving deps: %w", err)
 		case MultipleStateFilesError:
 			log.Infof("skipped %s: multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
-			return 0, err
+			return time.Since(start), err
 		case UnableToSatisfyError:
 			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
-			return 0, err
+			return time.Since(start), err
 		}
 	}
 
@@ -147,14 +154,14 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			// and then after build from ALHP. Best case we prevent a not buildable package from staying in the repos
 			// in an outdated version.
 			if time.Since(local.BuildDate()).Hours() >= 48 && p.DBPackage.RepoVersion != "" {
-				return 0, errors.New("overdue package waiting")
+				return time.Since(start), errors.New("overdue package waiting")
 			}
 		} else {
 			log.Infof("delayed %s: not all dependencies are up to date or resolvable", p.Srcinfo.Pkgbase)
 			p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).SetSkipReason("waiting for mirror").ExecX(ctx)
 		}
 
-		return 0, ErrorNotEligible
+		return time.Since(start), ErrorNotEligible
 	}
 
 	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)

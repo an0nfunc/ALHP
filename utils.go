@@ -242,6 +242,22 @@ func movePackagesLive(fullRepo string) error {
 			continue
 		}
 
+		rawState, err := os.ReadFile(filepath.Join(conf.Basedir.Work, stateDir, dbPkg.Repository.String()+"-"+conf.Arch, dbPkg.Pkgbase))
+		if err != nil {
+			log.Warningf("[MOVE] state not found for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+			_ = os.Remove(file)
+			_ = os.Remove(file + ".sig")
+			continue
+		}
+
+		state, err := parseState(string(rawState))
+		if err != nil {
+			log.Warningf("[MOVE] error parsing state file for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+			_ = os.Remove(file)
+			_ = os.Remove(file + ".sig")
+			continue
+		}
+
 		err = os.Rename(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
 		if err != nil {
 			return err
@@ -256,6 +272,7 @@ func movePackagesLive(fullRepo string) error {
 			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
 			Version:   pkg.Version(),
 			March:     march,
+			State:     state,
 		})
 	}
 
