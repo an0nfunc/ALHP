@@ -43,11 +43,6 @@ var (
 )
 
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
-	if !p.isAvailable(alpmHandle) {
-		log.Debugf("[%s/%s] not available on mirror, skipping build", p.FullRepo, p.Pkgbase)
-		return false
-	}
-
 	skipping := false
 	switch {
 	case p.Arch == "any":
