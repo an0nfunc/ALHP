@@ -588,15 +588,23 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				Arch:     arch,
 			}
 
+			err = pkg.toDBPackage(false)
+			if err != nil {
+				log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
+				continue
+			}
+
 			if !pkg.isAvailable(alpmHandle) {
 				log.Debugf("[QG] %s->%s not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
 				continue
 			}
 
-			err = pkg.toDBPackage(true)
-			if err != nil {
-				log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
-				continue
+			if pkg.DBPackage == nil {
+				err = pkg.toDBPackage(true)
+				if err != nil {
+					log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
+					continue
+				}
 			}
 
 			if !pkg.isEligible(context.Background()) {
