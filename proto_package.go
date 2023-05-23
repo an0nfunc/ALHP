@@ -456,7 +456,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	var pkg alpm.IPackage
 	if p.Srcinfo != nil {
 		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
-	} else if len(p.DBPackage.Packages) > 0 {
+	} else if p.DBPackage != nil && len(p.DBPackage.Packages) > 0 {
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
 	} else {
 		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String())
