@@ -121,6 +121,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
 	if Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
 		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
+		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("haskell").SetTagRev(p.State.TagRev).SaveX(ctx)
 		buildManager.repoPurge[p.FullRepo] <- []*ProtoPackage{p}
 		return time.Since(start), nil
 	}
