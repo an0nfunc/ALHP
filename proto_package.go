@@ -337,19 +337,16 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	gitlabPath = reReplaceUnderscore.ReplaceAllString(gitlabPath, "-")
 	gitlabPath = reReplaceTree.ReplaceAllString(gitlabPath, "unix-tree")
 
-	if err := retry.Fibonacci(context.Background(), 10*time.Second, func(ctx context.Context) error {
+	gr := retry.NewFibonacci(10 * time.Second)
+	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
+
+	if err := retry.Do(context.Background(), gr, func(ctx context.Context) error {
 		cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
 			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			gitHTTPMatch := reGitHTTPError.FindAllStringSubmatch(string(res), -1)
-			if len(gitHTTPMatch) > 0 && gitHTTPMatch[0][1] == "429" {
-				log.Infof("unable to clone %s->%s repo, trying again later", p.March, p.Pkgbase)
-				return retry.RetryableError(err)
-			} else {
-				return fmt.Errorf("git clone failed: %s", string(res))
-			}
+			return retry.RetryableError(err)
 		}
 		return nil
 	}); err != nil {
