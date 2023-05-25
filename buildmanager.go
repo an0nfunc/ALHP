@@ -607,6 +607,10 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				}
 			}
 
+			if pkg.DBPackage.TagRev != nil && *pkg.DBPackage.TagRev == state.TagRev {
+				continue
+			}
+
 			if !pkg.isEligible(context.Background()) {
 				continue
 			}
