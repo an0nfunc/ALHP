@@ -611,6 +611,7 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
+			pkg.DBPackage = pkg.DBPackage.Update().SetStatus(dbpackage.StatusQueued).SaveX(context.Background())
 			pkgbuilds = append(pkgbuilds, pkg)
 		}
 	}
