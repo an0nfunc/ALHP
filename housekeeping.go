@@ -107,7 +107,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	log.Debugf("[HK/%s] checking %d existing package-files", fullRepo, len(dbPackages))
+	log.Debugf("[HK/%s] checking %d packages from database", fullRepo, len(dbPackages))
 
 	for _, dbPkg := range dbPackages {
 		pkg := &ProtoPackage{

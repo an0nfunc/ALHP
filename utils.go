@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	pacmanConf     = "/usr/share/devtools/pacman.conf.d/extra.conf"
+	pacmanConf     = "/usr/share/devtools/pacman.conf.d/multilib.conf"
 	makepkgConf    = "/usr/share/devtools/makepkg.conf.d/x86_64.conf"
 	logDir         = "logs"
 	pristineChroot = "root"
@@ -317,12 +317,12 @@ func initALPM(root, dbpath string) (*alpm.Handle, error) {
 		return nil, err
 	}
 
-	PacmanConfig, _, err := paconf.ParseFile(filepath.Join(root, "/etc/pacman.conf"))
+	pacmanConfig, _, err := paconf.ParseFile(pacmanConf)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, repo := range PacmanConfig.Repos {
+	for _, repo := range pacmanConfig.Repos {
 		db, err := h.RegisterSyncDB(repo.Name, 0)
 		if err != nil {
 			return nil, err
@@ -355,7 +355,7 @@ func setupChroot() error {
 	_, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
 	switch {
 	case err == nil:
-		cmd := exec.Command("arch-nspawn", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), //nolint:gosec
+		cmd := exec.Command("arch-nspawn", "-C", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), //nolint:gosec
 			"pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -367,12 +367,19 @@ func setupChroot() error {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, //nolint:gosec
-			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel")
+		cmd := exec.Command("mkarchroot", "-C", pacmanConf, "-M", makepkgConf, //nolint:gosec
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel", "multilib-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
 			return fmt.Errorf("error creating chroot: %w\n%s", err, string(res))
+		}
+
+		cmd = exec.Command("sudo", "cp", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf")) //nolint:gosec
+		res, err = cmd.CombinedOutput()
+		log.Debug(string(res))
+		if err != nil {
+			return fmt.Errorf("error copying pacman.conf to chroot: %w\n%s", err, string(res))
 		}
 	default:
 		return err
@@ -406,7 +413,7 @@ func syncMarchs() error {
 	for _, march := range conf.March {
 		err := setupMakepkg(march, flagCfg)
 		if err != nil {
-			log.Fatalf("Can't generate makepkg for %s: %v", march, err)
+			log.Fatalf("error generating makepkg for %s: %v", march, err)
 		}
 
 		for _, repo := range conf.Repos {
@@ -417,7 +424,7 @@ func syncMarchs() error {
 			go buildManager.repoWorker(fRepo)
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
-				log.Debugf("Creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
+				log.Debugf("creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
 				err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch), 0o755)
 				if err != nil {
 					return err
@@ -430,10 +437,10 @@ func syncMarchs() error {
 		}
 	}
 
-	log.Infof("Repos: %s", repos)
+	log.Infof("repos: %s", repos)
 
 	for _, repo := range eRepos {
-		log.Infof("Removing old repo %s", repo)
+		log.Infof("removing old repo %s", repo)
 		err = os.RemoveAll(filepath.Join(conf.Basedir.Repo, repo))
 		if err != nil {
 			return err

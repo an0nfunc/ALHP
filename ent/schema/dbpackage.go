@@ -18,7 +18,7 @@ func (DBPackage) Fields() []ent.Field {
 		field.Enum("status").Values("skipped", "failed", "build", "queued", "delayed", "building",
 			"latest", "signing", "unknown").Default("unknown").Optional(),
 		field.String("skip_reason").Optional(),
-		field.Enum("repository").Values("extra", "core"),
+		field.Enum("repository").Values("extra", "core", "multilib"),
 		field.String("march").NotEmpty().Immutable(),
 		field.String("version").Optional(),
 		field.String("repo_version").Optional(),

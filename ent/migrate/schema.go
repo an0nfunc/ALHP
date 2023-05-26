@@ -15,7 +15,7 @@ var (
 		{Name: "packages", Type: field.TypeJSON, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Nullable: true, Enums: []string{"skipped", "failed", "build", "queued", "delayed", "building", "latest", "signing", "unknown"}, Default: "unknown"},
 		{Name: "skip_reason", Type: field.TypeString, Nullable: true},
-		{Name: "repository", Type: field.TypeEnum, Enums: []string{"extra", "core"}},
+		{Name: "repository", Type: field.TypeEnum, Enums: []string{"extra", "core", "multilib"}},
 		{Name: "march", Type: field.TypeString},
 		{Name: "version", Type: field.TypeString, Nullable: true},
 		{Name: "repo_version", Type: field.TypeString, Nullable: true},

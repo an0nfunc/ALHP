@@ -454,7 +454,6 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String())
 		var res []byte
 		res, err = cmd.CombinedOutput()
-		log.Debug(string(res))
 		if err != nil {
 			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
 			buildManager.alpmMutex.Unlock()
@@ -465,8 +464,17 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		}
 
 		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
-			splitOut := strings.Split(strings.Split(strings.TrimSpace(string(res)), "\n")[0], "/")
-			pkg, err = dbs.FindSatisfier(splitOut[1])
+			pacsiftLines := strings.Split(strings.TrimSpace(string(res)), "\n")
+
+			var splitPkgs []string
+			for _, line := range pacsiftLines {
+				splitPkgs = append(splitPkgs, strings.Split(line, "/")[1])
+			}
+
+			if p.DBPackage != nil {
+				p.DBPackage = p.DBPackage.Update().SetPackages(splitPkgs).SaveX(context.Background())
+			}
+			pkg, err = dbs.FindSatisfier(splitPkgs[0])
 		} else {
 			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
 			buildManager.alpmMutex.Unlock()

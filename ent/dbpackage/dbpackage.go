@@ -137,8 +137,9 @@ type Repository string
 
 // Repository values.
 const (
-	RepositoryExtra Repository = "extra"
-	RepositoryCore  Repository = "core"
+	RepositoryExtra    Repository = "extra"
+	RepositoryCore     Repository = "core"
+	RepositoryMultilib Repository = "multilib"
 )
 
 func (r Repository) String() string {
@@ -148,7 +149,7 @@ func (r Repository) String() string {
 // RepositoryValidator is a validator for the "repository" field enum values. It is called by the builders before save.
 func RepositoryValidator(r Repository) error {
 	switch r {
-	case RepositoryExtra, RepositoryCore:
+	case RepositoryExtra, RepositoryCore, RepositoryMultilib:
 		return nil
 	default:
 		return fmt.Errorf("dbpackage: invalid enum value for repository field: %q", r)
