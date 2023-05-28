@@ -234,9 +234,10 @@ func logHK() error {
 		}
 		sLogContent := string(logContent)
 
-		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) {
-			rows, err := db.DBPackage.Update().Where(dbpackage.And(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed))).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) ||
+			reDownloadError2.MatchString(sLogContent) {
+			rows, err := db.DBPackage.Update().Where(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
+				dbpackage.StatusEQ(dbpackage.StatusFailed)).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
 			if err != nil {
 				return err
 			}
