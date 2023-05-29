@@ -133,7 +133,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		case UnableToSatisfyError:
 			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
-			return time.Since(start), err
+			return time.Since(start), ErrorNotEligible
 		}
 	}
 
