@@ -25,6 +25,8 @@ common:
     - "-falign-functions=32" # https://github.com/InBetweenNames/gentooLTO/issues/164
   kcflags: " -march=$march$ -O3"
   kcppflags: " -march=$march$ -O3"
+  fcflags: "$CFLAGS"
+  fflags: "$CFLAGS"
 
 lto:
   rustflags:
