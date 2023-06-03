@@ -495,7 +495,11 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 			var orgMatch []string
 			for _, match := range varsReg {
 				if strings.ToLower(match[1]) == subSec.(string) {
-					flags = strings.Split(reEnvClean.ReplaceAllString(match[3], " "), " ")
+					if subSec.(string) == "ldflags" {
+						flags = strings.Split(reEnvClean.ReplaceAllString(match[3], ","), ",")
+					} else {
+						flags = strings.Split(reEnvClean.ReplaceAllString(match[3], " "), " ")
+					}
 					orgMatch = match
 				}
 			}
@@ -521,8 +525,13 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 			flags = parseFlagSubSection(subMap, flags, replaceMap)
 			log.Debugf("new %s: %v (%d)", subSec, flags, len(flags))
 
-			makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1],
-				orgMatch[2], strings.Join(flags, " "), orgMatch[4]))
+			if subSec.(string) == "ldflags" {
+				makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1],
+					orgMatch[2], strings.Join(flags, ","), orgMatch[4]))
+			} else {
+				makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf(`%s=%s%s%s`, orgMatch[1],
+					orgMatch[2], strings.Join(flags, " "), orgMatch[4]))
+			}
 		}
 	}
 
