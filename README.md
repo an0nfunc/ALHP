@@ -97,6 +97,13 @@ Include = /etc/pacman.d/mirrorlist
 
 [extra]
 Include = /etc/pacman.d/mirrorlist
+
+# if you need [multilib] support
+[multilib-x86-64-v3]
+Include = /etc/pacman.d/alhp-mirrorlist
+
+[multilib]
+Include = /etc/pacman.d/mirrorlist
 ```
 
 Replace `x86-64-v3` with the x86-64 feature level you want to enable.
