@@ -155,7 +155,11 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			}
 			if len(missingSplits) > 0 {
 				log.Infof("[HK] %s->%s missing split-package(s): %s", fullRepo, dbPkg.Pkgbase, missingSplits)
-				pkg.DBPackage, err = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+				pkg.DBPackage, err = pkg.DBPackage.Update().
+					ClearRepoVersion().
+					ClearTagRev().
+					SetStatus(dbpackage.StatusQueued).
+					Save(context.Background())
 				if err != nil {
 					return err
 				}

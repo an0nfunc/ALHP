@@ -41,7 +41,9 @@ func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) er
 	for len(doneQ) != len(queue) {
 		up := 0
 		b.buildingLock.RLock()
-		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit && !unknownBuilds && !queueNoMatch) || (unknownBuilds && len(b.building) < MaxUnknownBuilder) {
+		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit &&
+			!unknownBuilds && !queueNoMatch) ||
+			(unknownBuilds && len(b.building) < MaxUnknownBuilder) {
 			queueNoMatch = true
 			b.buildingLock.RUnlock()
 			for _, pkg := range queue {
@@ -372,7 +374,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				pkg.DBPackage = pkgUpd.SaveX(context.Background())
 			}
 
-			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1")
+			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1") //nolint:gosec
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
@@ -438,7 +440,7 @@ func (b *BuildManager) repoWorker(repo string) {
 }
 
 func (b *BuildManager) syncWorker(ctx context.Context) error {
-	err := os.MkdirAll(filepath.Join(conf.Basedir.Work), 0o755)
+	err := os.MkdirAll(conf.Basedir.Work, 0o755)
 	if err != nil {
 		log.Fatalf("error creating work dir %s: %v", conf.Basedir.Work, err)
 	}
@@ -447,7 +449,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		gitPath := filepath.Join(conf.Basedir.Work, stateDir)
 
 		if _, err := os.Stat(gitPath); os.IsNotExist(err) {
-			cmd := exec.Command("git", "clone", "--depth=1", conf.StateRepo, gitPath)
+			cmd := exec.Command("git", "clone", "--depth=1", conf.StateRepo, gitPath) //nolint:gosec
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {

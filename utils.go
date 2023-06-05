@@ -130,15 +130,6 @@ func statusID2string(s dbpackage.Status) string {
 	}
 }
 
-func containsSubStr(str string, subList []string) bool {
-	for _, checkStr := range subList {
-		if strings.Contains(str, checkStr) {
-			return true
-		}
-	}
-	return false
-}
-
 func cleanBuildDir(dir, chrootDir string) error {
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
 		err = os.RemoveAll(dir)
@@ -376,7 +367,8 @@ func setupChroot() error {
 			return fmt.Errorf("error creating chroot: %w\n%s", err, string(res))
 		}
 
-		cmd = exec.Command("sudo", "cp", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf")) //nolint:gosec
+		cmd = exec.Command("sudo", "cp", pacmanConf, //nolint:gosec
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {

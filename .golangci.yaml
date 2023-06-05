@@ -27,6 +27,11 @@ linters-settings:
       - '3'
       - '4'
       - '5'
+      - '6'
+      - '7'
+      - '8'
+      - '9'
+      - '10'
     ignored-functions:
       - strings.SplitN
       - os.OpenFile
@@ -47,7 +52,6 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - depguard
     - dogsled
     - dupl
     - errcheck

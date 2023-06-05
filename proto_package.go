@@ -342,7 +342,7 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
 
 	if err := retry.Do(context.Background(), gr, func(ctx context.Context) error {
-		cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer,
+		cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer, //nolint:gosec
 			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -452,7 +452,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	} else if p.DBPackage != nil && len(p.DBPackage.Packages) > 0 {
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
 	} else {
-		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String())
+		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String()) //nolint:gosec
 		var res []byte
 		res, err = cmd.CombinedOutput()
 		if err != nil {
@@ -539,7 +539,6 @@ func (p *ProtoPackage) GitVersion(h *alpm.Handle) (string, error) {
 			return "", err
 		}
 
-	pkgloop:
 		for _, stateFile := range fStateFiles {
 			repo, _, _, err := stateFileMeta(stateFile)
 			if err != nil {
@@ -548,7 +547,7 @@ func (p *ProtoPackage) GitVersion(h *alpm.Handle) (string, error) {
 
 			if iPackage.DB().Name() == repo {
 				fStateFiles = []string{stateFile}
-				break pkgloop
+				break
 			}
 		}
 
@@ -589,7 +588,7 @@ func (p *ProtoPackage) genSrcinfo() error {
 		return nil
 	}
 
-	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild))
+	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild)) //nolint:gosec
 	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	res, err := cmd.CombinedOutput()
 	if err != nil {
