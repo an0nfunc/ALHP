@@ -85,7 +85,7 @@ func (pkg Package) DBPackageIsolated(march string, repo dbpackage.Repository, db
 		)
 	}).Only(context.Background())
 	if ent.IsNotFound(err) {
-		log.Debugf("Not found in database: %s", pkg.Name())
+		log.Debugf("not found in database: %s", pkg.Name())
 		return nil, err
 	} else if err != nil {
 		return nil, err

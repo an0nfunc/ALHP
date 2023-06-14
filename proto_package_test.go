@@ -51,7 +51,7 @@ package() {
 # vim:set sw=2 et:
 `
 
-func TestIncreasePkgRel(t *testing.T) {
+func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
 	pkgbuild, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal("Unable to setup temp. PKGBUILD")

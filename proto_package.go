@@ -69,9 +69,8 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).SetStatus(p.DBPackage.Status).
 			SetSkipReason(p.DBPackage.SkipReason).SetTagRev(p.State.TagRev).SaveX(ctx)
 		return false
-	} else {
-		p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).SaveX(ctx)
 	}
+	p.DBPackage = p.DBPackage.Update().SetUpdated(time.Now()).SetVersion(p.Version).SaveX(ctx)
 
 	if Contains(conf.Blacklist.LTO, p.Pkgbase) && p.DBPackage.Lto != dbpackage.LtoDisabled {
 		p.DBPackage = p.DBPackage.Update().SetLto(dbpackage.LtoDisabled).SaveX(ctx)
@@ -359,8 +358,7 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 }
 
 func (p *ProtoPackage) repoVersion() (string, error) {
-	err := p.findPkgFiles()
-	if err != nil {
+	if err := p.findPkgFiles(); err != nil {
 		return "", err
 	}
 
@@ -694,7 +692,7 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 			return false, nil, "", UnableToSatisfyError{err}
 		}
 
-		svn2gitVer, err := (&ProtoPackage{
+		svn2gitVer, err := (&ProtoPackage{ //nolint:exhaustruct,exhaustivestruct
 			Pkgbase: pkg.Base(),
 			March:   p.March,
 		}).GitVersion(h)

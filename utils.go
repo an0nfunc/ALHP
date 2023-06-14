@@ -112,7 +112,7 @@ func updateLastUpdated() error {
 }
 
 func statusID2string(s dbpackage.Status) string {
-	switch s {
+	switch s { //nolint:exhaustive
 	case dbpackage.StatusSkipped:
 		return conf.Status.Class.Skipped
 	case dbpackage.StatusQueued:

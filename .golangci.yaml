@@ -47,31 +47,41 @@ linters-settings:
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+  tagliatelle:
+    case:
+      use-field-name: true
+      rules:
+        # Any struct tag type can be used.
+        # Support string case: `camel`, `pascal`, `kebab`, `snake`, `upperSnake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`, `header`.
+        json: snake
+        yaml: snake
+        xml: camel
 
 linters:
-  disable-all: true
-  enable:
-    - bodyclose
-    - dogsled
-    - dupl
-    - errcheck
-    - exportloopref
-    - gochecknoinits
-    - gocritic
-    - gofmt
-    - gomnd
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - lll
-    - misspell
-    - noctx
-    - nolintlint
-    - staticcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
+  enable-all: true
+  disable:
+    - gochecknoglobals
+    - depguard
+    - gci
+    - gofumpt
+    - goimports
+    - varnamelen
+    - funlen
+    - cyclop
+    - wsl
+    - nosnakecase
+    - nlreturn
+    - godot
+    - nestif
+    - wrapcheck
+    - gocognit
+    - gocyclo
+    - maintidx
+    - nonamedreturns
+    - exhaustivestruct
+    - exhaustruct
+    - forcetypeassert
+    - godox
+    # remove for new projects
+    - errname
+    - goerr113

@@ -30,7 +30,7 @@ type BuildManager struct {
 	queueSignal  chan struct{}
 }
 
-func (b *BuildManager) buildQueue(queue []*ProtoPackage, ctx context.Context) error {
+func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) error {
 	var (
 		doneQ         []*ProtoPackage
 		doneQLock     = new(sync.RWMutex)
@@ -281,7 +281,7 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 		db.DBPackage.Query().GroupBy(dbpackage.FieldStatus).Aggregate(ent.Count()).ScanX(ctx, &v)
 
 		for _, c := range v {
-			switch c.Status {
+			switch c.Status { //nolint:exhaustive
 			case dbpackage.StatusFailed:
 				gen.Failed = c.Count
 			case dbpackage.StatusSkipped:
@@ -294,7 +294,7 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 		}
 
 		var v2 []struct {
-			Status dbpackage.Lto `json:"lto"`
+			Status dbpackage.Lto `json:"lto"` //nolint:tagliatelle
 			Count  int           `json:"count"`
 		}
 
@@ -522,7 +522,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			log.Errorf("error building queue: %v", err)
 		} else {
 			log.Debugf("build-queue with %d items", len(queue))
-			err = b.buildQueue(queue, ctx)
+			err = b.buildQueue(ctx, queue)
 			if err != nil {
 				return err
 			}
