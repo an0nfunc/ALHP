@@ -132,7 +132,8 @@ func statusID2string(s dbpackage.Status) string {
 
 func cleanBuildDir(dir, chrootDir string) error {
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		err = os.RemoveAll(dir)
+		rmCmd := exec.Command("sudo", "rm_chroot.py", dir)
+		_, err := rmCmd.CombinedOutput()
 		if err != nil {
 			return err
 		}

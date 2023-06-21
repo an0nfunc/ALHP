@@ -36,7 +36,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
 		} else if err != nil {
-			log.Warningf("[HK] Problem fetching %s->%q from db: %v", fullRepo, path, err)
+			log.Warningf("[HK] error fetching %s->%q from db: %v", fullRepo, path, err)
 			continue
 		}
 
