@@ -24,6 +24,7 @@ Buildbot for Archlinux-based repos build with different
   * [Directly linked kernel modules](#directly-linked-kernel-modules)
   * [Mirrors](#mirrors)
   * [What packages are built](#what-packages-are-built)
+  * [Why is package X not up-to-date](#why-is-package-x-not-up-to-date)
   * [Debug symbols](#debug-symbols)
 * [Matrix](#matrix)
 * [Donations](#donations)
