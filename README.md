@@ -156,6 +156,20 @@ Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_arch
 from building (besides all 'any' architecture packages) are being listed in issue #16.
 Also [package status page](https://alhp.dev/packages.html) (search for `blacklisted`).
 
+### Why is package X not up-to-date
+
+Also relevant for: **I can't find package X / Application X fails to start because it links to an old/newer lib**
+
+ALHP build packages **after** they are released in the official Archlinux Repos (not including `[*-testing]`).
+This leads to packages being delayed if the current batch contains many packages or packages which take a while to
+build (e.g. `chromium`).
+
+You can always check on the progress of the current build-cycle on
+the [package status page](https://alhp.dev/packages.html).
+Please refrain from opening issues caused by packages currently in queue/not yet build/not yet moved to the repo.
+Please keep in mind that large rebuilds such as `openssl` or `python` can take days to complete on our current build
+hardware.
+
 ### Debug symbols
 
 ALHP provides a debuginfod instance under `debuginfod.alhp.dev`.
