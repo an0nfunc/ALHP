@@ -232,7 +232,8 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		if err != nil {
 			return time.Since(start), fmt.Errorf("error creating logdir: %w", err)
 		}
-		err = os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"), out.Bytes(), 0o644) //nolint:gosec
+		err = os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"), //nolint:gosec
+			[]byte(strings.ToValidUTF8(out.String(), "")), 0o644)
 		if err != nil {
 			return time.Since(start), fmt.Errorf("error warting to logdir: %w", err)
 		}
