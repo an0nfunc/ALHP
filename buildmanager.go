@@ -314,18 +314,18 @@ func (b *BuildManager) htmlWorker(ctx context.Context) {
 
 		statusTpl, err := template.ParseFiles("tpl/packages.html")
 		if err != nil {
-			log.Warningf("[HTML] Error parsing template file: %v", err)
+			log.Warningf("[HTML] error parsing template file: %v", err)
 			continue
 		}
 
 		f, err := os.OpenFile(filepath.Join(conf.Basedir.Repo, "packages.html"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
-			log.Warningf("[HTML] Erro ropening output file: %v", err)
+			log.Warningf("[HTML] error opening output file: %v", err)
 			continue
 		}
 		err = statusTpl.Execute(f, gen)
 		if err != nil {
-			log.Warningf("[HTML] Error filling template: %v", err)
+			log.Warningf("[HTML] error filling template: %v", err)
 		}
 		_ = f.Close()
 
