@@ -186,6 +186,14 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				DBPackage: dbPkg,
 			}
 			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
+		case dbPkg.Status == dbpackage.StatusFailed && dbPkg.RepoVersion != "":
+			log.Infof("[HK] package %s->%s failed but still present in repo, removing", fullRepo, dbPkg.Pkgbase)
+			pkg := &ProtoPackage{
+				FullRepo:  fullRepo,
+				March:     march,
+				DBPackage: dbPkg,
+			}
+			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 		}
 	}
 
