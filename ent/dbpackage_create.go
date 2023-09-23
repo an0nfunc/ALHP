@@ -470,11 +470,15 @@ func (dpc *DBPackageCreate) createSpec() (*DBPackage, *sqlgraph.CreateSpec) {
 // DBPackageCreateBulk is the builder for creating many DBPackage entities in bulk.
 type DBPackageCreateBulk struct {
 	config
+	err      error
 	builders []*DBPackageCreate
 }
 
 // Save creates the DBPackage entities in the database.
 func (dpcb *DBPackageCreateBulk) Save(ctx context.Context) ([]*DBPackage, error) {
+	if dpcb.err != nil {
+		return nil, dpcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(dpcb.builders))
 	nodes := make([]*DBPackage, len(dpcb.builders))
 	mutators := make([]Mutator, len(dpcb.builders))

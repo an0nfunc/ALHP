@@ -61,8 +61,14 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
 			// package not found on mirror/db -> not part of any repo anymore
 			log.Infof("[HK] %s->%s not included in repo", pkg.FullRepo, mPackage.Name())
-			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
+			err = pkg.findPkgFiles()
+			if err != nil {
+				log.Errorf("[HK] %s->%s unable to get pkg-files: %v", pkg.FullRepo, mPackage.Name(), err)
+				continue
+			}
 			err = db.DBPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
+			pkg.DBPackage = nil
+			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			if err != nil {
 				return err
 			}
