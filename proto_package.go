@@ -468,6 +468,10 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		// workaround for https://github.com/andrewgregory/pacutils/issues/66
 		// TODO: remove once fixed
 		rRes := reReplacePacsiftWarning.ReplaceAllString(string(res), "")
+		if len(strings.TrimSpace(rRes)) == 0 {
+			return false
+		}
+
 		if len(strings.Split(strings.TrimSpace(rRes), "\n")) > 0 {
 			pacsiftLines := strings.Split(strings.TrimSpace(rRes), "\n")
 
