@@ -454,7 +454,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	case p.DBPackage != nil && len(p.DBPackage.Packages) > 0:
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
 	default:
-		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String(),
+		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String(), //nolint:gosec
 			"--sysroot="+filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
 		var res []byte
 		res, err = cmd.Output()
