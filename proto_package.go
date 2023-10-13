@@ -468,7 +468,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		// workaround for https://github.com/andrewgregory/pacutils/issues/66
 		// TODO: remove once fixed
 		rRes := reReplacePacsiftWarning.ReplaceAllString(string(res), "")
-		if len(strings.TrimSpace(rRes)) == 0 {
+		if strings.TrimSpace(rRes) == "" {
 			return false
 		}
 
