@@ -445,6 +445,8 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	}
 
 	buildManager.alpmMutex.Lock()
+	defer buildManager.alpmMutex.Unlock()
+
 	var pkg alpm.IPackage
 	switch {
 	case p.Srcinfo != nil:
@@ -458,14 +460,16 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 		res, err = cmd.Output()
 		if err != nil {
 			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
-			buildManager.alpmMutex.Unlock()
 			return false
 		} else if len(res) == 0 {
-			buildManager.alpmMutex.Unlock()
 			return false
 		}
-		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
-			pacsiftLines := strings.Split(strings.TrimSpace(string(res)), "\n")
+
+		// workaround for https://github.com/andrewgregory/pacutils/issues/66
+		// TODO: remove once fixed
+		rRes := reReplacePacsiftWarning.ReplaceAllString(string(res), "")
+		if len(strings.Split(strings.TrimSpace(rRes), "\n")) > 0 {
+			pacsiftLines := strings.Split(strings.TrimSpace(rRes), "\n")
 
 			var splitPkgs []string
 			for _, line := range pacsiftLines {
@@ -478,11 +482,9 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 			pkg, err = dbs.FindSatisfier(splitPkgs[0])
 		} else {
 			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
-			buildManager.alpmMutex.Unlock()
 			return false
 		}
 	}
-	buildManager.alpmMutex.Unlock()
 	if err != nil {
 		log.Debugf("error resolving %s: %v", p.Pkgbase, err)
 		return false
