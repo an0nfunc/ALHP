@@ -446,14 +446,16 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 
 	buildManager.alpmMutex.Lock()
 	var pkg alpm.IPackage
-	if p.Srcinfo != nil {
+	switch {
+	case p.Srcinfo != nil:
 		pkg, err = dbs.FindSatisfier(p.Srcinfo.Packages[0].Pkgname)
-	} else if p.DBPackage != nil && len(p.DBPackage.Packages) > 0 {
+	case p.DBPackage != nil && len(p.DBPackage.Packages) > 0:
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
-	} else {
-		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String()) //nolint:gosec
+	default:
+		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String(),
+			"--sysroot="+filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
 		var res []byte
-		res, err = cmd.CombinedOutput()
+		res, err = cmd.Output()
 		if err != nil {
 			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
 			buildManager.alpmMutex.Unlock()
@@ -462,7 +464,6 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 			buildManager.alpmMutex.Unlock()
 			return false
 		}
-
 		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
 			pacsiftLines := strings.Split(strings.TrimSpace(string(res)), "\n")
 
