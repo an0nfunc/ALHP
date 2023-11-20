@@ -94,6 +94,14 @@ func (dpu *DBPackageUpdate) SetRepository(d dbpackage.Repository) *DBPackageUpda
 	return dpu
 }
 
+// SetNillableRepository sets the "repository" field if the given value is not nil.
+func (dpu *DBPackageUpdate) SetNillableRepository(d *dbpackage.Repository) *DBPackageUpdate {
+	if d != nil {
+		dpu.SetRepository(*d)
+	}
+	return dpu
+}
+
 // SetVersion sets the "version" field.
 func (dpu *DBPackageUpdate) SetVersion(s string) *DBPackageUpdate {
 	dpu.mutation.SetVersion(s)
@@ -692,6 +700,14 @@ func (dpuo *DBPackageUpdateOne) ClearSkipReason() *DBPackageUpdateOne {
 // SetRepository sets the "repository" field.
 func (dpuo *DBPackageUpdateOne) SetRepository(d dbpackage.Repository) *DBPackageUpdateOne {
 	dpuo.mutation.SetRepository(d)
+	return dpuo
+}
+
+// SetNillableRepository sets the "repository" field if the given value is not nil.
+func (dpuo *DBPackageUpdateOne) SetNillableRepository(d *dbpackage.Repository) *DBPackageUpdateOne {
+	if d != nil {
+		dpuo.SetRepository(*d)
+	}
 	return dpuo
 }
 
