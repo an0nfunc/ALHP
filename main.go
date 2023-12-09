@@ -27,6 +27,7 @@ var (
 	db            *ent.Client
 	journalLog    = flag.Bool("journal", false, "Log to systemd journal instead of stdout")
 	checkInterval = flag.Int("interval", 5, "How often svn2git should be checked in minutes (default: 5)")
+	configFile    = flag.String("config", "config.yaml", "set config file name/path")
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 
 	flag.Parse()
 
-	confStr, err := os.ReadFile("config.yaml")
+	confStr, err := os.ReadFile(*configFile)
 	if err != nil {
 		log.Fatalf("error reading config file: %v", err)
 	}
