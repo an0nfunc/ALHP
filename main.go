@@ -128,7 +128,7 @@ killLoop:
 		case <-killSignals:
 			break killLoop
 		case <-reloadSignals:
-			confStr, err := os.ReadFile("config.yaml")
+			confStr, err := os.ReadFile(*configFile)
 			if err != nil {
 				log.Panicf("unable to open config: %v", err)
 			}
