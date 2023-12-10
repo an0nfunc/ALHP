@@ -601,6 +601,15 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
+			aBuild, err := pkg.IsBuild()
+			if err != nil {
+				log.Warningf("[QG] %s->%s error determining build packages: %v", pkg.FullRepo, pkg.Pkgbase, err)
+			}
+			if aBuild {
+				log.Infof("[QG] %s->%s already build, skipping build", pkg.FullRepo, pkg.Pkgbase)
+				continue
+			}
+
 			if pkg.DBPackage == nil {
 				err = pkg.toDBPackage(true)
 				if err != nil {

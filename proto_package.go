@@ -721,3 +721,16 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 func (p *ProtoPackage) PkgbaseEquals(p2 *ProtoPackage, marchSensitive bool) bool {
 	return (marchSensitive && (p.Pkgbase == p2.Pkgbase && p.FullRepo == p2.FullRepo)) || (!marchSensitive && p.Pkgbase == p2.Pkgbase)
 }
+
+func (p *ProtoPackage) IsBuild() (bool, error) {
+	if p.DBPackage == nil {
+		return false, nil
+	}
+
+	matches, err := filepath.Glob(filepath.Join(conf.Basedir.Work, waitingDir, p.FullRepo, p.DBPackage.Packages[0]+"*-x86_64.pkg.tar.zst"))
+	if err != nil {
+		return false, err
+	}
+
+	return len(matches) > 0, nil
+}
