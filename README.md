@@ -10,6 +10,9 @@ Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
+> 📢 **x86-64-v4** repos just released. [If your CPU supports v4](#1-check-your-system-for-support), you
+> can [try them out](#switch-between-levels).
+
 > ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
 > [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
 
@@ -26,6 +29,7 @@ Buildbot for Archlinux-based repos build with different
   * [What packages are built](#what-packages-are-built)
   * [Why is package X not up-to-date](#why-is-package-x-not-up-to-date)
   * [Debug symbols](#debug-symbols)
+  * [Switch between levels/repos](#switch-between-levels)
 * [Matrix](#matrix)
 * [Donations](#donations)
 * [License and Legal](#license-and-legal)
@@ -108,7 +112,7 @@ Include = /etc/pacman.d/mirrorlist
 ```
 
 Replace `x86-64-v3` with the x86-64 feature level you want to enable.
-> ALHP only builds for `x86-64-v3` and `x86-64-v2` at the moment (list is subject to change). You can see all available
+> ALHP builds for `x86-64-v2`, `x86-64-v3` and `x86-64-v4` at the moment. You can see all available
 > repositories
 > [here](https://alhp.dev/).
 
@@ -180,6 +184,15 @@ To use it, have `debuginfod` installed on your system and add it to your `DEBUGI
 ```bash
 echo "https://debuginfod.alhp.dev" > /etc/debuginfod/alhp.urls
 ```
+
+### Switch between levels
+
+If you want to switch between levels, e.g. from `x86-64-v3` to `x86-64-v4`, you need to revert to official packages
+first, then enable your desired repos again.
+
+1. Comment or remove ALHP repo entries in `/etc/pacman.conf`.
+2. Downgrade packages with `pacman -Suuy`.
+3. Uncomment/add your desired repos to `/etc/pacman.conf` and update with `pacman -Suy`.
 
 ## Matrix
 
