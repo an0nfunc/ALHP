@@ -192,7 +192,8 @@ first, then enable your desired repos again.
 
 1. Comment or remove ALHP repo entries in `/etc/pacman.conf`.
 2. Downgrade packages with `pacman -Suuy`.
-3. Uncomment/add your desired repos to `/etc/pacman.conf` and update with `pacman -Suy`.
+3. Clear pacman's package cache with `pacman -Scc`.
+4. Uncomment/add your desired repos to `/etc/pacman.conf` and update with `pacman -Suy`.
 
 ## Matrix
 
