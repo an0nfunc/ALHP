@@ -57,8 +57,12 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		buildManager.alpmMutex.Lock()
 		pkgResolved, err := dbs.FindSatisfier(mPackage.Name())
 		buildManager.alpmMutex.Unlock()
-		if err != nil || pkgResolved.DB().Name() != pkg.DBPackage.Repository.String() || pkgResolved.DB().Name() != pkg.Repo.String() ||
-			pkgResolved.Architecture() != pkg.Arch || pkgResolved.Name() != mPackage.Name() {
+		if err != nil ||
+			pkgResolved.DB().Name() != pkg.DBPackage.Repository.String() ||
+			pkgResolved.DB().Name() != pkg.Repo.String() ||
+			pkgResolved.Architecture() != pkg.Arch ||
+			pkgResolved.Name() != mPackage.Name() ||
+			Contains(conf.Blacklist.Packages, pkg.Pkgbase) {
 
 			switch {
 			case pkgResolved.DB().Name() != pkg.DBPackage.Repository.String():
@@ -69,6 +73,8 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				log.Infof("[HK] %s->%s not included in repo (arch mismatch: repo:%s != pkg:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.Architecture(), pkg.Arch)
 			case pkgResolved.Name() != mPackage.Name():
 				log.Infof("[HK] %s->%s not included in repo (name mismatch: repo:%s != pkg:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.Name(), mPackage.Name())
+			case Contains(conf.Blacklist.Packages, pkg.Pkgbase):
+				log.Infof("[HK] %s->%s not included in repo (blacklisted pkgbase %s)", pkg.FullRepo, mPackage.Name(), pkg.Pkgbase)
 			default:
 				log.Infof("[HK] %s->%s not included in repo (resolve error: %v)", pkg.FullRepo, mPackage.Name(), err)
 			}
