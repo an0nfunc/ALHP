@@ -65,18 +65,22 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			Contains(conf.Blacklist.Packages, pkg.Pkgbase) {
 
 			switch {
+			case err != nil:
+				log.Infof("[HK] %s->%s not included in repo (resolve error: %v)", pkg.FullRepo, mPackage.Name(), err)
 			case pkgResolved.DB().Name() != pkg.DBPackage.Repository.String():
-				log.Infof("[HK] %s->%s not included in repo (repo mismatch: repo:%s != db:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.DB().Name(), pkg.DBPackage.Repository.String())
+				log.Infof("[HK] %s->%s not included in repo (repo mismatch: repo:%s != db:%s)", pkg.FullRepo,
+					mPackage.Name(), pkgResolved.DB().Name(), pkg.DBPackage.Repository.String())
 			case pkgResolved.DB().Name() != pkg.Repo.String():
-				log.Infof("[HK] %s->%s not included in repo (repo mismatch: repo:%s != pkg:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.DB().Name(), pkg.Repo.String())
+				log.Infof("[HK] %s->%s not included in repo (repo mismatch: repo:%s != pkg:%s)", pkg.FullRepo,
+					mPackage.Name(), pkgResolved.DB().Name(), pkg.Repo.String())
 			case pkgResolved.Architecture() != pkg.Arch:
-				log.Infof("[HK] %s->%s not included in repo (arch mismatch: repo:%s != pkg:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.Architecture(), pkg.Arch)
+				log.Infof("[HK] %s->%s not included in repo (arch mismatch: repo:%s != pkg:%s)", pkg.FullRepo,
+					mPackage.Name(), pkgResolved.Architecture(), pkg.Arch)
 			case pkgResolved.Name() != mPackage.Name():
-				log.Infof("[HK] %s->%s not included in repo (name mismatch: repo:%s != pkg:%s)", pkg.FullRepo, mPackage.Name(), pkgResolved.Name(), mPackage.Name())
+				log.Infof("[HK] %s->%s not included in repo (name mismatch: repo:%s != pkg:%s)", pkg.FullRepo,
+					mPackage.Name(), pkgResolved.Name(), mPackage.Name())
 			case Contains(conf.Blacklist.Packages, pkg.Pkgbase):
 				log.Infof("[HK] %s->%s not included in repo (blacklisted pkgbase %s)", pkg.FullRepo, mPackage.Name(), pkg.Pkgbase)
-			default:
-				log.Infof("[HK] %s->%s not included in repo (resolve error: %v)", pkg.FullRepo, mPackage.Name(), err)
 			}
 
 			// package not found on mirror/db -> not part of any repo anymore
