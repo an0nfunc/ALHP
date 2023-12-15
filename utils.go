@@ -7,7 +7,7 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 	"github.com/c2h5oh/datasize"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 	"io/fs"
 	"os"
 	"os/exec"

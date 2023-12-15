@@ -9,7 +9,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	log "github.com/sirupsen/logrus"
 	"github.com/wercker/journalhook"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 	"os"
 	"os/signal"
 	"path/filepath"

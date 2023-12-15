@@ -8,13 +8,13 @@ require (
 	github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.5.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/otiai10/copy v1.14.0
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/wercker/journalhook v0.0.0-20230927020745-64542ffa4117
-	gopkg.in/yaml.v3 v3.0.1
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
