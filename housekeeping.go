@@ -4,6 +4,7 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"somegit.dev/ALHP/ALHP.GO/ent"
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
@@ -303,4 +304,17 @@ func logHK() error {
 		}
 	}
 	return nil
+}
+
+func debugHK() {
+	for _, march := range conf.March {
+		if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march)); err == nil {
+			log.Debugf("[DHK/%s] start cleanup debug packages", march)
+			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1")
+			res, err := cleanCmd.CombinedOutput()
+			if err != nil {
+				log.Warningf("[DHK/%s] cleanup debug packages failed: %v (%s)", march, err, string(res))
+			}
+		}
+	}
 }

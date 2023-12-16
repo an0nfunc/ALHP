@@ -492,6 +492,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Warningf("log-housekeeping failed: %v", err)
 		}
+		debugHK()
 
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()
