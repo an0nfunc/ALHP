@@ -33,16 +33,6 @@ blacklist:
     - llvm
     - rust
 
-status:
-  class:
-    skipped: "secondary"
-    queued: "warning"
-    latest: "primary"
-    failed: "danger"
-    signing: "success"
-    building: "info"
-    unknown: "dark"
-
 build:
   # number of workers total
   worker: 4

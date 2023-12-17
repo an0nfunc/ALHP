@@ -1,7 +1,7 @@
 # ALHP
 
 [![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
-[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://alhp.dev/packages.html)
+[![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://status.alhp.dev)
 [![](https://goreportcard.com/badge/somegit.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/somegit.dev/ALHP/ALHP.GO)
 [![](https://pkg.go.dev/badge/somegit.dev/ALHP/ALHP.GO)](https://pkg.go.dev/somegit.dev/ALHP/ALHP.GO)
 [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
@@ -159,7 +159,7 @@ so, [see alhp-mirrorlist for how to become one](https://somegit.dev/ALHP/alhp-mi
 
 Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
 from building (besides all 'any' architecture packages) are being listed in issue #16.
-Also [package status page](https://alhp.dev/packages.html) (search for `blacklisted`).
+Also [package status page](https://status.alhp.dev) (search for `blacklisted`).
 
 ### Why is package X not up-to-date
 
@@ -170,7 +170,7 @@ This leads to packages being delayed if the current batch contains many packages
 build (e.g. `chromium`).
 
 You can always check on the progress of the current build-cycle on
-the [package status page](https://alhp.dev/packages.html).
+the [package status page](https://status.alhp.dev).
 Please refrain from opening issues caused by packages currently in queue/not yet build/not yet moved to the repo.
 Please keep in mind that large rebuilds such as `openssl` or `python` can take days to complete on our current build
 hardware.

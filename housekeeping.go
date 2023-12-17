@@ -64,7 +64,6 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			pkgResolved.Architecture() != pkg.Arch ||
 			pkgResolved.Name() != mPackage.Name() ||
 			Contains(conf.Blacklist.Packages, pkg.Pkgbase) {
-
 			switch {
 			case err != nil:
 				log.Infof("[HK] %s->%s not included in repo (resolve error: %v)", pkg.FullRepo, mPackage.Name(), err)
@@ -310,7 +309,7 @@ func debugHK() {
 	for _, march := range conf.March {
 		if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march)); err == nil {
 			log.Debugf("[DHK/%s] start cleanup debug packages", march)
-			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1")
+			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1") //nolint:gosec
 			res, err := cleanCmd.CombinedOutput()
 			if err != nil {
 				log.Warningf("[DHK/%s] cleanup debug packages failed: %v (%s)", march, err, string(res))

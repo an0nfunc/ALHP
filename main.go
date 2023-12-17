@@ -120,7 +120,6 @@ func main() {
 	go func() {
 		_ = buildManager.syncWorker(ctx)
 	}()
-	go buildManager.htmlWorker(ctx)
 
 killLoop:
 	for {

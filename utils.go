@@ -80,11 +80,6 @@ type Conf struct {
 	Housekeeping struct {
 		Interval string
 	}
-	Status struct {
-		Class struct {
-			Skipped, Queued, Latest, Failed, Signing, Building, Unknown string
-		}
-	}
 	MaxCloneRetries uint64 `yaml:"max_clone_retries"`
 }
 
@@ -110,25 +105,6 @@ func updateLastUpdated() error {
 		return err
 	}
 	return nil
-}
-
-func statusID2string(s dbpackage.Status) string {
-	switch s { //nolint:exhaustive
-	case dbpackage.StatusSkipped:
-		return conf.Status.Class.Skipped
-	case dbpackage.StatusQueued:
-		return conf.Status.Class.Queued
-	case dbpackage.StatusLatest:
-		return conf.Status.Class.Latest
-	case dbpackage.StatusFailed:
-		return conf.Status.Class.Failed
-	case dbpackage.StatusSigning:
-		return conf.Status.Class.Signing
-	case dbpackage.StatusBuilding, dbpackage.StatusDelayed:
-		return conf.Status.Class.Building
-	default:
-		return conf.Status.Class.Unknown
-	}
 }
 
 func cleanBuildDir(dir, chrootDir string) error {
