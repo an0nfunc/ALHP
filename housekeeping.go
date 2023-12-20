@@ -201,6 +201,27 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				}
 				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 			}
+
+			rawState, err := os.ReadFile(filepath.Join(conf.Basedir.Work, stateDir, dbPkg.Repository.String()+"-"+conf.Arch, dbPkg.Pkgbase))
+			if err != nil {
+				log.Warningf("[HK] state not found for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+				continue
+			}
+
+			state, err := parseState(string(rawState))
+			if err != nil {
+				log.Warningf("[HK] error parsing state file for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+				continue
+			}
+
+			if dbPkg.TagRev != nil && state.TagRev == *dbPkg.TagRev && state.PkgVer != dbPkg.Version {
+				log.Infof("[HK] reseting package %s->%s with mismatched state information (%s!=%s)",
+					fullRepo, dbPkg.Pkgbase, state.PkgVer, dbPkg.Version)
+				err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().Exec(context.Background())
+				if err != nil {
+					return err
+				}
+			}
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
 			log.Infof("[HK] reseting missing package %s->%s with no repo version", fullRepo, dbPkg.Pkgbase)
 			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().ClearRepoVersion().Exec(context.Background())

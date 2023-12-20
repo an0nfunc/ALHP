@@ -259,9 +259,8 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		log.Fatalf("error creating work dir %s: %v", conf.Basedir.Work, err)
 	}
 
+	gitPath := filepath.Join(conf.Basedir.Work, stateDir)
 	for {
-		gitPath := filepath.Join(conf.Basedir.Work, stateDir)
-
 		if _, err := os.Stat(gitPath); os.IsNotExist(err) {
 			cmd := exec.Command("git", "clone", "--depth=1", conf.StateRepo, gitPath) //nolint:gosec
 			res, err := cmd.CombinedOutput()

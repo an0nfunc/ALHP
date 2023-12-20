@@ -1,13 +1,15 @@
 module somegit.dev/ALHP/ALHP.GO
 
-go 1.20
+go 1.21
+
+toolchain go1.21.5
 
 require (
 	entgo.io/ent v0.12.5
 	github.com/Jguer/go-alpm/v2 v2.2.1
 	github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5
 	github.com/Morganamilo/go-srcinfo v1.0.0
-	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
+	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/google/uuid v1.5.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/otiai10/copy v1.14.0
@@ -18,7 +20,7 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.15.0 // indirect
+	ariga.io/atlas v0.16.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
@@ -32,11 +34,13 @@ require (
 	github.com/jackc/pgproto3/v2 v2.3.2 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
 	github.com/jackc/pgtype v1.14.0 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/zclconf/go-cty v1.14.1 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )
