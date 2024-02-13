@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	paconf "github.com/Morganamilo/go-pacmanconf"
@@ -148,7 +149,7 @@ func pkgList2MaxMem(pkgList []*ProtoPackage) datasize.ByteSize {
 func stateFileMeta(stateFile string) (repo string, subRepo *string, arch string, err error) {
 	nameSplit := strings.Split(filepath.Base(filepath.Dir(stateFile)), "-")
 	if len(nameSplit) < 2 {
-		err = fmt.Errorf("error getting metainfo")
+		err = errors.New("error getting metainfo")
 		return
 	}
 
@@ -390,8 +391,8 @@ func syncMarchs() error {
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
-			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, 1000)   //nolint:gomnd
-			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 1000) //nolint:gomnd
+			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, 1000)
+			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 1000)
 			go buildManager.repoWorker(fRepo)
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
@@ -458,7 +459,7 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 		for subSec, subMap := range ct {
 			varsReg := reVar.FindAllStringSubmatch(makepkgConf, -1)
 			if varsReg == nil {
-				return "", fmt.Errorf("no match in config found")
+				return "", errors.New("no match in config found")
 			}
 
 			var flags []string
@@ -551,7 +552,7 @@ func setupMakepkg(march string, flags map[string]any) error {
 func parseState(state string) (*StateInfo, error) {
 	ss := strings.Split(state, " ")
 	if len(ss) != 4 {
-		return nil, fmt.Errorf("invalid state file")
+		return nil, errors.New("invalid state file")
 	}
 
 	return &StateInfo{
@@ -632,7 +633,7 @@ func (globs Globs) Expand() ([]string, error) {
 				return nil, err
 			}
 			for _, path := range paths {
-				err = filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
+				err = filepath.WalkDir(path, func(path string, _ os.DirEntry, err error) error {
 					if err != nil {
 						return fs.SkipDir
 					}

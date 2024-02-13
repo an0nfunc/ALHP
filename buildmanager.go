@@ -314,7 +314,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			log.Fatalf("error releasing ALPM handle: %v", err)
 		}
 
-		if err := retry.Fibonacci(ctx, 1*time.Second, func(ctx context.Context) error {
+		if err := retry.Fibonacci(ctx, 1*time.Second, func(_ context.Context) error {
 			if err := setupChroot(); err != nil {
 				log.Warningf("unable to upgrade chroot, trying again later")
 				return retry.RetryableError(err)

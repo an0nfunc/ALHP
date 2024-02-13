@@ -92,7 +92,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	start := time.Now().UTC()
 	chroot := "build_" + uuid.New().String()
 
-	buildFolder, err := p.setupBuildDir()
+	buildFolder, err := p.setupBuildDir(ctx)
 	if err != nil {
 		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
 	}
@@ -219,13 +219,13 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		if p.DBPackage.Lto != dbpackage.LtoAutoDisabled && p.DBPackage.Lto != dbpackage.LtoDisabled &&
 			(reLdError.MatchString(out.String()) || reRustLTOError.MatchString(out.String())) {
 			p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(ctx)
-			return time.Since(start), fmt.Errorf("ld/lto-incomp error detected, LTO disabled")
+			return time.Since(start), errors.New("ld/lto-incomp error detected, LTO disabled")
 		}
 
 		if reDownloadError.MatchString(out.String()) || reDownloadError2.MatchString(out.String()) ||
 			rePortError.MatchString(out.String()) || reSigError.MatchString(out.String()) {
 			p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(ctx)
-			return time.Since(start), fmt.Errorf("known builderror detected")
+			return time.Since(start), errors.New("known builderror detected")
 		}
 
 		err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, p.March), 0o755)
@@ -259,7 +259,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	}
 
 	if len(pkgFiles) == 0 {
-		return time.Since(start), fmt.Errorf("no build-artifacts found")
+		return time.Since(start), errors.New("no build-artifacts found")
 	}
 
 	for _, file := range pkgFiles {
@@ -319,7 +319,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	return time.Since(start), nil
 }
 
-func (p *ProtoPackage) setupBuildDir() (string, error) {
+func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
 	err := cleanBuildDir(buildDir, "")
@@ -341,8 +341,8 @@ func (p *ProtoPackage) setupBuildDir() (string, error) {
 	gr := retry.NewFibonacci(10 * time.Second)
 	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
 
-	if err := retry.Do(context.Background(), gr, func(ctx context.Context) error {
-		cmd := exec.Command("git", "clone", "--depth", "1", "--branch", p.State.TagVer, //nolint:gosec
+	if err := retry.Do(ctx, gr, func(ctx context.Context) error {
+		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", p.State.TagVer, //nolint:gosec
 			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -364,7 +364,7 @@ func (p *ProtoPackage) repoVersion() (string, error) {
 	}
 
 	if len(p.PkgFiles) == 0 {
-		return "", fmt.Errorf("not found")
+		return "", errors.New("not found")
 	}
 
 	fNameSplit := strings.Split(p.PkgFiles[0], "-")
@@ -510,7 +510,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 
 func (p *ProtoPackage) GitVersion(h *alpm.Handle) (string, error) {
 	if p.Pkgbase == "" {
-		return "", fmt.Errorf("invalid arguments")
+		return "", errors.New("invalid arguments")
 	}
 
 	stateFiles, _ := Glob(filepath.Join(conf.Basedir.Work, stateDir, "**/"+p.Pkgbase))
@@ -617,7 +617,7 @@ func (p *ProtoPackage) findPkgFiles() error {
 	}
 
 	if p.DBPackage == nil && p.Srcinfo == nil {
-		return fmt.Errorf("unable to find pkgfiles without dbpkg or srcinfo present")
+		return errors.New("unable to find pkgfiles without dbpkg or srcinfo present")
 	}
 
 	var realPkgs []string
@@ -707,7 +707,7 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 		if err != nil {
 			return false, nil, "", err
 		} else if svn2gitVer == "" {
-			return false, nil, "", fmt.Errorf("no svn2git version")
+			return false, nil, "", errors.New("no svn2git version")
 		}
 
 		if alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
