@@ -27,8 +27,6 @@ common:
   kcppflags: " -march=$march$ -O3"
   fcflags: "$CFLAGS"
   fflags: "$CFLAGS"
-  ldflags:
-    - "-z,pack-relative-relocs"
 
 lto:
   rustflags:
