@@ -204,7 +204,14 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 
 			rawState, err := os.ReadFile(filepath.Join(conf.Basedir.Work, stateDir, dbPkg.Repository.String()+"-"+conf.Arch, dbPkg.Pkgbase))
 			if err != nil {
-				log.Warningf("[HK] state not found for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+				log.Infof("[HK] state not found for %s->%s: %v, removing package", fullRepo, dbPkg.Pkgbase, err)
+				pkg := &ProtoPackage{
+					FullRepo:  fullRepo,
+					PkgFiles:  existingSplits,
+					March:     march,
+					DBPackage: dbPkg,
+				}
+				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 				continue
 			}
 
