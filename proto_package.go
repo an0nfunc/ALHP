@@ -112,6 +112,15 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
 	p.DBPackage = p.DBPackage.Update().SetPackages(packages2slice(p.Srcinfo.Packages)).SaveX(ctx)
 
+	repoVersion, err := p.repoVersion()
+	if err == nil {
+		if alpm.VerCmp(repoVersion, p.Version) > 0 {
+			log.Infof("skipped %s: package already built", p.Srcinfo.Pkgbase)
+			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).SetTagRev(p.State.TagRev).SaveX(ctx)
+			return time.Since(start), err
+		}
+	}
+
 	// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
 	if Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
 		Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
@@ -122,14 +131,16 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 	isLatest, local, syncVersion, err := p.isMirrorLatest(alpmHandle)
 	if err != nil {
-		switch err.(type) {
+		var multipleStateFilesError MultipleStateFilesError
+		var unableToSatisfyError UnableToSatisfyError
+		switch {
 		default:
 			return time.Since(start), fmt.Errorf("error solving deps: %w", err)
-		case MultipleStateFilesError:
+		case errors.As(err, &multipleStateFilesError):
 			log.Infof("skipped %s: multiple PKGBUILDs for dependency found: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("multiple PKGBUILD for dep. found").SaveX(ctx)
 			return time.Since(start), err
-		case UnableToSatisfyError:
+		case errors.As(err, &unableToSatisfyError):
 			log.Infof("skipped %s: unable to resolve dependencies: %v", p.Srcinfo.Pkgbase, err)
 			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).SetSkipReason("unable to resolve dependencies").SaveX(ctx)
 			return time.Since(start), ErrorNotEligible
