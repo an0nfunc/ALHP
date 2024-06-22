@@ -45,7 +45,7 @@ var (
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	globMatch, err := MatchGlobList(p.Pkgbase, conf.Blacklist.Packages)
 	if err != nil {
-		log.Errorf("error parsing blob from no-build list: %v", err)
+		log.Errorf("error parsing glob from no-build list: %v", err)
 	}
 
 	skipping := false
