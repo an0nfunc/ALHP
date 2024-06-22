@@ -43,6 +43,11 @@ var (
 )
 
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
+	globMatch, err := MatchGlobList(p.Pkgbase, conf.Blacklist.Packages)
+	if err != nil {
+		log.Errorf("error parsing blob from no-build list: %v", err)
+	}
+
 	skipping := false
 	switch {
 	case p.Arch == "any":
@@ -50,8 +55,8 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 		p.DBPackage.SkipReason = "arch = any"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	case Contains(conf.Blacklist.Packages, p.Pkgbase):
-		log.Debugf("skipped %s: blacklisted package", p.Pkgbase)
+	case globMatch:
+		log.Debugf("skipped %s: package on no-build list", p.Pkgbase)
 		p.DBPackage.SkipReason = "blacklisted"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
@@ -79,7 +84,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	repoVer, err := p.repoVersion()
 	if err != nil {
 		p.DBPackage = p.DBPackage.Update().ClearRepoVersion().SaveX(ctx)
-	} else if err == nil && alpm.VerCmp(repoVer, p.Version) > 0 {
+	} else if alpm.VerCmp(repoVer, p.Version) > 0 {
 		log.Debugf("skipped %s: version in repo higher than in PKGBUILD (%s < %s)", p.Pkgbase, p.Version, repoVer)
 		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusLatest).ClearSkipReason().SetTagRev(p.State.TagRev).SaveX(ctx)
 		return false

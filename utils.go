@@ -7,6 +7,7 @@ import (
 	paconf "github.com/Morganamilo/go-pacmanconf"
 	"github.com/Morganamilo/go-srcinfo"
 	"github.com/c2h5oh/datasize"
+	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io/fs"
@@ -656,4 +657,17 @@ func (globs Globs) Expand() ([]string, error) {
 	}
 
 	return matches, nil
+}
+
+func MatchGlobList(target string, globs []string) (bool, error) {
+	for _, lGlob := range globs {
+		tGlob, err := glob.Compile(lGlob)
+		if err != nil {
+			return false, fmt.Errorf("failed to compile glob %s: %w", lGlob, err)
+		}
+		if tGlob.Match(target) {
+			return true, nil
+		}
+	}
+	return false, nil
 }

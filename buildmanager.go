@@ -88,7 +88,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 					b.buildingLock.RUnlock()
 
 					// check if package can be build right now
-					if !unknownBuilds && currentMemLoad+(datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB) > conf.Build.MemoryLimit {
+					if currentMemLoad+(datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB) > conf.Build.MemoryLimit {
 						log.Debugf("[Q] skipped package with max_rss %s while load %s: %s->%s",
 							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, currentMemLoad, pkg.Pkgbase, pkg.March)
 						continue
@@ -291,8 +291,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		for _, repo := range repos {
 			wg.Add(1)
 			splitRepo := strings.Split(repo, "-")
-			repo := repo
-			go func() {
+			go func() { //nolint:contextcheck
 				err := housekeeping(splitRepo[0], strings.Join(splitRepo[1:], "-"), wg)
 				if err != nil {
 					log.Warningf("[%s] housekeeping failed: %v", repo, err)
@@ -301,7 +300,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		wg.Wait()
 
-		err := logHK()
+		err := logHK() //nolint:contextcheck
 		if err != nil {
 			log.Warningf("log-housekeeping failed: %v", err)
 		}
@@ -331,7 +330,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		b.alpmMutex.Unlock()
 
-		queue, err := b.genQueue()
+		queue, err := b.genQueue() //nolint:contextcheck
 		if err != nil {
 			log.Errorf("error building queue: %v", err)
 		} else {
@@ -344,7 +343,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 
 		if ctx.Err() == nil {
 			for _, repo := range repos {
-				err = movePackagesLive(repo)
+				err = movePackagesLive(repo) //nolint:contextcheck
 				if err != nil {
 					log.Errorf("[%s] error moving packages live: %v", repo, err)
 				}
