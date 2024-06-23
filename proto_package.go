@@ -215,7 +215,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if !ok {
-		log.Panicf("Rusage is not of type *syscall.Rusage, are we running on unix-like?")
+		log.Panicf("rusage is not of type *syscall.Rusage, are we running on unix-like?")
 	}
 
 	if err != nil {
@@ -226,13 +226,13 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		if p.DBPackage.Lto != dbpackage.LtoAutoDisabled && p.DBPackage.Lto != dbpackage.LtoDisabled &&
 			(reLdError.MatchString(out.String()) || reRustLTOError.MatchString(out.String())) {
 			p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).SetSkipReason("non-LTO rebuild").SetLto(dbpackage.LtoAutoDisabled).ExecX(ctx)
-			return time.Since(start), errors.New("ld/lto-incomp error detected, LTO disabled")
+			return time.Since(start), errors.New("ld/lto-incompatibility error detected, LTO disabled")
 		}
 
 		if reDownloadError.MatchString(out.String()) || reDownloadError2.MatchString(out.String()) ||
 			rePortError.MatchString(out.String()) || reSigError.MatchString(out.String()) {
 			p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(ctx)
-			return time.Since(start), errors.New("known builderror detected")
+			return time.Since(start), errors.New("known build error detected")
 		}
 
 		err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, p.March), 0o755)
@@ -306,7 +306,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	}
 
 	updatePkg := p.DBPackage.Update().
-		SetStatus(dbpackage.StatusBuild).
+		SetStatus(dbpackage.StatusBuilt).
 		SetLto(dbpackage.LtoEnabled).
 		SetBuildTimeStart(start).
 		SetLastVersionBuild(p.Version).
@@ -407,7 +407,24 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 		return err
 	}
 
-	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+"."+strconv.Itoa(buildNo))
+	// increase buildno if already existing
+	var nStr string
+	if strings.Contains(p.Srcinfo.Pkgrel, ".") {
+		pkgRelSplit := strings.Split(p.Srcinfo.Pkgrel, ".")
+		pkgRelBuildNo, err := strconv.Atoi(pkgRelSplit[len(pkgRelSplit)-1])
+		if err != nil {
+			return err
+		}
+
+		nStr = rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+pkgRelSplit[0]+"."+strconv.Itoa(buildNo+pkgRelBuildNo))
+		versionSplit := strings.Split(p.Version, "-")
+		versionSplit[len(versionSplit)-1] = pkgRelSplit[0] + "." + strconv.Itoa(buildNo+pkgRelBuildNo)
+		p.Version = strings.Join(versionSplit, "-")
+	} else {
+		nStr = rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+"."+strconv.Itoa(buildNo))
+		p.Version += "." + strconv.Itoa(buildNo)
+	}
+
 	_, err = f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -422,7 +439,6 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 		return err
 	}
 
-	p.Version += "." + strconv.Itoa(buildNo)
 	return nil
 }
 
@@ -684,7 +700,7 @@ func (p *ProtoPackage) exists() (bool, error) {
 	return dbPkg, nil
 }
 
-func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alpm.IPackage, version string, err error) {
+func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg *alpm.Package, version string, err error) {
 	dbs, err := h.SyncDBs()
 	if err != nil {
 		return false, nil, "", err
@@ -718,7 +734,12 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg alp
 		}
 
 		if alpm.VerCmp(svn2gitVer, pkg.Version()) > 0 {
-			return false, pkg, svn2gitVer, nil
+			switch v := pkg.(type) {
+			case *alpm.Package:
+				return false, v, svn2gitVer, nil
+			default:
+				return false, nil, "", fmt.Errorf("invalid package type: %T", pkg)
+			}
 		}
 	}
 

@@ -625,11 +625,11 @@ func Glob(pattern string) ([]string, error) {
 
 func (globs Globs) Expand() ([]string, error) {
 	var matches = []string{""}
-	for _, glob := range globs {
+	for _, g := range globs {
 		var hits []string
 		var hitMap = map[string]bool{}
 		for _, match := range matches {
-			paths, err := filepath.Glob(match + glob)
+			paths, err := filepath.Glob(match + g)
 			if err != nil {
 				return nil, err
 			}
