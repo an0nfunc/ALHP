@@ -50,6 +50,12 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			Arch:      *mPackage.Arch(),
 		}
 
+		matchNoBuild, err := MatchGlobList(pkg.Pkgbase, conf.Blacklist.Packages)
+		if err != nil {
+			log.Errorf("[HK] %s->%s error parsing no-build glob: %v", pkg.FullRepo, mPackage.Name(), err)
+			continue
+		}
+
 		// check if package is still part of repo
 		dbs, err := alpmHandle.SyncDBs()
 		if err != nil {
@@ -63,7 +69,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			pkgResolved.DB().Name() != pkg.Repo.String() ||
 			pkgResolved.Architecture() != pkg.Arch ||
 			pkgResolved.Name() != mPackage.Name() ||
-			Contains(conf.Blacklist.Packages, pkg.Pkgbase) {
+			matchNoBuild {
 			switch {
 			case err != nil:
 				log.Infof("[HK] %s->%s not included in repo (resolve error: %v)", pkg.FullRepo, mPackage.Name(), err)
@@ -79,7 +85,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			case pkgResolved.Name() != mPackage.Name():
 				log.Infof("[HK] %s->%s not included in repo (name mismatch: repo:%s != pkg:%s)", pkg.FullRepo,
 					mPackage.Name(), pkgResolved.Name(), mPackage.Name())
-			case Contains(conf.Blacklist.Packages, pkg.Pkgbase):
+			case matchNoBuild:
 				log.Infof("[HK] %s->%s not included in repo (blacklisted pkgbase %s)", pkg.FullRepo, mPackage.Name(), pkg.Pkgbase)
 			}
 

@@ -750,7 +750,7 @@ func (p *ProtoPackage) PkgbaseEquals(p2 *ProtoPackage, marchSensitive bool) bool
 	return (marchSensitive && (p.Pkgbase == p2.Pkgbase && p.FullRepo == p2.FullRepo)) || (!marchSensitive && p.Pkgbase == p2.Pkgbase)
 }
 
-func (p *ProtoPackage) IsBuild() (bool, error) {
+func (p *ProtoPackage) IsBuilt() (bool, error) {
 	if p.DBPackage == nil {
 		return false, nil
 	}

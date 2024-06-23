@@ -414,12 +414,12 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
-			aBuild, err := pkg.IsBuild()
+			aBuild, err := pkg.IsBuilt()
 			if err != nil {
-				log.Warningf("[QG] %s->%s error determining build packages: %v", pkg.FullRepo, pkg.Pkgbase, err)
+				log.Warningf("[QG] %s->%s error determining built packages: %v", pkg.FullRepo, pkg.Pkgbase, err)
 			}
 			if aBuild {
-				log.Infof("[QG] %s->%s already build, skipping build", pkg.FullRepo, pkg.Pkgbase)
+				log.Infof("[QG] %s->%s already built, skipping build", pkg.FullRepo, pkg.Pkgbase)
 				continue
 			}
 
