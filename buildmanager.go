@@ -366,7 +366,7 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 	var pkgbuilds []*ProtoPackage
 	for _, stateFile := range stateFiles {
 		stat, err := os.Stat(stateFile)
-		if err != nil || stat.IsDir() || strings.Contains(stateFile, ".git") {
+		if err != nil || stat.IsDir() || strings.Contains(stateFile, ".git") || strings.Contains(stateFile, "README.md") {
 			continue
 		}
 
