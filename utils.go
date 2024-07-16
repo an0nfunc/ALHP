@@ -10,6 +10,7 @@ import (
 	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -200,7 +201,7 @@ func movePackagesLive(fullRepo string) error {
 						filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 				}
 
-				err = os.Rename(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
+				err = Copy(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
 				if err != nil {
 					return err
 				}
@@ -230,11 +231,11 @@ func movePackagesLive(fullRepo string) error {
 			continue
 		}
 
-		err = os.Rename(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
+		err = Copy(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
 		if err != nil {
 			return err
 		}
-		err = os.Rename(file+".sig", filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)+".sig"))
+		err = Copy(file+".sig", filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)+".sig"))
 		if err != nil {
 			return err
 		}
@@ -670,4 +671,28 @@ func MatchGlobList(target string, globs []string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func Copy(srcPath, dstPath string) (err error) {
+	r, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer func(r *os.File) {
+		_ = r.Close()
+	}(r)
+
+	w, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if c := w.Close(); err == nil {
+			err = c
+		}
+	}()
+
+	_, err = io.Copy(w, r)
+	return err
 }
