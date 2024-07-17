@@ -205,6 +205,7 @@ func movePackagesLive(fullRepo string) error {
 				if err != nil {
 					return err
 				}
+				_ = os.Remove(file)
 				_ = os.Remove(file + ".sig")
 				continue
 			}
@@ -235,10 +236,12 @@ func movePackagesLive(fullRepo string) error {
 		if err != nil {
 			return err
 		}
+		_ = os.Remove(file)
 		err = Copy(file+".sig", filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)+".sig"))
 		if err != nil {
 			return err
 		}
+		_ = os.Remove(file + ".sig")
 
 		toAdd = append(toAdd, &ProtoPackage{
 			DBPackage: dbPkg,
