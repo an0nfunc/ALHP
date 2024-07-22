@@ -210,6 +210,9 @@ func (b *BuildManager) repoWorker(repo string) {
 						log.Warningf("[%s/%s] unable to find files: %v", pkg.FullRepo, pkg.Pkgbase, err)
 						continue
 					} else if len(pkg.PkgFiles) == 0 {
+						if pkg.DBPackage != nil {
+							_ = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().Exec(context.Background())
+						}
 						continue
 					}
 				}
