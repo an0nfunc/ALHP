@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -61,7 +62,7 @@ func (dpq *DBPackageQuery) Order(o ...dbpackage.OrderOption) *DBPackageQuery {
 // First returns the first DBPackage entity from the query.
 // Returns a *NotFoundError when no DBPackage was found.
 func (dpq *DBPackageQuery) First(ctx context.Context) (*DBPackage, error) {
-	nodes, err := dpq.Limit(1).All(setContextOp(ctx, dpq.ctx, "First"))
+	nodes, err := dpq.Limit(1).All(setContextOp(ctx, dpq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (dpq *DBPackageQuery) FirstX(ctx context.Context) *DBPackage {
 // Returns a *NotFoundError when no DBPackage ID was found.
 func (dpq *DBPackageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(1).IDs(setContextOp(ctx, dpq.ctx, "FirstID")); err != nil {
+	if ids, err = dpq.Limit(1).IDs(setContextOp(ctx, dpq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -107,7 +108,7 @@ func (dpq *DBPackageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one DBPackage entity is found.
 // Returns a *NotFoundError when no DBPackage entities are found.
 func (dpq *DBPackageQuery) Only(ctx context.Context) (*DBPackage, error) {
-	nodes, err := dpq.Limit(2).All(setContextOp(ctx, dpq.ctx, "Only"))
+	nodes, err := dpq.Limit(2).All(setContextOp(ctx, dpq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (dpq *DBPackageQuery) OnlyX(ctx context.Context) *DBPackage {
 // Returns a *NotFoundError when no entities are found.
 func (dpq *DBPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(2).IDs(setContextOp(ctx, dpq.ctx, "OnlyID")); err != nil {
+	if ids, err = dpq.Limit(2).IDs(setContextOp(ctx, dpq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -160,7 +161,7 @@ func (dpq *DBPackageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of DBPackages.
 func (dpq *DBPackageQuery) All(ctx context.Context) ([]*DBPackage, error) {
-	ctx = setContextOp(ctx, dpq.ctx, "All")
+	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryAll)
 	if err := dpq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -182,7 +183,7 @@ func (dpq *DBPackageQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if dpq.ctx.Unique == nil && dpq.path != nil {
 		dpq.Unique(true)
 	}
-	ctx = setContextOp(ctx, dpq.ctx, "IDs")
+	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryIDs)
 	if err = dpq.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
@@ -200,7 +201,7 @@ func (dpq *DBPackageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (dpq *DBPackageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, dpq.ctx, "Count")
+	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryCount)
 	if err := dpq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -218,7 +219,7 @@ func (dpq *DBPackageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (dpq *DBPackageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, dpq.ctx, "Exist")
+	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryExist)
 	switch _, err := dpq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -465,7 +466,7 @@ func (dpgb *DBPackageGroupBy) Aggregate(fns ...AggregateFunc) *DBPackageGroupBy 
 
 // Scan applies the selector query and scans the result into the given value.
 func (dpgb *DBPackageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, dpgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, dpgb.build.ctx, ent.OpQueryGroupBy)
 	if err := dpgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -513,7 +514,7 @@ func (dps *DBPackageSelect) Aggregate(fns ...AggregateFunc) *DBPackageSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (dps *DBPackageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, dps.ctx, "Select")
+	ctx = setContextOp(ctx, dps.ctx, ent.OpQuerySelect)
 	if err := dps.prepareQuery(ctx); err != nil {
 		return err
 	}
