@@ -68,6 +68,15 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	case p.isPkgFailed():
 		log.Debugf("skipped %s: failed build", p.Pkgbase)
 		skipping = true
+	case p.Srcinfo != nil:
+		// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
+		if Contains(p.Srcinfo.MakeDepends, "ghc") || Contains(p.Srcinfo.MakeDepends, "haskell-ghc") ||
+			Contains(p.Srcinfo.Depends, "ghc") || Contains(p.Srcinfo.Depends, "haskell-ghc") {
+			log.Debugf("skipped %s: haskell", p.Pkgbase)
+			p.DBPackage.SkipReason = "haskell"
+			p.DBPackage.Status = dbpackage.StatusSkipped
+			skipping = true
+		}
 	}
 
 	if skipping {

@@ -438,6 +438,12 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
+			// try download srcinfo from repo
+			srcInfo, err := downloadSRCINFO(pkg.DBPackage.Pkgbase, state.TagRev)
+			if err == nil {
+				pkg.Srcinfo = srcInfo
+			}
+
 			if !pkg.isEligible(context.Background()) {
 				continue
 			}

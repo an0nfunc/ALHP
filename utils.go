@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -698,4 +699,27 @@ func Copy(srcPath, dstPath string) (err error) {
 
 	_, err = io.Copy(w, r)
 	return err
+}
+
+func downloadSRCINFO(pkg string, tag string) (*srcinfo.Srcinfo, error) {
+	resp, err := http.Get(fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s/-/raw/%s/.SRCINFO", pkg, tag))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(resp.Status)
+	}
+
+	bResp, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	nSrcInfo, err := srcinfo.Parse(string(bResp))
+	if err != nil {
+		return nil, err
+	}
+	return nSrcInfo, nil
 }
