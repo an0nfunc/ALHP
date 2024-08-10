@@ -16,12 +16,11 @@ Buildbot for Archlinux based repos with different
 
 ---
 <!-- TOC -->
-
 * [Quick Start](#quick-start)
-  * [FAQ](#faq)
-  * [Matrix](#matrix)
-  * [Donations](#donations)
-  * [License and Legal](#license-and-legal)
+* [FAQ](#faq)
+* [Matrix](#matrix)
+* [Donations](#donations)
+* [License and Legal](#license-and-legal)
 <!-- TOC -->
 
 ---
@@ -37,11 +36,13 @@ Buildbot for Archlinux based repos with different
 have upgraded.**
 
 Check which feature levels your CPU supports with
+
 ```bash
 /lib/ld-linux-x86-64.so.2 --help
 ```
 
 Example output snippet for a system supporting up to `x86-64-v3`:
+
 ```
 Subdirectories of glibc-hwcaps directories, in priority order:
   x86-64-v4
