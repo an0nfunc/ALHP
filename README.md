@@ -10,30 +10,19 @@ Buildbot for Archlinux-based repos build with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
-> 📢 **x86-64-v4** repos just released. [If your CPU supports v4](#1-check-your-system-for-support), you
-> can [try them out](#switch-between-levels).
-
-> ⚠️ NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
-> [FAQ about Linux kernel modules](#directly-linked-kernel-modules) ⚠️
+> [!WARNING]
+> NVIDIA graphic users using the **proprietary driver** is highly recommended reading the
+> [FAQ about Linux kernel modules](#directly-linked-kernel-modules)
 
 ---
 <!-- TOC -->
 
-* [Quickstart](#quickstart)
-* [FAQ](#faq)
-  * [Remove ALHP packages](#remove-alhp-packages)
-  * [LTO](#lto)
-  * [Linux Kernel packages](#linux-kernel-packages)
-  * [Directly linked kernel modules](#directly-linked-kernel-modules)
-  * [Mirrors](#mirrors)
-  * [What packages are built](#what-packages-are-built)
-  * [Why is package X not up-to-date](#why-is-package-x-not-up-to-date)
-  * [Debug symbols](#debug-symbols)
-  * [Switch between levels/repos](#switch-between-levels)
-* [Matrix](#matrix)
-* [Donations](#donations)
-* [License and Legal](#license-and-legal)
-
+* [ALHP](#alhp)
+  * [Quickstart](#quickstart)
+  * [FAQ](#faq)
+  * [Matrix](#matrix)
+  * [Donations](#donations)
+  * [License and Legal](#license-and-legal)
 <!-- TOC -->
 
 ---
@@ -42,7 +31,8 @@ Buildbot for Archlinux-based repos build with different
 
 ### 1. Check your system for support
 
-> **Important**: Before you enable any of these repos, check if your system supports the feature level you want to
+> [!CAUTION]
+> Before you enable any of these repos, check if your system supports the feature level you want to
 > enable
 (e.g. `x86-64-v3`).
 > **If you don't check beforehand, you might be unable to boot your system anymore and need to downgrade any package
@@ -63,6 +53,11 @@ Subdirectories of glibc-hwcaps directories, in priority order:
   x86-64-v2 (supported, searched)
 ```
 
+> [!NOTE]
+> ALHP builds for `x86-64-v2`, `x86-64-v3` and `x86-64-v4` at the moment. You can see all available
+> repositories
+> [here](https://alhp.dev/).
+
 ### 2. Install keyring & mirrorlist
 
 Install [alhp-keyring](https://aur.archlinux.org/packages/alhp-keyring/)
@@ -81,7 +76,8 @@ yay -S alhp-keyring alhp-mirrorlist
 Edit `/etc/pacman.d/alhp-mirrorlist` and comment out/in mirrors you want to have enabled/disabled. Per default selected
 is a cloudflare-based mirror which
 [*should* provide decent speed worldwide](https://somegit.dev/ALHP/ALHP.GO/issues/38#issuecomment-891).
-> Note: Only `alhp.dev` is hosted by ALHP directly. If you have problems with a mirror,
+> [!NOTE]
+> `cdn.alhp.dev` and `alhp.dev` are provided by ALHP directly. If you have problems with a mirror,
 > open an issue at [the mirrorlist repo](https://somegit.dev/ALHP/alhp-mirrorlist).
 
 ### 4. Modify /etc/pacman.conf
@@ -94,11 +90,11 @@ Example for `x86-64-v3`:
 [core-x86-64-v3]
 Include = /etc/pacman.d/alhp-mirrorlist
 
-[extra-x86-64-v3]
-Include = /etc/pacman.d/alhp-mirrorlist
-
 [core]
 Include = /etc/pacman.d/mirrorlist
+
+[extra-x86-64-v3]
+Include = /etc/pacman.d/alhp-mirrorlist
 
 [extra]
 Include = /etc/pacman.d/mirrorlist
@@ -112,9 +108,9 @@ Include = /etc/pacman.d/mirrorlist
 ```
 
 Replace `x86-64-v3` with the x86-64 feature level you want to enable.
-> ALHP builds for `x86-64-v2`, `x86-64-v3` and `x86-64-v4` at the moment. You can see all available
-> repositories
-> [here](https://alhp.dev/).
+
+> [!TIP]
+> Stacking multiple levels is possible, as described in https://somegit.dev/ALHP/ALHP.GO/issues/255#issuecomment-3335.
 
 ### 5. Update package database and upgrade:
 
