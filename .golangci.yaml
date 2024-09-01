@@ -90,3 +90,4 @@ linters:
     # remove for new projects
     - errname
     - goerr113
+    - depguard

@@ -241,8 +241,8 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			if err != nil {
 				return err
 			}
-		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && strings.HasPrefix(dbPkg.SkipReason, "blacklisted"):
-			log.Infof("[HK] delete blacklisted package %s->%s", fullRepo, dbPkg.Pkgbase)
+		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion != "" && !strings.HasPrefix(dbPkg.SkipReason, "delayed"):
+			log.Infof("[HK] delete skipped package %s->%s", fullRepo, dbPkg.Pkgbase)
 			pkg := &ProtoPackage{
 				FullRepo:  fullRepo,
 				March:     march,
