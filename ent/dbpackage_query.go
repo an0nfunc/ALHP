@@ -252,8 +252,9 @@ func (dpq *DBPackageQuery) Clone() *DBPackageQuery {
 		inters:     append([]Interceptor{}, dpq.inters...),
 		predicates: append([]predicate.DBPackage{}, dpq.predicates...),
 		// clone intermediate query.
-		sql:  dpq.sql.Clone(),
-		path: dpq.path,
+		sql:       dpq.sql.Clone(),
+		path:      dpq.path,
+		modifiers: append([]func(*sql.Selector){}, dpq.modifiers...),
 	}
 }
 
