@@ -140,7 +140,7 @@ func pkgList2MaxMem(pkgList []*ProtoPackage) datasize.ByteSize {
 	var sum uint64
 	for _, pkg := range pkgList {
 		if pkg.DBPackage.MaxRss != nil {
-			sum += uint64(*pkg.DBPackage.MaxRss)
+			sum += uint64(*pkg.DBPackage.MaxRss) //nolint:gosec
 		}
 	}
 
@@ -701,8 +701,10 @@ func Copy(srcPath, dstPath string) (err error) {
 	return err
 }
 
-func downloadSRCINFO(pkg string, tag string) (*srcinfo.Srcinfo, error) {
-	resp, err := http.Get(fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s/-/raw/%s/.SRCINFO", pkg, tag))
+func downloadSRCINFO(pkg, tag string) (*srcinfo.Srcinfo, error) {
+	resp, err := http.Get(fmt.Sprintf(
+		"https://gitlab.archlinux.org/archlinux/packaging/packages/%s/-/raw/%s/.SRCINFO", pkg, tag),
+	)
 	if err != nil {
 		return nil, err
 	}

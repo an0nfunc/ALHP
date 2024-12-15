@@ -74,9 +74,9 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 					}
 
 					// check if package can be built with current memory limit
-					if datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit {
+					if datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit { //nolint:gosec
 						log.Warningf("[Q] %s->%s exeeds memory limit: %s->%s", pkg.FullRepo, pkg.Pkgbase,
-							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, conf.Build.MemoryLimit)
+							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, conf.Build.MemoryLimit) //nolint:gosec
 						doneQLock.Lock()
 						doneQ = append(doneQ, pkg)
 						doneQLock.Unlock()
@@ -88,9 +88,9 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 					b.buildingLock.RUnlock()
 
 					// check if package can be build right now
-					if currentMemLoad+(datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB) > conf.Build.MemoryLimit {
+					if currentMemLoad+(datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB) > conf.Build.MemoryLimit { //nolint:gosec
 						log.Debugf("[Q] skipped package with max_rss %s while load %s: %s->%s",
-							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, currentMemLoad, pkg.Pkgbase, pkg.March)
+							datasize.ByteSize(*pkg.DBPackage.MaxRss)*datasize.KB, currentMemLoad, pkg.Pkgbase, pkg.March) //nolint:gosec
 						continue
 					}
 				} else {
@@ -438,7 +438,7 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				continue
 			}
 
-			// try download srcinfo from repo
+			// try download .SRCINFO from repo
 			srcInfo, err := downloadSRCINFO(pkg.DBPackage.Pkgbase, state.TagRev)
 			if err == nil {
 				pkg.Srcinfo = srcInfo

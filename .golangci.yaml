@@ -14,7 +14,7 @@ linters-settings:
     disabled-checks:
       - whyNoLint
       - filepathJoin
-  gomnd:
+  mnd:
     checks:
       - argument
       - case
@@ -91,3 +91,4 @@ linters:
     - errname
     - goerr113
     - depguard
+    - noctx

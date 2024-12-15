@@ -60,8 +60,8 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 		p.DBPackage.SkipReason = "blacklisted"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	case p.DBPackage.MaxRss != nil && datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit:
-		log.Debugf("skipped %s: memory limit exceeded (%s)", p.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB)
+	case p.DBPackage.MaxRss != nil && datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB > conf.Build.MemoryLimit: //nolint:gosec
+		log.Debugf("skipped %s: memory limit exceeded (%s)", p.Pkgbase, datasize.ByteSize(*p.DBPackage.MaxRss)*datasize.KB) //nolint:gosec
 		p.DBPackage.SkipReason = "memory limit exceeded"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
