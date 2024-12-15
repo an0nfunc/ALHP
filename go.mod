@@ -17,7 +17,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/wercker/journalhook v0.0.0-20230927020745-64542ffa4117
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
