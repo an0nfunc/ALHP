@@ -9,7 +9,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/fs"
 	"net/http"
@@ -490,12 +490,18 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 			if len(orgMatch) == 0 {
 				// no match found, assume env var and append it
 				log.Debugf("no match found for %s:%v, appending", subSec, subMap)
-				if strings.Contains(subMap.(string), " ") {
-					makepkgConf += fmt.Sprintf("\nexport %s=%q", strings.ToUpper(subSec.(string)), replaceStringsFromMap(subMap.(string), replaceMap))
+				switch sm := subMap.(type) {
+				case string:
+					if strings.Contains(sm, " ") {
+						makepkgConf += fmt.Sprintf("\nexport %s=%q", strings.ToUpper(subSec.(string)), replaceStringsFromMap(sm, replaceMap))
+						continue
+					}
+					makepkgConf += fmt.Sprintf("\nexport %s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(sm, replaceMap))
+					continue
+				case []string:
+					makepkgConf += fmt.Sprintf("\nexport %s=%q", strings.ToUpper(subSec.(string)), replaceStringsFromMap(strings.Join(sm, " "), replaceMap))
 					continue
 				}
-				makepkgConf += fmt.Sprintf("\nexport %s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(subMap.(string), replaceMap))
-				continue
 			}
 
 			log.Debugf("original %s: %v (%d)", subSec, flags, len(flags))
