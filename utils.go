@@ -26,6 +26,7 @@ import (
 const (
 	pacmanConf     = "/usr/share/devtools/pacman.conf.d/multilib.conf"
 	makepkgConf    = "/usr/share/devtools/makepkg.conf.d/x86_64.conf"
+	makepkgConfExt = "/etc/makepkg.conf.d"
 	logDir         = "logs"
 	pristineChroot = "root"
 	buildDir       = "build"
@@ -337,7 +338,7 @@ func setupChroot() error {
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("error updating chroot: %w\n%s", err, string(res))
+			return fmt.Errorf("error updating chroot: %w: %s", err, string(res))
 		}
 	case os.IsNotExist(err):
 		err = os.MkdirAll(filepath.Join(conf.Basedir.Work, chrootDir), 0o755)
@@ -349,15 +350,24 @@ func setupChroot() error {
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("error creating chroot: %w\n%s", err, string(res))
+			return fmt.Errorf("error creating chroot: %w: %s", err, string(res))
 		}
 
+		// copy pacman.conf into pristine chroot to enable multilib
 		cmd = exec.Command("sudo", "cp", pacmanConf, //nolint:gosec
 			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
-			return fmt.Errorf("error copying pacman.conf to chroot: %w\n%s", err, string(res))
+			return fmt.Errorf("error copying pacman.conf to chroot: %w: %s", err, string(res))
+		}
+
+		// remove makepkg conf extension, they are covered by our custom makepkg
+		cmd = exec.Command("sudo", "rm_chroot.py", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/makepkg.conf.d"))
+		res, err = cmd.CombinedOutput()
+		log.Debug(string(res))
+		if err != nil {
+			return fmt.Errorf("error removing makepkg.conf.d from chroot: %w: %s", err, string(res))
 		}
 	default:
 		return err
@@ -482,6 +492,8 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 			}
 
 			if _, ok := subMap.(string); ok && len(orgMatch) > 0 {
+				log.Debugf("replace %s with %s", orgMatch[0], fmt.Sprintf("\n%s=%s%s%s",
+					strings.ToUpper(subSec.(string)), orgMatch[2], replaceStringsFromMap(subMap.(string), replaceMap), orgMatch[4]))
 				makepkgConf = strings.ReplaceAll(makepkgConf, orgMatch[0], fmt.Sprintf("\n%s=%s%s%s",
 					strings.ToUpper(subSec.(string)), orgMatch[2], replaceStringsFromMap(subMap.(string), replaceMap), orgMatch[4]))
 				continue
@@ -534,7 +546,24 @@ func setupMakepkg(march string, flags map[string]any) error {
 	if err != nil {
 		return err
 	}
-	makepkgStr := string(t)
+	makepkgStrBuilder := new(strings.Builder)
+	makepkgStrBuilder.Write(t)
+
+	// read makepkg conf.d
+	makepkgConfExt, err := Glob(filepath.Join(makepkgConfExt, "*.conf"))
+	if err != nil {
+		return err
+	}
+
+	for _, makepkgExt := range makepkgConfExt {
+		ext, err := os.ReadFile(makepkgExt)
+		if err != nil {
+			return err
+		}
+		makepkgStrBuilder.Write(ext)
+	}
+
+	makepkgStr := makepkgStrBuilder.String()
 
 	makepkgStr, err = parseFlagSection(flags["common"], makepkgStr, march)
 	if err != nil {
