@@ -249,6 +249,12 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				DBPackage: dbPkg,
 			}
 			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
+		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.RepoVersion == "" && dbPkg.SkipReason == "blacklisted":
+			log.Infof("[HK] requeue previously blacklisted package %s->%s", fullRepo, dbPkg.Pkgbase)
+			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearSkipReason().ClearTagRev().Exec(context.Background())
+			if err != nil {
+				return err
+			}
 		case dbPkg.Status == dbpackage.StatusFailed && dbPkg.RepoVersion != "":
 			log.Infof("[HK] package %s->%s failed but still present in repo, removing", fullRepo, dbPkg.Pkgbase)
 			pkg := &ProtoPackage{
