@@ -699,17 +699,18 @@ func (globs Globs) Expand() ([]string, error) {
 	return matches, nil
 }
 
-func MatchGlobList(target string, globs []string) (bool, error) {
+func MatchGlobList(target string, globs []string) bool {
 	for _, lGlob := range globs {
 		tGlob, err := glob.Compile(lGlob)
 		if err != nil {
-			return false, fmt.Errorf("failed to compile glob %s: %w", lGlob, err)
+			log.Warningf("failed to compile glob %s: %v", lGlob, err)
+			return false
 		}
 		if tGlob.Match(target) {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func Copy(srcPath, dstPath string) (err error) {

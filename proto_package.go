@@ -43,11 +43,6 @@ var (
 )
 
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
-	globMatch, err := MatchGlobList(p.Pkgbase, conf.Blacklist.Packages)
-	if err != nil {
-		log.Errorf("error parsing glob from no-build list: %v", err)
-	}
-
 	skipping := false
 	switch {
 	case p.Arch == "any":
@@ -55,7 +50,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 		p.DBPackage.SkipReason = "arch = any"
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
-	case globMatch:
+	case MatchGlobList(p.Pkgbase, conf.Blacklist.Packages):
 		log.Debugf("skipped %s: package on no-build list", p.Pkgbase)
 		p.DBPackage.SkipReason = "blacklisted"
 		p.DBPackage.Status = dbpackage.StatusSkipped
