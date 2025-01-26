@@ -97,7 +97,7 @@ package() {
 `
 
 func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
-	pkgbuild, err := os.CreateTemp("", "")
+	pkgbuild, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal("unable to setup temp. PKGBUILD")
 	}
@@ -142,7 +142,7 @@ func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
 }
 
 func TestIncreasePkgRelWithPkgSub(t *testing.T) { //nolint:paralleltest
-	pkgbuild, err := os.CreateTemp("", "")
+	pkgbuild, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {
 		t.Fatal("unable to setup temp. PKGBUILD")
 	}
