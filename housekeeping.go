@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func housekeeping(repo, march string, wg *sync.WaitGroup) error {
+func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
 	log.Debugf("[%s] start housekeeping", fullRepo)
@@ -26,7 +26,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	for _, path := range packages {
 		mPackage := Package(path)
 
-		dbPkg, err := mPackage.DBPackage(db)
+		dbPkg, err := mPackage.DBPackage(ctx, db)
 		if ent.IsNotFound(err) {
 			log.Infof("[HK] removing orphan %s->%s", fullRepo, filepath.Base(path))
 			pkg := &ProtoPackage{
@@ -89,7 +89,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 				log.Errorf("[HK] %s->%s unable to get pkg-files: %v", pkg.FullRepo, mPackage.Name(), err)
 				continue
 			}
-			err = db.DBPackage.DeleteOne(pkg.DBPackage).Exec(context.Background())
+			err = db.DBPackage.DeleteOne(pkg.DBPackage).Exec(ctx)
 			pkg.DBPackage = nil
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			if err != nil {
@@ -99,7 +99,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 		}
 
 		if pkg.DBPackage.LastVerified.Before(pkg.DBPackage.BuildTimeStart) {
-			err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(context.Background())
+			err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(ctx)
 			if err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			DBPackage: dbPkg,
 		}
 
-		if !pkg.isAvailable(alpmHandle) {
+		if !pkg.isAvailable(ctx, alpmHandle) {
 			log.Infof("[HK] %s->%s not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
 			err = db.DBPackage.DeleteOne(dbPkg).Exec(context.Background())
 			if err != nil {
@@ -161,9 +161,11 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			// check lastVersionBuild
 			if dbPkg.LastVersionBuild != dbPkg.RepoVersion {
 				log.Infof("[HK] %s->%s updating lastVersionBuild %s -> %s", fullRepo, dbPkg.Pkgbase, dbPkg.LastVersionBuild, dbPkg.RepoVersion)
-				dbPkg, err = dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Save(context.Background())
+				nDBPkg, err := dbPkg.Update().SetLastVersionBuild(dbPkg.RepoVersion).Save(ctx)
 				if err != nil {
 					log.Warningf("[HK] error updating lastVersionBuild for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
+				} else {
+					dbPkg = nDBPkg
 				}
 			}
 
@@ -188,7 +190,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 					ClearRepoVersion().
 					ClearTagRev().
 					SetStatus(dbpackage.StatusQueued).
-					Save(context.Background())
+					Save(ctx)
 				if err != nil {
 					return err
 				}
@@ -224,14 +226,14 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 			if dbPkg.TagRev != nil && state.TagRev == *dbPkg.TagRev && state.PkgVer != dbPkg.Version {
 				log.Infof("[HK] reseting package %s->%s with mismatched state information (%s!=%s)",
 					fullRepo, dbPkg.Pkgbase, state.PkgVer, dbPkg.Version)
-				err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().Exec(context.Background())
+				err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().Exec(ctx)
 				if err != nil {
 					return err
 				}
 			}
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion == "":
 			log.Infof("[HK] reseting missing package %s->%s with no repo version", fullRepo, dbPkg.Pkgbase)
-			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().ClearRepoVersion().Exec(context.Background())
+			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().ClearRepoVersion().Exec(ctx)
 			if err != nil {
 				return err
 			}
@@ -264,7 +266,7 @@ func housekeeping(repo, march string, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func logHK() error {
+func logHK(ctx context.Context) error {
 	// check if package for log exists and if error can be fixed by rebuild
 	logFiles, err := Glob(filepath.Join(conf.Basedir.Repo, logDir, "/**/*.log"))
 	if err != nil {
@@ -293,7 +295,7 @@ func logHK() error {
 			dbpackage.Pkgbase(pkg.Pkgbase),
 			dbpackage.March(pkg.March),
 			dbpackage.StatusEQ(dbpackage.StatusSkipped),
-		).Exist(context.Background())
+		).Exist(ctx)
 		if err != nil {
 			return err
 		}
@@ -312,7 +314,7 @@ func logHK() error {
 		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) ||
 			reDownloadError2.MatchString(sLogContent) {
 			rows, err := db.DBPackage.Update().Where(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed)).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(context.Background())
+				dbpackage.StatusEQ(dbpackage.StatusFailed)).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -326,7 +328,7 @@ func logHK() error {
 				dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed),
 				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-			).ClearTagRev().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(context.Background())
+			).ClearTagRev().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -343,7 +345,7 @@ func debugHK() {
 	for _, march := range conf.March {
 		if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march)); err == nil {
 			log.Debugf("[DHK/%s] start cleanup debug packages", march)
-			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1") //nolint:gosec
+			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1")
 			res, err := cleanCmd.CombinedOutput()
 			if err != nil {
 				log.Warningf("[DHK/%s] cleanup debug packages failed: %v (%s)", march, err, string(res))

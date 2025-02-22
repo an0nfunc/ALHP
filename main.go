@@ -86,7 +86,8 @@ func main() {
 		}(db)
 	}
 
-	if err := db.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := db.Schema.Create(ctx, migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
 		log.Panicf("automigrate failed: %v", err)
 	}
 
@@ -100,11 +101,13 @@ func main() {
 		repoWG:       new(sync.WaitGroup),
 	}
 
-	err = setupChroot()
+	buildManager.setupMetrics(conf.MetricsPort)
+
+	err = setupChroot(ctx)
 	if err != nil {
 		log.Panicf("unable to setup chroot: %v", err)
 	}
-	err = syncMarchs()
+	err = syncMarchs(ctx)
 	if err != nil {
 		log.Panicf("error syncing marchs: %v", err)
 	}
@@ -114,8 +117,6 @@ func main() {
 	if err != nil {
 		log.Panicf("error while ALPM-init: %v", err)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		_ = buildManager.syncWorker(ctx)

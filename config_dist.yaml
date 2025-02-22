@@ -45,3 +45,6 @@ build:
 
 logging:
   level: INFO
+
+metrics:
+  port: 9568

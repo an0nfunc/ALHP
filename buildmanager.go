@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/c2h5oh/datasize"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -26,6 +27,9 @@ type BuildManager struct {
 	building     []*ProtoPackage
 	buildingLock *sync.RWMutex
 	queueSignal  chan struct{}
+	metrics      struct {
+		queueSize *prometheus.GaugeVec
+	}
 }
 
 func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) error {
@@ -80,6 +84,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 						doneQLock.Lock()
 						doneQ = append(doneQ, pkg)
 						doneQLock.Unlock()
+						b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "queued").Dec()
 						continue
 					}
 
@@ -106,14 +111,18 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 				b.building = append(b.building, pkg)
 				b.buildingLock.Unlock()
 				queueNoMatch = false
+				b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "queued").Dec()
+				b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "building").Inc()
 
 				go func(pkg *ProtoPackage) {
 					dur, err := pkg.build(ctx)
+					b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "building").Dec()
 					if err != nil && !errors.Is(err, ErrorNotEligible) {
 						log.Warningf("[Q] error building package %s->%s in %s: %s", pkg.FullRepo, pkg.Pkgbase, dur, err)
 						b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					} else if err == nil {
 						log.Infof("[Q] build successful: %s->%s (%s)", pkg.FullRepo, pkg.Pkgbase, dur)
+						b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "built").Inc()
 					}
 					doneQLock.Lock()
 					b.buildingLock.Lock()
@@ -147,7 +156,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 	return nil
 }
 
-func (b *BuildManager) repoWorker(repo string) {
+func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 	for {
 		select {
 		case pkgL := <-b.repoAdd[repo]:
@@ -159,7 +168,7 @@ func (b *BuildManager) repoWorker(repo string) {
 
 			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch, repo) + ".db.tar.xz"}
 			args = append(args, toAdd...)
-			cmd := exec.Command("repo-add", args...)
+			cmd := exec.CommandContext(ctx, "repo-add", args...)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil && cmd.ProcessState.ExitCode() != 1 {
@@ -167,7 +176,7 @@ func (b *BuildManager) repoWorker(repo string) {
 			}
 
 			for _, pkg := range pkgL {
-				err = pkg.toDBPackage(true)
+				err = pkg.toDBPackage(ctx, true)
 				if err != nil {
 					log.Warningf("error getting db entry for %s: %v", pkg.Pkgbase, err)
 					continue
@@ -185,10 +194,12 @@ func (b *BuildManager) repoWorker(repo string) {
 				} else {
 					pkgUpd = pkgUpd.SetDebugSymbols(dbpackage.DebugSymbolsNotAvailable)
 				}
-				pkg.DBPackage = pkgUpd.SaveX(context.Background())
+				if pkg.DBPackage, err = pkgUpd.Save(ctx); err != nil {
+					log.Error(err)
+				}
 			}
 
-			cmd = exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1") //nolint:gosec
+			cmd = exec.CommandContext(ctx, "paccache", "-rc", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch), "-k", "1") //nolint:gosec
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
@@ -211,7 +222,10 @@ func (b *BuildManager) repoWorker(repo string) {
 						continue
 					} else if len(pkg.PkgFiles) == 0 {
 						if pkg.DBPackage != nil {
-							_ = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().Exec(context.Background())
+							err = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().Exec(ctx)
+							if err != nil {
+								log.Error(err)
+							}
 						}
 						continue
 					}
@@ -231,7 +245,7 @@ func (b *BuildManager) repoWorker(repo string) {
 				b.repoWG.Add(1)
 				args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
 				args = append(args, realPkgs...)
-				cmd := exec.Command("repo-remove", args...)
+				cmd := exec.CommandContext(ctx, "repo-remove", args...)
 				res, err := cmd.CombinedOutput()
 				log.Debug(string(res))
 				if err != nil && cmd.ProcessState.ExitCode() == 1 {
@@ -239,7 +253,10 @@ func (b *BuildManager) repoWorker(repo string) {
 				}
 
 				if pkg.DBPackage != nil {
-					_ = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().Exec(context.Background())
+					err = pkg.DBPackage.Update().ClearRepoVersion().ClearTagRev().Exec(ctx)
+					if err != nil {
+						log.Error(err)
+					}
 				}
 
 				for _, file := range pkg.PkgFiles {
@@ -265,14 +282,14 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 	gitPath := filepath.Join(conf.Basedir.Work, stateDir)
 	for {
 		if _, err := os.Stat(gitPath); os.IsNotExist(err) {
-			cmd := exec.Command("git", "clone", "--depth=1", conf.StateRepo, gitPath) //nolint:gosec
+			cmd := exec.CommandContext(ctx, "git", "clone", "--depth=1", conf.StateRepo, gitPath) //nolint:gosec
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
 				log.Fatalf("error cloning state repo: %v", err)
 			}
 		} else if err == nil {
-			cmd := exec.Command("git", "reset", "--hard")
+			cmd := exec.CommandContext(ctx, "git", "reset", "--hard")
 			cmd.Dir = gitPath
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
@@ -280,7 +297,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 				log.Fatalf("error reseting state repo: %v", err)
 			}
 
-			cmd = exec.Command("git", "pull")
+			cmd = exec.CommandContext(ctx, "git", "pull")
 			cmd.Dir = gitPath
 			res, err = cmd.CombinedOutput()
 			log.Debug(string(res))
@@ -294,8 +311,8 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		for _, repo := range repos {
 			wg.Add(1)
 			splitRepo := strings.Split(repo, "-")
-			go func() { //nolint:contextcheck
-				err := housekeeping(splitRepo[0], strings.Join(splitRepo[1:], "-"), wg)
+			go func() {
+				err := housekeeping(ctx, splitRepo[0], strings.Join(splitRepo[1:], "-"), wg)
 				if err != nil {
 					log.Warningf("[%s] housekeeping failed: %v", repo, err)
 				}
@@ -303,7 +320,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		wg.Wait()
 
-		err := logHK() //nolint:contextcheck
+		err := logHK(ctx)
 		if err != nil {
 			log.Warningf("log-housekeeping failed: %v", err)
 		}
@@ -317,7 +334,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 
 		if err := retry.Fibonacci(ctx, 1*time.Second, func(_ context.Context) error {
-			if err := setupChroot(); err != nil {
+			if err := setupChroot(ctx); err != nil {
 				log.Warningf("unable to upgrade chroot, trying again later")
 				return retry.RetryableError(err)
 			}
@@ -333,20 +350,21 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 		b.alpmMutex.Unlock()
 
-		queue, err := b.genQueue() //nolint:contextcheck
+		queue, err := b.genQueue(ctx)
 		if err != nil {
 			log.Errorf("error building queue: %v", err)
-		} else {
-			log.Debugf("build-queue with %d items", len(queue))
-			err = b.buildQueue(ctx, queue)
-			if err != nil {
-				return err
-			}
+			return err
+		}
+
+		log.Debugf("build-queue with %d items", len(queue))
+		err = b.buildQueue(ctx, queue)
+		if err != nil {
+			return err
 		}
 
 		if ctx.Err() == nil {
 			for _, repo := range repos {
-				err = movePackagesLive(repo) //nolint:contextcheck
+				err = movePackagesLive(ctx, repo)
 				if err != nil {
 					log.Errorf("[%s] error moving packages live: %v", repo, err)
 				}
@@ -355,12 +373,13 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			return ctx.Err()
 		}
 
+		b.metrics.queueSize.Reset()
 		log.Debugf("build-cycle finished")
 		time.Sleep(time.Duration(*checkInterval) * time.Minute)
 	}
 }
 
-func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
+func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 	stateFiles, err := Glob(filepath.Join(conf.Basedir.Work, stateDir, "**/*"))
 	if err != nil {
 		return nil, fmt.Errorf("error scanning for state-files: %w", err)
@@ -406,13 +425,13 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				Arch:     arch,
 			}
 
-			err = pkg.toDBPackage(false)
+			err = pkg.toDBPackage(ctx, false)
 			if err != nil {
 				log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
 				continue
 			}
 
-			if !pkg.isAvailable(alpmHandle) {
+			if !pkg.isAvailable(ctx, alpmHandle) {
 				log.Debugf("[QG] %s->%s not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
 				continue
 			}
@@ -427,7 +446,7 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 			}
 
 			if pkg.DBPackage == nil {
-				err = pkg.toDBPackage(true)
+				err = pkg.toDBPackage(ctx, true)
 				if err != nil {
 					log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
 					continue
@@ -444,12 +463,16 @@ func (b *BuildManager) genQueue() ([]*ProtoPackage, error) {
 				pkg.Srcinfo = srcInfo
 			}
 
-			if !pkg.isEligible(context.Background()) {
+			if !pkg.isEligible(ctx) {
 				continue
 			}
 
-			pkg.DBPackage = pkg.DBPackage.Update().SetStatus(dbpackage.StatusQueued).SaveX(context.Background())
+			pkg.DBPackage, err = pkg.DBPackage.Update().SetStatus(dbpackage.StatusQueued).Save(ctx)
+			if err != nil {
+				log.Warningf("[QG] error updating dbpackage %s: %v", state.Pkgbase, err)
+			}
 			pkgbuilds = append(pkgbuilds, pkg)
+			b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "queued").Inc()
 		}
 	}
 

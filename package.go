@@ -70,12 +70,12 @@ func (pkg Package) HasValidSignature() (bool, error) {
 }
 
 // DBPackage returns ent.DBPackage for package
-func (pkg Package) DBPackage(db *ent.Client) (*ent.DBPackage, error) {
-	return pkg.DBPackageIsolated(*pkg.MArch(), pkg.Repo(), db)
+func (pkg Package) DBPackage(ctx context.Context, db *ent.Client) (*ent.DBPackage, error) {
+	return pkg.DBPackageIsolated(ctx, *pkg.MArch(), pkg.Repo(), db)
 }
 
 // DBPackageIsolated returns ent.DBPackage like DBPackage, but not relying on the path for march and repo
-func (pkg Package) DBPackageIsolated(march string, repo dbpackage.Repository, db *ent.Client) (*ent.DBPackage, error) {
+func (pkg Package) DBPackageIsolated(ctx context.Context, march string, repo dbpackage.Repository, db *ent.Client) (*ent.DBPackage, error) {
 	dbPkg, err := db.DBPackage.Query().Where(func(s *sql.Selector) {
 		s.Where(
 			sql.And(
@@ -83,7 +83,7 @@ func (pkg Package) DBPackageIsolated(march string, repo dbpackage.Repository, db
 				sql.EQ(dbpackage.FieldMarch, march),
 				sql.EQ(dbpackage.FieldRepository, repo)),
 		)
-	}).Only(context.Background())
+	}).Only(ctx)
 	if ent.IsNotFound(err) {
 		log.Debugf("not found in database: %s", pkg.Name())
 		return nil, err

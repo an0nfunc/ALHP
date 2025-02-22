@@ -465,7 +465,7 @@ func (p *ProtoPackage) importKeys() error {
 	return nil
 }
 
-func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
+func (p *ProtoPackage) isAvailable(ctx context.Context, h *alpm.Handle) bool {
 	dbs, err := h.SyncDBs()
 	if err != nil {
 		return false
@@ -481,7 +481,7 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 	case p.DBPackage != nil && len(p.DBPackage.Packages) > 0:
 		pkg, err = dbs.FindSatisfier(p.DBPackage.Packages[0])
 	default:
-		cmd := exec.Command("unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String(), //nolint:gosec
+		cmd := exec.CommandContext(ctx, "unbuffer", "pacsift", "--exact", "--base="+p.Pkgbase, "--repo="+p.Repo.String(), //nolint:gosec
 			"--sysroot="+filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
 		var res []byte
 		res, err = cmd.Output()
@@ -508,7 +508,10 @@ func (p *ProtoPackage) isAvailable(h *alpm.Handle) bool {
 			}
 
 			if p.DBPackage != nil {
-				p.DBPackage = p.DBPackage.Update().SetPackages(splitPkgs).SaveX(context.Background())
+				p.DBPackage, err = p.DBPackage.Update().SetPackages(splitPkgs).Save(ctx)
+				if err != nil {
+					return false
+				}
 			}
 			pkg, err = dbs.FindSatisfier(splitPkgs[0])
 		} else {
@@ -651,8 +654,8 @@ func (p *ProtoPackage) findPkgFiles() error {
 	if p.DBPackage != nil {
 		realPkgs = append(realPkgs, p.DBPackage.Packages...)
 	} else {
-		for _, realPkg := range p.Srcinfo.Packages {
-			realPkgs = append(realPkgs, realPkg.Pkgname)
+		for i := 0; i < len(p.Srcinfo.Packages); i++ {
+			realPkgs = append(realPkgs, p.Srcinfo.Packages[i].Pkgname)
 		}
 	}
 
@@ -671,7 +674,7 @@ func (p *ProtoPackage) findPkgFiles() error {
 	return nil
 }
 
-func (p *ProtoPackage) toDBPackage(create bool) error {
+func (p *ProtoPackage) toDBPackage(ctx context.Context, create bool) error {
 	if p.DBPackage != nil {
 		return nil
 	}
@@ -680,13 +683,16 @@ func (p *ProtoPackage) toDBPackage(create bool) error {
 		dbpackage.Pkgbase(p.Pkgbase),
 		dbpackage.March(p.March),
 		dbpackage.RepositoryEQ(p.Repo),
-	).Only(context.Background())
+	).Only(ctx)
 	if err != nil && ent.IsNotFound(err) && create {
-		dbPkg = db.DBPackage.Create().
+		dbPkg, err = db.DBPackage.Create().
 			SetPkgbase(p.Pkgbase).
 			SetMarch(p.March).
 			SetRepository(p.Repo).
-			SaveX(context.Background())
+			Save(ctx)
+		if err != nil {
+			return err
+		}
 	} else if err != nil && !ent.IsNotFound(err) {
 		return err
 	}

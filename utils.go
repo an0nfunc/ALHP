@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/Jguer/go-alpm/v2"
@@ -86,6 +87,9 @@ type Conf struct {
 		Interval string
 	}
 	MaxCloneRetries uint64 `yaml:"max_clone_retries"`
+	Metrics         struct {
+		Port uint32
+	}
 }
 
 type Globs []string
@@ -167,7 +171,7 @@ func stateFileMeta(stateFile string) (repo string, subRepo *string, arch string,
 	return
 }
 
-func movePackagesLive(fullRepo string) error {
+func movePackagesLive(ctx context.Context, fullRepo string) error {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo)); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
@@ -187,7 +191,7 @@ func movePackagesLive(fullRepo string) error {
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
-		dbPkg, err := pkg.DBPackageIsolated(march, dbpackage.Repository(repo), db)
+		dbPkg, err := pkg.DBPackageIsolated(ctx, march, dbpackage.Repository(repo), db)
 		if err != nil {
 			if strings.HasSuffix(pkg.Name(), "-debug") {
 				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0o755)
@@ -265,8 +269,8 @@ func packages2slice(pkgs any) []string {
 	switch v := pkgs.(type) {
 	case []srcinfo.Package:
 		var sPkgs []string
-		for _, p := range v {
-			sPkgs = append(sPkgs, p.Pkgname)
+		for i := range v {
+			sPkgs = append(sPkgs, v[i].Pkgname)
 		}
 
 		return sPkgs
@@ -329,12 +333,12 @@ func initALPM(root, dbpath string) (*alpm.Handle, error) {
 	return h, nil
 }
 
-func setupChroot() error {
+func setupChroot(ctx context.Context) error {
 	_, err := os.Stat(filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot))
 	switch {
 	case err == nil:
-		cmd := exec.Command("arch-nspawn", "-C", pacmanConf, filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), //nolint:gosec
-			"pacman", "-Syuu", "--noconfirm")
+		cmd := exec.CommandContext(ctx, "arch-nspawn", "-C", pacmanConf, //nolint:gosec
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "pacman", "-Syuu", "--noconfirm")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
@@ -345,7 +349,7 @@ func setupChroot() error {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command("mkarchroot", "-C", pacmanConf, "-M", makepkgConf, //nolint:gosec
+		cmd := exec.CommandContext(ctx, "mkarchroot", "-C", pacmanConf, "-M", makepkgConf, //nolint:gosec
 			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot), "base-devel", "multilib-devel")
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -354,7 +358,7 @@ func setupChroot() error {
 		}
 
 		// copy pacman.conf into pristine chroot to enable multilib
-		cmd = exec.Command("sudo", "cp", pacmanConf, //nolint:gosec
+		cmd = exec.CommandContext(ctx, "sudo", "cp", pacmanConf, //nolint:gosec
 			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -363,7 +367,8 @@ func setupChroot() error {
 		}
 
 		// remove makepkg conf extension, they are covered by our custom makepkg
-		cmd = exec.Command("sudo", "rm_chroot.py", filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/makepkg.conf.d"))
+		cmd = exec.CommandContext(ctx, "sudo", "rm_chroot.py", //nolint:gosec
+			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/makepkg.conf.d"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
@@ -375,7 +380,7 @@ func setupChroot() error {
 	return nil
 }
 
-func syncMarchs() error {
+func syncMarchs(ctx context.Context) error {
 	files, err := os.ReadDir(conf.Basedir.Repo)
 	if err != nil {
 		return err
@@ -409,7 +414,7 @@ func syncMarchs() error {
 			repos = append(repos, fRepo)
 			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, 1000)
 			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 1000)
-			go buildManager.repoWorker(fRepo)
+			go buildManager.repoWorker(ctx, fRepo)
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
 				log.Debugf("creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
@@ -511,7 +516,7 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 					makepkgConf += fmt.Sprintf("\nexport %s=%s", strings.ToUpper(subSec.(string)), replaceStringsFromMap(sm, replaceMap))
 					continue
 				case []string:
-					makepkgConf += fmt.Sprintf("\nexport %s=%q", strings.ToUpper(subSec.(string)), replaceStringsFromMap(strings.Join(sm, " "), replaceMap))
+					makepkgConf += fmt.Sprintf("\nexport %s=%q", strings.ToUpper(subSec.(string)), replaceStringsFromMap(strings.Join(sm, " "), replaceMap)) //nolint:lll
 					continue
 				}
 			}
