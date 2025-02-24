@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
 func (b *BuildManager) setupMetrics(port uint32) {
-	b.metrics.queueSize = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	b.metrics.queueSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "build_queue_size",
 		Help: "Build queue size",
 	}, []string{"repository", "status"})
