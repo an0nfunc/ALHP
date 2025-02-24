@@ -101,7 +101,7 @@ func main() {
 		repoWG:       new(sync.WaitGroup),
 	}
 
-	buildManager.setupMetrics(conf.MetricsPort)
+	buildManager.setupMetrics(conf.Metrics.Port)
 
 	err = setupChroot(ctx)
 	if err != nil {
