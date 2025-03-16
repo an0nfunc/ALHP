@@ -205,15 +205,24 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	cmd := exec.CommandContext(ctx, "makechrootpkg", "-c", "-D", filepath.Join(conf.Basedir.Work, makepkgDir), //nolint:gosec
 		"-l", chroot, "-r", filepath.Join(conf.Basedir.Work, chrootDir), "--", "-m", "--noprogressbar", "--config",
 		filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
-	err = cmd.Start()
-	if err != nil {
+	if err = cmd.Start(); err != nil {
 		return time.Since(start), fmt.Errorf("error starting build: %w", err)
 	}
+
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err != nil {
+		log.Errorf("error getting PGID: %v", err)
+	}
+
+	var peakMem int
+	done := make(chan bool)
+	go pollMemoryUsage(pgid, 1*time.Second, done, &peakMem)
 
 	err = cmd.Wait()
 
@@ -315,7 +324,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		SetBuildTimeStart(start).
 		SetLastVersionBuild(p.Version).
 		SetTagRev(p.State.TagRev).
-		SetMaxRss(Rusage.Maxrss).
+		SetMaxRss(int64(peakMem)).
 		SetIoOut(Rusage.Oublock).
 		SetIoIn(Rusage.Inblock).
 		SetUTime(Rusage.Utime.Sec).
@@ -654,7 +663,7 @@ func (p *ProtoPackage) findPkgFiles() error {
 	if p.DBPackage != nil {
 		realPkgs = append(realPkgs, p.DBPackage.Packages...)
 	} else {
-		for i := 0; i < len(p.Srcinfo.Packages); i++ {
+		for i := range p.Srcinfo.Packages {
 			realPkgs = append(realPkgs, p.Srcinfo.Packages[i].Pkgname)
 		}
 	}

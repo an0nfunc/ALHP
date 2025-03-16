@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -765,4 +766,104 @@ func downloadSRCINFO(pkg, tag string) (*srcinfo.Srcinfo, error) {
 		return nil, err
 	}
 	return nSrcInfo, nil
+}
+
+func getProcessMemory(pid int) (int, int, error) {
+	statusPath := fmt.Sprintf("/proc/%d/status", pid)
+	file, err := os.Open(statusPath)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+
+	var rss, swap int
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		switch fields[0] {
+		case "VmRSS:":
+			rss, _ = strconv.Atoi(fields[1])
+		case "VmSwap:":
+			swap, _ = strconv.Atoi(fields[1])
+		}
+	}
+	return rss, swap, nil
+}
+
+func getProcessTreeMemory(pgid int) (int, int, error) {
+	procDir, err := os.Open("/proc")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func(procDir *os.File) {
+		_ = procDir.Close()
+	}(procDir)
+
+	totalRSS, totalSwap := 0, 0
+	entries, err := procDir.Readdir(-1)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil {
+			continue
+		}
+
+		// Read process group ID
+		statPath := fmt.Sprintf("/proc/%d/stat", pid)
+		file, err := os.Open(statPath)
+		if err != nil {
+			continue
+		}
+
+		scanner := bufio.NewScanner(file)
+		if scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+			if len(fields) >= 5 {
+				processPGID, _ := strconv.Atoi(fields[4])
+				if processPGID == pgid {
+					rss, swap, err := getProcessMemory(pid)
+					if err == nil {
+						totalRSS += rss
+						totalSwap += swap
+					}
+				}
+			}
+		}
+		_ = file.Close()
+	}
+
+	return totalRSS, totalSwap, nil
+}
+
+func pollMemoryUsage(pgid int, interval time.Duration, done chan bool, peakMem *int) {
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			rss, swap, err := getProcessTreeMemory(pgid)
+			if err == nil {
+				totalMemory := rss + swap
+
+				if totalMemory > *peakMem {
+					peakMem = &totalMemory
+				}
+			}
+			time.Sleep(interval)
+		}
+	}
 }
