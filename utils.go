@@ -819,14 +819,13 @@ func getProcessTreeMemory(pgid int) (int, int, error) {
 
 		pid, err := strconv.Atoi(entry.Name())
 		if err != nil {
-			continue
+			return 0, 0, err
 		}
 
-		// Read process group ID
 		statPath := fmt.Sprintf("/proc/%d/stat", pid)
 		file, err := os.Open(statPath)
 		if err != nil {
-			continue
+			return 0, 0, err
 		}
 
 		scanner := bufio.NewScanner(file)
@@ -862,6 +861,8 @@ func pollMemoryUsage(pgid int, interval time.Duration, done chan bool, peakMem *
 				if totalMemory > *peakMem {
 					peakMem = &totalMemory
 				}
+			} else {
+				log.Warningf("failed to get process tree memory: %v", err)
 			}
 			time.Sleep(interval)
 		}
