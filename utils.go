@@ -791,12 +791,12 @@ func getProcessMemory(pid int) (int, int, error) {
 		case "VmRSS:":
 			rss, err = strconv.Atoi(fields[1])
 			if err != nil {
-				return 0, 0, err
+				return 0, 0, fmt.Errorf("failed to parse rss: %v", err)
 			}
 		case "VmSwap:":
 			swap, err = strconv.Atoi(fields[1])
 			if err != nil {
-				return 0, 0, err
+				return 0, 0, fmt.Errorf("failed to parse swap: %v", err)
 			}
 		}
 	}
@@ -815,7 +815,7 @@ func getProcessTreeMemory(pgid int) (int, int, error) {
 	totalRSS, totalSwap := 0, 0
 	entries, err := procDir.Readdir(-1)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to read /proc: %v", err)
 	}
 
 	for _, entry := range entries {
@@ -840,13 +840,15 @@ func getProcessTreeMemory(pgid int) (int, int, error) {
 			if len(fields) >= 5 {
 				processPGID, err := strconv.Atoi(fields[4])
 				if err != nil {
-					return 0, 0, err
+					return 0, 0, fmt.Errorf("failed to parse process PG ID: %v", err)
 				}
 				if processPGID == pgid {
 					rss, swap, err := getProcessMemory(pid)
 					if err == nil {
 						totalRSS += rss
 						totalSwap += swap
+					} else {
+						return 0, 0, fmt.Errorf("failed to get process memory: %v", err)
 					}
 				}
 			}
