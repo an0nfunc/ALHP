@@ -225,7 +225,6 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	go pollMemoryUsage(pgid, 1*time.Second, done, &peakMem)
 
 	err = cmd.Wait()
-
 	close(done)
 
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
