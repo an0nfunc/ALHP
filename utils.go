@@ -789,9 +789,15 @@ func getProcessMemory(pid int) (int, int, error) {
 
 		switch fields[0] {
 		case "VmRSS:":
-			rss, _ = strconv.Atoi(fields[1])
+			rss, err = strconv.Atoi(fields[1])
+			if err != nil {
+				return 0, 0, err
+			}
 		case "VmSwap:":
-			swap, _ = strconv.Atoi(fields[1])
+			swap, err = strconv.Atoi(fields[1])
+			if err != nil {
+				return 0, 0, err
+			}
 		}
 	}
 	return rss, swap, nil
@@ -819,20 +825,23 @@ func getProcessTreeMemory(pgid int) (int, int, error) {
 
 		pid, err := strconv.Atoi(entry.Name())
 		if err != nil {
-			return 0, 0, err
+			continue
 		}
 
 		statPath := fmt.Sprintf("/proc/%d/stat", pid)
 		file, err := os.Open(statPath)
 		if err != nil {
-			return 0, 0, err
+			continue
 		}
 
 		scanner := bufio.NewScanner(file)
 		if scanner.Scan() {
 			fields := strings.Fields(scanner.Text())
 			if len(fields) >= 5 {
-				processPGID, _ := strconv.Atoi(fields[4])
+				processPGID, err := strconv.Atoi(fields[4])
+				if err != nil {
+					return 0, 0, err
+				}
 				if processPGID == pgid {
 					rss, swap, err := getProcessMemory(pid)
 					if err == nil {
