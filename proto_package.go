@@ -226,6 +226,8 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 	err = cmd.Wait()
 
+	close(done)
+
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if !ok {
 		log.Panicf("rusage is not of type *syscall.Rusage, are we running on unix-like?")
