@@ -834,14 +834,14 @@ func getMemoryStats(pid int) (MemStats, error) {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				kb, _ := strconv.ParseInt(fields[1], 10, 64)
-				stats.RSS = kb * 1024
+				stats.RSS = kb
 			}
 		}
 		if strings.HasPrefix(line, "VmSwap:") {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				kb, _ := strconv.ParseInt(fields[1], 10, 64)
-				stats.Swap = kb * 1024
+				stats.Swap = kb
 			}
 		}
 	}
