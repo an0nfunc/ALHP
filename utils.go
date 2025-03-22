@@ -849,10 +849,13 @@ func getMemoryStats(pid int) (MemStats, error) {
 	return stats, nil
 }
 
-func pollMemoryUsage(pid int, interval time.Duration, done chan bool, peakMem *int64) {
+func pollMemoryUsage(pid int, interval time.Duration, done chan bool, result chan int64) {
+	var totalMemory int64
+
 	for {
 		select {
 		case <-done:
+			result <- totalMemory
 			return
 		default:
 			var totalRSS, totalSwap int64
@@ -878,9 +881,9 @@ func pollMemoryUsage(pid int, interval time.Duration, done chan bool, peakMem *i
 				}
 			}
 
-			totalMemory := totalRSS + totalSwap
-			if peakMem == nil || totalMemory > *peakMem {
-				peakMem = &totalMemory
+			newMemory := totalRSS + totalSwap
+			if newMemory > totalMemory {
+				totalMemory = newMemory
 			}
 
 			time.Sleep(interval)
