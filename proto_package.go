@@ -226,8 +226,8 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 	err = cmd.Wait()
 	close(done)
-	close(result)
 	peakMem := <-result
+	close(result)
 
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if !ok {
