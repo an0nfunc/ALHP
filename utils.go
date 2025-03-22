@@ -879,7 +879,7 @@ func pollMemoryUsage(pid int, interval time.Duration, done chan bool, peakMem *i
 			}
 
 			totalMemory := totalRSS + totalSwap
-			if totalMemory > *peakMem {
+			if peakMem == nil || totalMemory > *peakMem {
 				peakMem = &totalMemory
 			}
 
