@@ -855,8 +855,7 @@ func pollMemoryUsage(pid int, interval time.Duration, done chan bool, peakMem *i
 		case <-done:
 			return
 		default:
-			totalRSS := int64(0)
-			totalSwap := int64(0)
+			var totalRSS, totalSwap int64
 
 			rootStats, err := getMemoryStats(pid)
 			if err == nil {

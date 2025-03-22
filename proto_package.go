@@ -220,12 +220,16 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		log.Errorf("error getting PGID: %v", err)
 	}
 
-	var peakMem int64
+	var peakMem *int64
 	done := make(chan bool)
-	go pollMemoryUsage(pgid, 1*time.Second, done, &peakMem)
+	go pollMemoryUsage(pgid, 1*time.Second, done, peakMem)
 
 	err = cmd.Wait()
 	close(done)
+
+	if peakMem == nil {
+		log.Warningf("memory reading failed")
+	}
 
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if !ok {
@@ -325,7 +329,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		SetBuildTimeStart(start).
 		SetLastVersionBuild(p.Version).
 		SetTagRev(p.State.TagRev).
-		SetMaxRss(int64(peakMem)).
+		SetMaxRss(*peakMem).
 		SetIoOut(Rusage.Oublock).
 		SetIoIn(Rusage.Inblock).
 		SetUTime(Rusage.Utime.Sec).
