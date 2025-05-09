@@ -501,18 +501,12 @@ func (p *ProtoPackage) isAvailable(ctx context.Context, h *alpm.Handle) bool {
 			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
 			return false
 		} else if len(res) == 0 {
+			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
 			return false
 		}
 
-		// workaround for https://github.com/andrewgregory/pacutils/issues/66
-		// TODO: remove once fixed
-		rRes := reReplacePacsiftWarning.ReplaceAllString(string(res), "")
-		if strings.TrimSpace(rRes) == "" {
-			return false
-		}
-
-		if len(strings.Split(strings.TrimSpace(rRes), "\n")) > 0 {
-			pacsiftLines := strings.Split(strings.TrimSpace(rRes), "\n")
+		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
+			pacsiftLines := strings.Split(strings.TrimSpace(string(res)), "\n")
 
 			var splitPkgs []string
 			for _, line := range pacsiftLines {
