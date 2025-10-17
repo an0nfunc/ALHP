@@ -29,40 +29,40 @@ type DBPackageQuery struct {
 }
 
 // Where adds a new predicate for the DBPackageQuery builder.
-func (dpq *DBPackageQuery) Where(ps ...predicate.DBPackage) *DBPackageQuery {
-	dpq.predicates = append(dpq.predicates, ps...)
-	return dpq
+func (_q *DBPackageQuery) Where(ps ...predicate.DBPackage) *DBPackageQuery {
+	_q.predicates = append(_q.predicates, ps...)
+	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (dpq *DBPackageQuery) Limit(limit int) *DBPackageQuery {
-	dpq.ctx.Limit = &limit
-	return dpq
+func (_q *DBPackageQuery) Limit(limit int) *DBPackageQuery {
+	_q.ctx.Limit = &limit
+	return _q
 }
 
 // Offset to start from.
-func (dpq *DBPackageQuery) Offset(offset int) *DBPackageQuery {
-	dpq.ctx.Offset = &offset
-	return dpq
+func (_q *DBPackageQuery) Offset(offset int) *DBPackageQuery {
+	_q.ctx.Offset = &offset
+	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (dpq *DBPackageQuery) Unique(unique bool) *DBPackageQuery {
-	dpq.ctx.Unique = &unique
-	return dpq
+func (_q *DBPackageQuery) Unique(unique bool) *DBPackageQuery {
+	_q.ctx.Unique = &unique
+	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (dpq *DBPackageQuery) Order(o ...dbpackage.OrderOption) *DBPackageQuery {
-	dpq.order = append(dpq.order, o...)
-	return dpq
+func (_q *DBPackageQuery) Order(o ...dbpackage.OrderOption) *DBPackageQuery {
+	_q.order = append(_q.order, o...)
+	return _q
 }
 
 // First returns the first DBPackage entity from the query.
 // Returns a *NotFoundError when no DBPackage was found.
-func (dpq *DBPackageQuery) First(ctx context.Context) (*DBPackage, error) {
-	nodes, err := dpq.Limit(1).All(setContextOp(ctx, dpq.ctx, ent.OpQueryFirst))
+func (_q *DBPackageQuery) First(ctx context.Context) (*DBPackage, error) {
+	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +73,8 @@ func (dpq *DBPackageQuery) First(ctx context.Context) (*DBPackage, error) {
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (dpq *DBPackageQuery) FirstX(ctx context.Context) *DBPackage {
-	node, err := dpq.First(ctx)
+func (_q *DBPackageQuery) FirstX(ctx context.Context) *DBPackage {
+	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
 	}
@@ -83,9 +83,9 @@ func (dpq *DBPackageQuery) FirstX(ctx context.Context) *DBPackage {
 
 // FirstID returns the first DBPackage ID from the query.
 // Returns a *NotFoundError when no DBPackage ID was found.
-func (dpq *DBPackageQuery) FirstID(ctx context.Context) (id int, err error) {
+func (_q *DBPackageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(1).IDs(setContextOp(ctx, dpq.ctx, ent.OpQueryFirstID)); err != nil {
+	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -96,8 +96,8 @@ func (dpq *DBPackageQuery) FirstID(ctx context.Context) (id int, err error) {
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (dpq *DBPackageQuery) FirstIDX(ctx context.Context) int {
-	id, err := dpq.FirstID(ctx)
+func (_q *DBPackageQuery) FirstIDX(ctx context.Context) int {
+	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
 	}
@@ -107,8 +107,8 @@ func (dpq *DBPackageQuery) FirstIDX(ctx context.Context) int {
 // Only returns a single DBPackage entity found by the query, ensuring it only returns one.
 // Returns a *NotSingularError when more than one DBPackage entity is found.
 // Returns a *NotFoundError when no DBPackage entities are found.
-func (dpq *DBPackageQuery) Only(ctx context.Context) (*DBPackage, error) {
-	nodes, err := dpq.Limit(2).All(setContextOp(ctx, dpq.ctx, ent.OpQueryOnly))
+func (_q *DBPackageQuery) Only(ctx context.Context) (*DBPackage, error) {
+	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +123,8 @@ func (dpq *DBPackageQuery) Only(ctx context.Context) (*DBPackage, error) {
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (dpq *DBPackageQuery) OnlyX(ctx context.Context) *DBPackage {
-	node, err := dpq.Only(ctx)
+func (_q *DBPackageQuery) OnlyX(ctx context.Context) *DBPackage {
+	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -134,9 +134,9 @@ func (dpq *DBPackageQuery) OnlyX(ctx context.Context) *DBPackage {
 // OnlyID is like Only, but returns the only DBPackage ID in the query.
 // Returns a *NotSingularError when more than one DBPackage ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (dpq *DBPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (_q *DBPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = dpq.Limit(2).IDs(setContextOp(ctx, dpq.ctx, ent.OpQueryOnlyID)); err != nil {
+	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -151,8 +151,8 @@ func (dpq *DBPackageQuery) OnlyID(ctx context.Context) (id int, err error) {
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (dpq *DBPackageQuery) OnlyIDX(ctx context.Context) int {
-	id, err := dpq.OnlyID(ctx)
+func (_q *DBPackageQuery) OnlyIDX(ctx context.Context) int {
+	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -160,18 +160,18 @@ func (dpq *DBPackageQuery) OnlyIDX(ctx context.Context) int {
 }
 
 // All executes the query and returns a list of DBPackages.
-func (dpq *DBPackageQuery) All(ctx context.Context) ([]*DBPackage, error) {
-	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryAll)
-	if err := dpq.prepareQuery(ctx); err != nil {
+func (_q *DBPackageQuery) All(ctx context.Context) ([]*DBPackage, error) {
+	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
+	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
 	qr := querierAll[[]*DBPackage, *DBPackageQuery]()
-	return withInterceptors[[]*DBPackage](ctx, dpq, qr, dpq.inters)
+	return withInterceptors[[]*DBPackage](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (dpq *DBPackageQuery) AllX(ctx context.Context) []*DBPackage {
-	nodes, err := dpq.All(ctx)
+func (_q *DBPackageQuery) AllX(ctx context.Context) []*DBPackage {
+	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -179,20 +179,20 @@ func (dpq *DBPackageQuery) AllX(ctx context.Context) []*DBPackage {
 }
 
 // IDs executes the query and returns a list of DBPackage IDs.
-func (dpq *DBPackageQuery) IDs(ctx context.Context) (ids []int, err error) {
-	if dpq.ctx.Unique == nil && dpq.path != nil {
-		dpq.Unique(true)
+func (_q *DBPackageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if _q.ctx.Unique == nil && _q.path != nil {
+		_q.Unique(true)
 	}
-	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryIDs)
-	if err = dpq.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
+	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
+	if err = _q.Select(dbpackage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (dpq *DBPackageQuery) IDsX(ctx context.Context) []int {
-	ids, err := dpq.IDs(ctx)
+func (_q *DBPackageQuery) IDsX(ctx context.Context) []int {
+	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -200,17 +200,17 @@ func (dpq *DBPackageQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (dpq *DBPackageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryCount)
-	if err := dpq.prepareQuery(ctx); err != nil {
+func (_q *DBPackageQuery) Count(ctx context.Context) (int, error) {
+	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
+	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, dpq, querierCount[*DBPackageQuery](), dpq.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*DBPackageQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (dpq *DBPackageQuery) CountX(ctx context.Context) int {
-	count, err := dpq.Count(ctx)
+func (_q *DBPackageQuery) CountX(ctx context.Context) int {
+	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -218,9 +218,9 @@ func (dpq *DBPackageQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (dpq *DBPackageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, dpq.ctx, ent.OpQueryExist)
-	switch _, err := dpq.FirstID(ctx); {
+func (_q *DBPackageQuery) Exist(ctx context.Context) (bool, error) {
+	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
+	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
 	case err != nil:
@@ -231,8 +231,8 @@ func (dpq *DBPackageQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (dpq *DBPackageQuery) ExistX(ctx context.Context) bool {
-	exist, err := dpq.Exist(ctx)
+func (_q *DBPackageQuery) ExistX(ctx context.Context) bool {
+	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -241,20 +241,20 @@ func (dpq *DBPackageQuery) ExistX(ctx context.Context) bool {
 
 // Clone returns a duplicate of the DBPackageQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (dpq *DBPackageQuery) Clone() *DBPackageQuery {
-	if dpq == nil {
+func (_q *DBPackageQuery) Clone() *DBPackageQuery {
+	if _q == nil {
 		return nil
 	}
 	return &DBPackageQuery{
-		config:     dpq.config,
-		ctx:        dpq.ctx.Clone(),
-		order:      append([]dbpackage.OrderOption{}, dpq.order...),
-		inters:     append([]Interceptor{}, dpq.inters...),
-		predicates: append([]predicate.DBPackage{}, dpq.predicates...),
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]dbpackage.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.DBPackage{}, _q.predicates...),
 		// clone intermediate query.
-		sql:       dpq.sql.Clone(),
-		path:      dpq.path,
-		modifiers: append([]func(*sql.Selector){}, dpq.modifiers...),
+		sql:       _q.sql.Clone(),
+		path:      _q.path,
+		modifiers: append([]func(*sql.Selector){}, _q.modifiers...),
 	}
 }
 
@@ -272,10 +272,10 @@ func (dpq *DBPackageQuery) Clone() *DBPackageQuery {
 //		GroupBy(dbpackage.FieldPkgbase).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (dpq *DBPackageQuery) GroupBy(field string, fields ...string) *DBPackageGroupBy {
-	dpq.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &DBPackageGroupBy{build: dpq}
-	grbuild.flds = &dpq.ctx.Fields
+func (_q *DBPackageQuery) GroupBy(field string, fields ...string) *DBPackageGroupBy {
+	_q.ctx.Fields = append([]string{field}, fields...)
+	grbuild := &DBPackageGroupBy{build: _q}
+	grbuild.flds = &_q.ctx.Fields
 	grbuild.label = dbpackage.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
@@ -293,65 +293,65 @@ func (dpq *DBPackageQuery) GroupBy(field string, fields ...string) *DBPackageGro
 //	client.DBPackage.Query().
 //		Select(dbpackage.FieldPkgbase).
 //		Scan(ctx, &v)
-func (dpq *DBPackageQuery) Select(fields ...string) *DBPackageSelect {
-	dpq.ctx.Fields = append(dpq.ctx.Fields, fields...)
-	sbuild := &DBPackageSelect{DBPackageQuery: dpq}
+func (_q *DBPackageQuery) Select(fields ...string) *DBPackageSelect {
+	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
+	sbuild := &DBPackageSelect{DBPackageQuery: _q}
 	sbuild.label = dbpackage.Label
-	sbuild.flds, sbuild.scan = &dpq.ctx.Fields, sbuild.Scan
+	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
 // Aggregate returns a DBPackageSelect configured with the given aggregations.
-func (dpq *DBPackageQuery) Aggregate(fns ...AggregateFunc) *DBPackageSelect {
-	return dpq.Select().Aggregate(fns...)
+func (_q *DBPackageQuery) Aggregate(fns ...AggregateFunc) *DBPackageSelect {
+	return _q.Select().Aggregate(fns...)
 }
 
-func (dpq *DBPackageQuery) prepareQuery(ctx context.Context) error {
-	for _, inter := range dpq.inters {
+func (_q *DBPackageQuery) prepareQuery(ctx context.Context) error {
+	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
 		}
 		if trv, ok := inter.(Traverser); ok {
-			if err := trv.Traverse(ctx, dpq); err != nil {
+			if err := trv.Traverse(ctx, _q); err != nil {
 				return err
 			}
 		}
 	}
-	for _, f := range dpq.ctx.Fields {
+	for _, f := range _q.ctx.Fields {
 		if !dbpackage.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
-	if dpq.path != nil {
-		prev, err := dpq.path(ctx)
+	if _q.path != nil {
+		prev, err := _q.path(ctx)
 		if err != nil {
 			return err
 		}
-		dpq.sql = prev
+		_q.sql = prev
 	}
 	return nil
 }
 
-func (dpq *DBPackageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DBPackage, error) {
+func (_q *DBPackageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DBPackage, error) {
 	var (
 		nodes = []*DBPackage{}
-		_spec = dpq.querySpec()
+		_spec = _q.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*DBPackage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &DBPackage{config: dpq.config}
+		node := &DBPackage{config: _q.config}
 		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
 	}
-	if len(dpq.modifiers) > 0 {
-		_spec.Modifiers = dpq.modifiers
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
-	if err := sqlgraph.QueryNodes(ctx, dpq.driver, _spec); err != nil {
+	if err := sqlgraph.QueryNodes(ctx, _q.driver, _spec); err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
@@ -360,27 +360,27 @@ func (dpq *DBPackageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*D
 	return nodes, nil
 }
 
-func (dpq *DBPackageQuery) sqlCount(ctx context.Context) (int, error) {
-	_spec := dpq.querySpec()
-	if len(dpq.modifiers) > 0 {
-		_spec.Modifiers = dpq.modifiers
+func (_q *DBPackageQuery) sqlCount(ctx context.Context) (int, error) {
+	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
-	_spec.Node.Columns = dpq.ctx.Fields
-	if len(dpq.ctx.Fields) > 0 {
-		_spec.Unique = dpq.ctx.Unique != nil && *dpq.ctx.Unique
+	_spec.Node.Columns = _q.ctx.Fields
+	if len(_q.ctx.Fields) > 0 {
+		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
 	}
-	return sqlgraph.CountNodes(ctx, dpq.driver, _spec)
+	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (dpq *DBPackageQuery) querySpec() *sqlgraph.QuerySpec {
+func (_q *DBPackageQuery) querySpec() *sqlgraph.QuerySpec {
 	_spec := sqlgraph.NewQuerySpec(dbpackage.Table, dbpackage.Columns, sqlgraph.NewFieldSpec(dbpackage.FieldID, field.TypeInt))
-	_spec.From = dpq.sql
-	if unique := dpq.ctx.Unique; unique != nil {
+	_spec.From = _q.sql
+	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
-	} else if dpq.path != nil {
+	} else if _q.path != nil {
 		_spec.Unique = true
 	}
-	if fields := dpq.ctx.Fields; len(fields) > 0 {
+	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
 		_spec.Node.Columns = append(_spec.Node.Columns, dbpackage.FieldID)
 		for i := range fields {
@@ -389,20 +389,20 @@ func (dpq *DBPackageQuery) querySpec() *sqlgraph.QuerySpec {
 			}
 		}
 	}
-	if ps := dpq.predicates; len(ps) > 0 {
+	if ps := _q.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
 	}
-	if limit := dpq.ctx.Limit; limit != nil {
+	if limit := _q.ctx.Limit; limit != nil {
 		_spec.Limit = *limit
 	}
-	if offset := dpq.ctx.Offset; offset != nil {
+	if offset := _q.ctx.Offset; offset != nil {
 		_spec.Offset = *offset
 	}
-	if ps := dpq.order; len(ps) > 0 {
+	if ps := _q.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
@@ -412,45 +412,45 @@ func (dpq *DBPackageQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (dpq *DBPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
-	builder := sql.Dialect(dpq.driver.Dialect())
+func (_q *DBPackageQuery) sqlQuery(ctx context.Context) *sql.Selector {
+	builder := sql.Dialect(_q.driver.Dialect())
 	t1 := builder.Table(dbpackage.Table)
-	columns := dpq.ctx.Fields
+	columns := _q.ctx.Fields
 	if len(columns) == 0 {
 		columns = dbpackage.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
-	if dpq.sql != nil {
-		selector = dpq.sql
+	if _q.sql != nil {
+		selector = _q.sql
 		selector.Select(selector.Columns(columns...)...)
 	}
-	if dpq.ctx.Unique != nil && *dpq.ctx.Unique {
+	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
-	for _, m := range dpq.modifiers {
+	for _, m := range _q.modifiers {
 		m(selector)
 	}
-	for _, p := range dpq.predicates {
+	for _, p := range _q.predicates {
 		p(selector)
 	}
-	for _, p := range dpq.order {
+	for _, p := range _q.order {
 		p(selector)
 	}
-	if offset := dpq.ctx.Offset; offset != nil {
+	if offset := _q.ctx.Offset; offset != nil {
 		// limit is mandatory for offset clause. We start
 		// with default value, and override it below if needed.
 		selector.Offset(*offset).Limit(math.MaxInt32)
 	}
-	if limit := dpq.ctx.Limit; limit != nil {
+	if limit := _q.ctx.Limit; limit != nil {
 		selector.Limit(*limit)
 	}
 	return selector
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
-func (dpq *DBPackageQuery) Modify(modifiers ...func(s *sql.Selector)) *DBPackageSelect {
-	dpq.modifiers = append(dpq.modifiers, modifiers...)
-	return dpq.Select()
+func (_q *DBPackageQuery) Modify(modifiers ...func(s *sql.Selector)) *DBPackageSelect {
+	_q.modifiers = append(_q.modifiers, modifiers...)
+	return _q.Select()
 }
 
 // DBPackageGroupBy is the group-by builder for DBPackage entities.
@@ -460,41 +460,41 @@ type DBPackageGroupBy struct {
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (dpgb *DBPackageGroupBy) Aggregate(fns ...AggregateFunc) *DBPackageGroupBy {
-	dpgb.fns = append(dpgb.fns, fns...)
-	return dpgb
+func (_g *DBPackageGroupBy) Aggregate(fns ...AggregateFunc) *DBPackageGroupBy {
+	_g.fns = append(_g.fns, fns...)
+	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (dpgb *DBPackageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, dpgb.build.ctx, ent.OpQueryGroupBy)
-	if err := dpgb.build.prepareQuery(ctx); err != nil {
+func (_g *DBPackageGroupBy) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
+	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*DBPackageQuery, *DBPackageGroupBy](ctx, dpgb.build, dpgb, dpgb.build.inters, v)
+	return scanWithInterceptors[*DBPackageQuery, *DBPackageGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (dpgb *DBPackageGroupBy) sqlScan(ctx context.Context, root *DBPackageQuery, v any) error {
+func (_g *DBPackageGroupBy) sqlScan(ctx context.Context, root *DBPackageQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
-	aggregation := make([]string, 0, len(dpgb.fns))
-	for _, fn := range dpgb.fns {
+	aggregation := make([]string, 0, len(_g.fns))
+	for _, fn := range _g.fns {
 		aggregation = append(aggregation, fn(selector))
 	}
 	if len(selector.SelectedColumns()) == 0 {
-		columns := make([]string, 0, len(*dpgb.flds)+len(dpgb.fns))
-		for _, f := range *dpgb.flds {
+		columns := make([]string, 0, len(*_g.flds)+len(_g.fns))
+		for _, f := range *_g.flds {
 			columns = append(columns, selector.C(f))
 		}
 		columns = append(columns, aggregation...)
 		selector.Select(columns...)
 	}
-	selector.GroupBy(selector.Columns(*dpgb.flds...)...)
+	selector.GroupBy(selector.Columns(*_g.flds...)...)
 	if err := selector.Err(); err != nil {
 		return err
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := dpgb.build.driver.Query(ctx, query, args, rows); err != nil {
+	if err := _g.build.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
@@ -508,27 +508,27 @@ type DBPackageSelect struct {
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (dps *DBPackageSelect) Aggregate(fns ...AggregateFunc) *DBPackageSelect {
-	dps.fns = append(dps.fns, fns...)
-	return dps
+func (_s *DBPackageSelect) Aggregate(fns ...AggregateFunc) *DBPackageSelect {
+	_s.fns = append(_s.fns, fns...)
+	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (dps *DBPackageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, dps.ctx, ent.OpQuerySelect)
-	if err := dps.prepareQuery(ctx); err != nil {
+func (_s *DBPackageSelect) Scan(ctx context.Context, v any) error {
+	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
+	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*DBPackageQuery, *DBPackageSelect](ctx, dps.DBPackageQuery, dps, dps.inters, v)
+	return scanWithInterceptors[*DBPackageQuery, *DBPackageSelect](ctx, _s.DBPackageQuery, _s, _s.inters, v)
 }
 
-func (dps *DBPackageSelect) sqlScan(ctx context.Context, root *DBPackageQuery, v any) error {
+func (_s *DBPackageSelect) sqlScan(ctx context.Context, root *DBPackageQuery, v any) error {
 	selector := root.sqlQuery(ctx)
-	aggregation := make([]string, 0, len(dps.fns))
-	for _, fn := range dps.fns {
+	aggregation := make([]string, 0, len(_s.fns))
+	for _, fn := range _s.fns {
 		aggregation = append(aggregation, fn(selector))
 	}
-	switch n := len(*dps.selector.flds); {
+	switch n := len(*_s.selector.flds); {
 	case n == 0 && len(aggregation) > 0:
 		selector.Select(aggregation...)
 	case n != 0 && len(aggregation) > 0:
@@ -536,7 +536,7 @@ func (dps *DBPackageSelect) sqlScan(ctx context.Context, root *DBPackageQuery, v
 	}
 	rows := &sql.Rows{}
 	query, args := selector.Query()
-	if err := dps.driver.Query(ctx, query, args, rows); err != nil {
+	if err := _s.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
@@ -544,7 +544,7 @@ func (dps *DBPackageSelect) sqlScan(ctx context.Context, root *DBPackageQuery, v
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
-func (dps *DBPackageSelect) Modify(modifiers ...func(s *sql.Selector)) *DBPackageSelect {
-	dps.modifiers = append(dps.modifiers, modifiers...)
-	return dps
+func (_s *DBPackageSelect) Modify(modifiers ...func(s *sql.Selector)) *DBPackageSelect {
+	_s.modifiers = append(_s.modifiers, modifiers...)
+	return _s
 }

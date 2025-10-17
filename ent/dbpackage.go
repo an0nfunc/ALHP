@@ -83,7 +83,7 @@ func (*DBPackage) scanValues(columns []string) ([]any, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the DBPackage fields.
-func (dp *DBPackage) assignValues(columns []string, values []any) error {
+func (_m *DBPackage) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -94,18 +94,18 @@ func (dp *DBPackage) assignValues(columns []string, values []any) error {
 			if !ok {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
-			dp.ID = int(value.Int64)
+			_m.ID = int(value.Int64)
 		case dbpackage.FieldPkgbase:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field pkgbase", values[i])
 			} else if value.Valid {
-				dp.Pkgbase = value.String
+				_m.Pkgbase = value.String
 			}
 		case dbpackage.FieldPackages:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field packages", values[i])
 			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &dp.Packages); err != nil {
+				if err := json.Unmarshal(*value, &_m.Packages); err != nil {
 					return fmt.Errorf("unmarshal field packages: %w", err)
 				}
 			}
@@ -113,118 +113,118 @@ func (dp *DBPackage) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
-				dp.Status = dbpackage.Status(value.String)
+				_m.Status = dbpackage.Status(value.String)
 			}
 		case dbpackage.FieldSkipReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field skip_reason", values[i])
 			} else if value.Valid {
-				dp.SkipReason = value.String
+				_m.SkipReason = value.String
 			}
 		case dbpackage.FieldRepository:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field repository", values[i])
 			} else if value.Valid {
-				dp.Repository = dbpackage.Repository(value.String)
+				_m.Repository = dbpackage.Repository(value.String)
 			}
 		case dbpackage.FieldMarch:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field march", values[i])
 			} else if value.Valid {
-				dp.March = value.String
+				_m.March = value.String
 			}
 		case dbpackage.FieldVersion:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field version", values[i])
 			} else if value.Valid {
-				dp.Version = value.String
+				_m.Version = value.String
 			}
 		case dbpackage.FieldRepoVersion:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field repo_version", values[i])
 			} else if value.Valid {
-				dp.RepoVersion = value.String
+				_m.RepoVersion = value.String
 			}
 		case dbpackage.FieldBuildTimeStart:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field build_time_start", values[i])
 			} else if value.Valid {
-				dp.BuildTimeStart = value.Time
+				_m.BuildTimeStart = value.Time
 			}
 		case dbpackage.FieldUpdated:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated", values[i])
 			} else if value.Valid {
-				dp.Updated = value.Time
+				_m.Updated = value.Time
 			}
 		case dbpackage.FieldLto:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field lto", values[i])
 			} else if value.Valid {
-				dp.Lto = dbpackage.Lto(value.String)
+				_m.Lto = dbpackage.Lto(value.String)
 			}
 		case dbpackage.FieldLastVersionBuild:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field last_version_build", values[i])
 			} else if value.Valid {
-				dp.LastVersionBuild = value.String
+				_m.LastVersionBuild = value.String
 			}
 		case dbpackage.FieldLastVerified:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field last_verified", values[i])
 			} else if value.Valid {
-				dp.LastVerified = value.Time
+				_m.LastVerified = value.Time
 			}
 		case dbpackage.FieldDebugSymbols:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field debug_symbols", values[i])
 			} else if value.Valid {
-				dp.DebugSymbols = dbpackage.DebugSymbols(value.String)
+				_m.DebugSymbols = dbpackage.DebugSymbols(value.String)
 			}
 		case dbpackage.FieldMaxRss:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field max_rss", values[i])
 			} else if value.Valid {
-				dp.MaxRss = new(int64)
-				*dp.MaxRss = value.Int64
+				_m.MaxRss = new(int64)
+				*_m.MaxRss = value.Int64
 			}
 		case dbpackage.FieldUTime:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field u_time", values[i])
 			} else if value.Valid {
-				dp.UTime = new(int64)
-				*dp.UTime = value.Int64
+				_m.UTime = new(int64)
+				*_m.UTime = value.Int64
 			}
 		case dbpackage.FieldSTime:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field s_time", values[i])
 			} else if value.Valid {
-				dp.STime = new(int64)
-				*dp.STime = value.Int64
+				_m.STime = new(int64)
+				*_m.STime = value.Int64
 			}
 		case dbpackage.FieldIoIn:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field io_in", values[i])
 			} else if value.Valid {
-				dp.IoIn = new(int64)
-				*dp.IoIn = value.Int64
+				_m.IoIn = new(int64)
+				*_m.IoIn = value.Int64
 			}
 		case dbpackage.FieldIoOut:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field io_out", values[i])
 			} else if value.Valid {
-				dp.IoOut = new(int64)
-				*dp.IoOut = value.Int64
+				_m.IoOut = new(int64)
+				*_m.IoOut = value.Int64
 			}
 		case dbpackage.FieldTagRev:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field tag_rev", values[i])
 			} else if value.Valid {
-				dp.TagRev = new(string)
-				*dp.TagRev = value.String
+				_m.TagRev = new(string)
+				*_m.TagRev = value.String
 			}
 		default:
-			dp.selectValues.Set(columns[i], values[i])
+			_m.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
@@ -232,101 +232,101 @@ func (dp *DBPackage) assignValues(columns []string, values []any) error {
 
 // Value returns the ent.Value that was dynamically selected and assigned to the DBPackage.
 // This includes values selected through modifiers, order, etc.
-func (dp *DBPackage) Value(name string) (ent.Value, error) {
-	return dp.selectValues.Get(name)
+func (_m *DBPackage) Value(name string) (ent.Value, error) {
+	return _m.selectValues.Get(name)
 }
 
 // Update returns a builder for updating this DBPackage.
 // Note that you need to call DBPackage.Unwrap() before calling this method if this DBPackage
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (dp *DBPackage) Update() *DBPackageUpdateOne {
-	return NewDBPackageClient(dp.config).UpdateOne(dp)
+func (_m *DBPackage) Update() *DBPackageUpdateOne {
+	return NewDBPackageClient(_m.config).UpdateOne(_m)
 }
 
 // Unwrap unwraps the DBPackage entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (dp *DBPackage) Unwrap() *DBPackage {
-	_tx, ok := dp.config.driver.(*txDriver)
+func (_m *DBPackage) Unwrap() *DBPackage {
+	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: DBPackage is not a transactional entity")
 	}
-	dp.config.driver = _tx.drv
-	return dp
+	_m.config.driver = _tx.drv
+	return _m
 }
 
 // String implements the fmt.Stringer.
-func (dp *DBPackage) String() string {
+func (_m *DBPackage) String() string {
 	var builder strings.Builder
 	builder.WriteString("DBPackage(")
-	builder.WriteString(fmt.Sprintf("id=%v, ", dp.ID))
+	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("pkgbase=")
-	builder.WriteString(dp.Pkgbase)
+	builder.WriteString(_m.Pkgbase)
 	builder.WriteString(", ")
 	builder.WriteString("packages=")
-	builder.WriteString(fmt.Sprintf("%v", dp.Packages))
+	builder.WriteString(fmt.Sprintf("%v", _m.Packages))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
-	builder.WriteString(fmt.Sprintf("%v", dp.Status))
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
 	builder.WriteString("skip_reason=")
-	builder.WriteString(dp.SkipReason)
+	builder.WriteString(_m.SkipReason)
 	builder.WriteString(", ")
 	builder.WriteString("repository=")
-	builder.WriteString(fmt.Sprintf("%v", dp.Repository))
+	builder.WriteString(fmt.Sprintf("%v", _m.Repository))
 	builder.WriteString(", ")
 	builder.WriteString("march=")
-	builder.WriteString(dp.March)
+	builder.WriteString(_m.March)
 	builder.WriteString(", ")
 	builder.WriteString("version=")
-	builder.WriteString(dp.Version)
+	builder.WriteString(_m.Version)
 	builder.WriteString(", ")
 	builder.WriteString("repo_version=")
-	builder.WriteString(dp.RepoVersion)
+	builder.WriteString(_m.RepoVersion)
 	builder.WriteString(", ")
 	builder.WriteString("build_time_start=")
-	builder.WriteString(dp.BuildTimeStart.Format(time.ANSIC))
+	builder.WriteString(_m.BuildTimeStart.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("updated=")
-	builder.WriteString(dp.Updated.Format(time.ANSIC))
+	builder.WriteString(_m.Updated.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("lto=")
-	builder.WriteString(fmt.Sprintf("%v", dp.Lto))
+	builder.WriteString(fmt.Sprintf("%v", _m.Lto))
 	builder.WriteString(", ")
 	builder.WriteString("last_version_build=")
-	builder.WriteString(dp.LastVersionBuild)
+	builder.WriteString(_m.LastVersionBuild)
 	builder.WriteString(", ")
 	builder.WriteString("last_verified=")
-	builder.WriteString(dp.LastVerified.Format(time.ANSIC))
+	builder.WriteString(_m.LastVerified.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("debug_symbols=")
-	builder.WriteString(fmt.Sprintf("%v", dp.DebugSymbols))
+	builder.WriteString(fmt.Sprintf("%v", _m.DebugSymbols))
 	builder.WriteString(", ")
-	if v := dp.MaxRss; v != nil {
+	if v := _m.MaxRss; v != nil {
 		builder.WriteString("max_rss=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.UTime; v != nil {
+	if v := _m.UTime; v != nil {
 		builder.WriteString("u_time=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.STime; v != nil {
+	if v := _m.STime; v != nil {
 		builder.WriteString("s_time=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.IoIn; v != nil {
+	if v := _m.IoIn; v != nil {
 		builder.WriteString("io_in=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.IoOut; v != nil {
+	if v := _m.IoOut; v != nil {
 		builder.WriteString("io_out=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := dp.TagRev; v != nil {
+	if v := _m.TagRev; v != nil {
 		builder.WriteString("tag_rev=")
 		builder.WriteString(*v)
 	}

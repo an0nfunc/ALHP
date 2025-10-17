@@ -251,8 +251,8 @@ func (c *DBPackageClient) Update() *DBPackageUpdate {
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *DBPackageClient) UpdateOne(dp *DBPackage) *DBPackageUpdateOne {
-	mutation := newDBPackageMutation(c.config, OpUpdateOne, withDBPackage(dp))
+func (c *DBPackageClient) UpdateOne(_m *DBPackage) *DBPackageUpdateOne {
+	mutation := newDBPackageMutation(c.config, OpUpdateOne, withDBPackage(_m))
 	return &DBPackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
@@ -269,8 +269,8 @@ func (c *DBPackageClient) Delete() *DBPackageDelete {
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *DBPackageClient) DeleteOne(dp *DBPackage) *DBPackageDeleteOne {
-	return c.DeleteOneID(dp.ID)
+func (c *DBPackageClient) DeleteOne(_m *DBPackage) *DBPackageDeleteOne {
+	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
