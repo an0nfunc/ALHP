@@ -84,7 +84,8 @@ type Conf struct {
 		LTO            []string `yaml:"lto"`
 	}
 	Housekeeping struct {
-		Interval string
+		Interval                 string
+		SignatureRecheckInterval string `yaml:"signature_recheck_interval"`
 	}
 	MaxCloneRetries uint64 `yaml:"max_clone_retries"`
 	Metrics         struct {

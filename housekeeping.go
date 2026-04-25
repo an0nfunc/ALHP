@@ -13,6 +13,19 @@ import (
 	"time"
 )
 
+const defaultSigRecheckInterval = 24 * time.Hour
+
+func sigRecheckInterval() time.Duration {
+	if conf.Housekeeping.SignatureRecheckInterval == "" {
+		return defaultSigRecheckInterval
+	}
+	d, err := time.ParseDuration(conf.Housekeeping.SignatureRecheckInterval)
+	if err != nil {
+		return defaultSigRecheckInterval
+	}
+	return d
+}
+
 func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
@@ -98,20 +111,29 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 			continue
 		}
 
-		if pkg.DBPackage.LastVerified.Before(pkg.DBPackage.BuildTimeStart) {
-			err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(ctx)
-			if err != nil {
-				return err
-			}
-			// check if pkg signature is valid
+		needsSigRecheck := pkg.DBPackage.LastVerified.Before(pkg.DBPackage.BuildTimeStart) ||
+			time.Since(pkg.DBPackage.LastVerified) > sigRecheckInterval()
+
+		if needsSigRecheck {
 			valid, err := mPackage.HasValidSignature()
 			if err != nil {
 				return err
 			}
 			if !valid {
-				log.Infof("[HK] %s->%s invalid package signature", pkg.FullRepo, pkg.Pkgbase)
+				log.Infof("[HK] %s->%s invalid package signature, purging+requeue", pkg.FullRepo, pkg.Pkgbase)
+				pkg.DBPackage, err = pkg.DBPackage.Update().
+					SetStatus(dbpackage.StatusQueued).
+					ClearTagRev().
+					SetLastVerified(time.Now().UTC()).
+					Save(ctx)
+				if err != nil {
+					return err
+				}
 				buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 				continue
+			}
+			if err := pkg.DBPackage.Update().SetLastVerified(time.Now().UTC()).Exec(ctx); err != nil {
+				return err
 			}
 		}
 

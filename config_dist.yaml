@@ -46,5 +46,10 @@ build:
 logging:
   level: INFO
 
+housekeeping:
+  # how long to wait between re-verifying package signatures of already-built packages
+  # accepts any time.ParseDuration string (e.g. "24h", "12h", "30m"), default: 24h
+  signature_recheck_interval: "24h"
+
 metrics:
   port: 9568
