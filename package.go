@@ -54,8 +54,10 @@ func (pkg Package) Arch() *string {
 }
 
 // HasValidSignature returns if package has valid detached signature file.
-// Signatures made with a now-expired key (EXPKEYSIG / KEYEXPIRED) or with an expired
+// Signatures made with a now-expired key (EXPKEYSIG) or with an expired
 // signature timestamp (EXPSIG) are reported invalid even though gpg exits 0 for them.
+// KEYEXPIRED is intentionally not matched because GnuPG may emit it for unrelated
+// expired keys in the keyring, not just the signing key of this signature.
 func (pkg Package) HasValidSignature() (bool, error) {
 	cmd := exec.Command("gpg", "--verify", "--status-fd", "1", string(pkg)+".sig", string(pkg)) //nolint:gosec
 	res, err := cmd.CombinedOutput()
@@ -65,7 +67,6 @@ func (pkg Package) HasValidSignature() (bool, error) {
 	case cmd.ProcessState.ExitCode() == 0:
 		s := string(res)
 		if strings.Contains(s, "[GNUPG:] EXPKEYSIG ") ||
-			strings.Contains(s, "[GNUPG:] KEYEXPIRED ") ||
 			strings.Contains(s, "[GNUPG:] EXPSIG ") {
 			return false, nil
 		}
