@@ -136,7 +136,10 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 					}
 					doneQLock.Unlock()
 					b.buildingLock.Unlock()
-					b.queueSignal <- struct{}{}
+					select {
+					case b.queueSignal <- struct{}{}:
+					default:
+					}
 				}(pkg)
 			}
 		} else {
