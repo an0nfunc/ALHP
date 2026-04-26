@@ -45,7 +45,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 		b.buildingLock.RLock()
 		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit &&
 			!unknownBuilds && !queueNoMatch) ||
-			(unknownBuilds && len(b.building) < MaxUnknownBuilder) {
+			(unknownBuilds && len(b.building) < MaxUnknownBuilder && !queueNoMatch) {
 			queueNoMatch = true
 			b.buildingLock.RUnlock()
 			for _, pkg := range queue {
@@ -152,6 +152,12 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 		// if only unknown packages are left, enable unknown buildmode
 		b.buildingLock.RLock()
 		if up == len(queue)-(len(doneQ)+len(b.building)) {
+			// clear queueNoMatch on the transition so the next iteration
+			// gets a fair pass in unknown-mode instead of parking on a
+			// signal that may never come (e.g. b.building is empty)
+			if !unknownBuilds {
+				queueNoMatch = false
+			}
 			unknownBuilds = true
 		}
 		b.buildingLock.RUnlock()
