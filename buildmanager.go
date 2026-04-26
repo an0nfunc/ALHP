@@ -150,6 +150,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 		}
 
 		// if only unknown packages are left, enable unknown buildmode
+		doneQLock.RLock()
 		b.buildingLock.RLock()
 		if up == len(queue)-(len(doneQ)+len(b.building)) {
 			// clear queueNoMatch on the transition so the next iteration
@@ -161,6 +162,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 			unknownBuilds = true
 		}
 		b.buildingLock.RUnlock()
+		doneQLock.RUnlock()
 	}
 	return nil
 }
