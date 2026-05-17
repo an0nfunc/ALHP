@@ -108,6 +108,9 @@ Replace `x86-64-v3` with the x86-64 feature level you want to enable.
 > [!TIP]
 > Multiple layers can be stacked as described in https://somegit.dev/ALHP/ALHP.GO/issues/255#issuecomment-3335.
 
+> [!TIP]
+> `Usage = Sync Install Upgrade` can be added to the ALHP repo sections to avoid seeing duplicate package search results.
+
 ### 5. Update package database and upgrade
 
 ```
