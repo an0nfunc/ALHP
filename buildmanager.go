@@ -504,9 +504,17 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 					buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					continue
 				}
-				if alpm.VerCmp(pkg.SyncPkg.Version(), state.PkgVer) > 0 {
-					log.Infof("[QG] %s->%s upstream version drift detected (state: %s < upstream: %s), building from %s",
-						pkg.FullRepo, pkg.Pkgbase, state.PkgVer, pkg.SyncPkg.Version(), upstreamDefaultGitBranch)
+				// Compare against the published repo version once we have one,
+				// so we don't loop rebuilding from main every cycle while the
+				// state file remains stale. Fresh packages still compare
+				// against state.PkgVer to catch drift on the first build.
+				referenceVer := state.PkgVer
+				if pkg.DBPackage.RepoVersion != "" {
+					referenceVer = pkg.DBPackage.RepoVersion
+				}
+				if alpm.VerCmp(pkg.SyncPkg.Version(), referenceVer) > 0 {
+					log.Infof("[QG] %s->%s upstream version drift detected (have: %s < upstream: %s), building from %s",
+						pkg.FullRepo, pkg.Pkgbase, referenceVer, pkg.SyncPkg.Version(), upstreamDefaultGitBranch)
 					pkg.UseLatest = true
 				}
 			}
