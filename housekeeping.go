@@ -154,11 +154,15 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 		// the pacman sync DB (always current) and force a re-queue.
 		// Only act on settled packages; a Queued/Building/Delayed row is
 		// already moving and our SetStatus(Queued) would race it.
+		// Compare against RepoVersion (what we actually published): the
+		// Version column gets rewritten to state.PkgVer by isEligible's
+		// "repo higher than PKGBUILD" branch on subsequent passes, so it
+		// would falsely report drift on every cycle for drift-built pkgs.
 		if pkg.DBPackage.Status == dbpackage.StatusLatest &&
-			pkg.DBPackage.Version != "" && pkgResolved.Version() != "" &&
-			alpm.VerCmp(pkgResolved.Version(), pkg.DBPackage.Version) > 0 {
-			log.Infof("[HK] %s->%s upstream version drift detected (db: %s < upstream: %s), requeuing",
-				pkg.FullRepo, pkg.Pkgbase, pkg.DBPackage.Version, pkgResolved.Version())
+			pkg.DBPackage.RepoVersion != "" && pkgResolved.Version() != "" &&
+			alpm.VerCmp(pkgResolved.Version(), pkg.DBPackage.RepoVersion) > 0 {
+			log.Infof("[HK] %s->%s upstream version drift detected (repo: %s < upstream: %s), requeuing",
+				pkg.FullRepo, pkg.Pkgbase, pkg.DBPackage.RepoVersion, pkgResolved.Version())
 			pkg.DBPackage, err = pkg.DBPackage.Update().
 				SetStatus(dbpackage.StatusQueued).
 				ClearTagRev().
