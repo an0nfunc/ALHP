@@ -472,8 +472,13 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			if pkg.SyncPkg != nil {
 				if pkg.SyncPkg.Architecture() == "any" && pkg.Arch == "x86_64" {
 					// Already marked from a prior cycle: nothing to redo.
+					// Accept SkipReasonAnyArch too — when both extra-any and
+					// extra-x86_64 state files exist, isEligible's any-path
+					// overwrites our SkipReason on alternate iterations, and
+					// without this we'd re-push the no-op purge every cycle.
 					if pkg.DBPackage.Status == dbpackage.StatusSkipped &&
-						pkg.DBPackage.SkipReason == SkipReasonAnyArchMoved {
+						(pkg.DBPackage.SkipReason == SkipReasonAnyArchMoved ||
+							pkg.DBPackage.SkipReason == SkipReasonAnyArch) {
 						continue
 					}
 					log.Infof("[QG] %s->%s upstream moved to any-arch, dropping", pkg.FullRepo, pkg.Pkgbase)
