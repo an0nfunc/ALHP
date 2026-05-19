@@ -470,6 +470,15 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			// stale x86_64 state files behind. SyncPkg was resolved by
 			// isAvailable above; reuse it.
 			if pkg.SyncPkg != nil {
+				// Stale extra-any state file (upstream moved from any-arch to
+				// a concrete arch and state.git left the old any file behind).
+				// Skip this iteration without writing to the DB so the sibling
+				// concrete-arch state file is authoritative.
+				if pkg.SyncPkg.Architecture() != "any" && pkg.Arch == "any" {
+					log.Debugf("[QG] %s->%s ignoring stale extra-any state file (upstream arch: %s)",
+						pkg.FullRepo, pkg.Pkgbase, pkg.SyncPkg.Architecture())
+					continue
+				}
 				if pkg.SyncPkg.Architecture() == "any" && pkg.Arch == "x86_64" {
 					// Already marked from a prior cycle: nothing to redo.
 					// Accept SkipReasonAnyArch too — when both extra-any and
