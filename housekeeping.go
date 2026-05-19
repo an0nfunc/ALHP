@@ -266,7 +266,13 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 				continue
 			}
 
-			if dbPkg.TagRev != nil && state.TagRev == *dbPkg.TagRev && state.PkgVer != dbPkg.Version {
+			// Only reset when state.git has moved ahead of us. If dbPkg is
+			// already at-or-above state.PkgVer the mismatch is from a drift
+			// rebuild (built from main while state.git stayed stale) and we
+			// must not bounce it back to queued — that produces a build loop.
+			if dbPkg.TagRev != nil && state.TagRev == *dbPkg.TagRev &&
+				state.PkgVer != dbPkg.Version &&
+				alpm.VerCmp(state.PkgVer, dbPkg.Version) > 0 {
 				log.Infof("[HK] reseting package %s->%s with mismatched state information (%s!=%s)",
 					fullRepo, dbPkg.Pkgbase, state.PkgVer, dbPkg.Version)
 				err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearTagRev().Exec(ctx)
