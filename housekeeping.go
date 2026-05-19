@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/Jguer/go-alpm/v2"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -142,6 +143,26 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK] %s->%s update repoVersion %s->%s", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
 			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev().Save(context.Background())
+			if err != nil {
+				return err
+			}
+		}
+
+		// detect upstream version drift: Arch sometimes ships a pkgrel
+		// rebuild without updating state.git, so state.TagRev never
+		// changes and genQueue never re-queues. Compare directly against
+		// the pacman sync DB (always current) and force a re-queue.
+		// Only act on settled packages; a Queued/Building/Delayed row is
+		// already moving and our SetStatus(Queued) would race it.
+		if pkg.DBPackage.Status == dbpackage.StatusLatest &&
+			pkg.DBPackage.Version != "" && pkgResolved.Version() != "" &&
+			alpm.VerCmp(pkgResolved.Version(), pkg.DBPackage.Version) > 0 {
+			log.Infof("[HK] %s->%s upstream version drift detected (db: %s < upstream: %s), requeuing",
+				pkg.FullRepo, pkg.Pkgbase, pkg.DBPackage.Version, pkgResolved.Version())
+			pkg.DBPackage, err = pkg.DBPackage.Update().
+				SetStatus(dbpackage.StatusQueued).
+				ClearTagRev().
+				Save(ctx)
 			if err != nil {
 				return err
 			}

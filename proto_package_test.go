@@ -96,6 +96,35 @@ package() {
 # vim:set sw=2 et:
 `
 
+func TestCloneBranch(t *testing.T) { //nolint:paralleltest
+	for _, tc := range []struct {
+		name      string
+		useLatest bool
+		tagVer    string
+		want      string
+	}{
+		{"state-tag-default", false, "3.3-4", "3.3-4"},
+		{"main-when-drift", true, "3.3-4", "main"},
+		{"main-ignores-empty-tag", true, "", "main"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &ProtoPackage{
+				UseLatest: tc.useLatest,
+				State:     &StateInfo{TagVer: tc.tagVer},
+			}
+			if got := p.cloneBranch(); got != tc.want {
+				t.Errorf("cloneBranch() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSkipReasonsDistinct(t *testing.T) { //nolint:paralleltest
+	if SkipReasonAnyArch == SkipReasonAnyArchMoved {
+		t.Fatal("any-arch skip reasons must remain distinguishable: callers and operators inspect skip_reason to tell why a package was dropped")
+	}
+}
+
 func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
 	pkgbuild, err := os.CreateTemp(t.TempDir(), "")
 	if err != nil {

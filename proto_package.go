@@ -24,6 +24,14 @@ import (
 	"time"
 )
 
+// Skip reasons surfaced from the build pipeline. Hoisted so the same string
+// is used wherever a package is skipped for that reason.
+const (
+	SkipReasonAnyArch        = "arch = any"
+	SkipReasonAnyArchMoved   = "arch = any (moved upstream)"
+	upstreamDefaultGitBranch = "main"
+)
+
 type ProtoPackage struct {
 	Pkgbase   string
 	Srcinfo   *srcinfo.Srcinfo
@@ -36,6 +44,13 @@ type ProtoPackage struct {
 	DBPackage *ent.DBPackage
 	Pkgbuild  string
 	State     *StateInfo
+	// SyncPkg is the alpm package resolved by isAvailable; cached so
+	// later checks (drift, arch-any-move) don't re-do FindSatisfier.
+	SyncPkg alpm.IPackage
+	// UseLatest causes SRCINFO/PKGBUILD to be fetched from
+	// upstreamDefaultGitBranch (main) instead of state.TagVer/state.TagRev.
+	// Set when upstream Arch ships a rebuild that state.git did not record.
+	UseLatest bool
 }
 
 var (
@@ -47,7 +62,7 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	switch {
 	case p.Arch == "any":
 		log.Debugf("skipped %s: any-package", p.Pkgbase)
-		p.DBPackage.SkipReason = "arch = any"
+		p.DBPackage.SkipReason = SkipReasonAnyArch
 		p.DBPackage.Status = dbpackage.StatusSkipped
 		skipping = true
 	case MatchGlobList(p.Pkgbase, conf.Blacklist.Packages):
@@ -365,7 +380,7 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
 
 	if err := retry.Do(ctx, gr, func(ctx context.Context) error {
-		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", p.State.TagVer, //nolint:gosec
+		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", p.cloneBranch(), //nolint:gosec
 			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -541,7 +556,19 @@ func (p *ProtoPackage) isAvailable(ctx context.Context, h *alpm.Handle) bool {
 		return false
 	}
 
+	p.SyncPkg = pkg
 	return true
+}
+
+// cloneBranch returns the git ref to use when cloning the upstream
+// packaging repo. The default ref is the tag recorded in state.git;
+// UseLatest overrides that to track the package repo's main branch
+// (used when state.git lags real upstream).
+func (p *ProtoPackage) cloneBranch() string {
+	if p.UseLatest {
+		return upstreamDefaultGitBranch
+	}
+	return p.State.TagVer
 }
 
 func (p *ProtoPackage) GitVersion(h *alpm.Handle) (string, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Jguer/go-alpm/v2"
 	"github.com/c2h5oh/datasize"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sethvargo/go-retry"
@@ -464,14 +465,52 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 				}
 			}
 
-			if pkg.DBPackage.TagRev != nil && *pkg.DBPackage.TagRev == state.TagRev {
+			// Cross-check against the live pacman DB: state.git lags
+			// reality for pkgrel-only rebuilds and arch-any moves leave
+			// stale x86_64 state files behind. SyncPkg was resolved by
+			// isAvailable above; reuse it.
+			if pkg.SyncPkg != nil {
+				if pkg.SyncPkg.Architecture() == "any" && pkg.Arch == "x86_64" {
+					// Already marked from a prior cycle: nothing to redo.
+					if pkg.DBPackage.Status == dbpackage.StatusSkipped &&
+						pkg.DBPackage.SkipReason == SkipReasonAnyArchMoved {
+						continue
+					}
+					log.Infof("[QG] %s->%s upstream moved to any-arch, dropping", pkg.FullRepo, pkg.Pkgbase)
+					pkg.DBPackage, err = pkg.DBPackage.Update().
+						SetStatus(dbpackage.StatusSkipped).
+						SetSkipReason(SkipReasonAnyArchMoved).
+						SetTagRev(state.TagRev).
+						SetVersion(state.PkgVer).
+						Save(ctx)
+					if err != nil {
+						log.Warningf("[QG] error updating dbpackage %s: %v", state.Pkgbase, err)
+						continue
+					}
+					buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
+					continue
+				}
+				if alpm.VerCmp(pkg.SyncPkg.Version(), state.PkgVer) > 0 {
+					log.Infof("[QG] %s->%s upstream version drift detected (state: %s < upstream: %s), building from %s",
+						pkg.FullRepo, pkg.Pkgbase, state.PkgVer, pkg.SyncPkg.Version(), upstreamDefaultGitBranch)
+					pkg.UseLatest = true
+				}
+			}
+
+			if !pkg.UseLatest && pkg.DBPackage.TagRev != nil && *pkg.DBPackage.TagRev == state.TagRev {
 				continue
 			}
 
-			// try download .SRCINFO from repo
-			srcInfo, err := downloadSRCINFO(pkg.DBPackage.Pkgbase, state.TagRev)
+			srcRef := state.TagRev
+			if pkg.UseLatest {
+				srcRef = upstreamDefaultGitBranch
+			}
+			srcInfo, err := downloadSRCINFO(pkg.DBPackage.Pkgbase, srcRef)
 			if err == nil {
 				pkg.Srcinfo = srcInfo
+				if pkg.UseLatest {
+					pkg.Version = constructVersion(srcInfo.Pkgver, srcInfo.Pkgrel, srcInfo.Epoch)
+				}
 			}
 
 			if !pkg.isEligible(ctx) {
