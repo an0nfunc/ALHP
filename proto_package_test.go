@@ -96,7 +96,9 @@ package() {
 # vim:set sw=2 et:
 `
 
-func TestCloneBranch(t *testing.T) { //nolint:paralleltest
+func TestCloneBranch(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		name      string
 		useLatest bool
@@ -108,6 +110,8 @@ func TestCloneBranch(t *testing.T) { //nolint:paralleltest
 		{"main-ignores-empty-tag", true, "", "main"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			p := &ProtoPackage{
 				UseLatest: tc.useLatest,
 				State:     &StateInfo{TagVer: tc.tagVer},

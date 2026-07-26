@@ -57,7 +57,9 @@ type DBPackage struct {
 	// IoOut holds the value of the "io_out" field.
 	IoOut *int64 `json:"io_out,omitempty"`
 	// TagRev holds the value of the "tag_rev" field.
-	TagRev       *string `json:"tag_rev,omitempty"`
+	TagRev *string `json:"tag_rev,omitempty"`
+	// Sonames holds the value of the "sonames" field.
+	Sonames      []string `json:"sonames,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -66,7 +68,7 @@ func (*DBPackage) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case dbpackage.FieldPackages:
+		case dbpackage.FieldPackages, dbpackage.FieldSonames:
 			values[i] = new([]byte)
 		case dbpackage.FieldID, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
 			values[i] = new(sql.NullInt64)
@@ -223,6 +225,14 @@ func (_m *DBPackage) assignValues(columns []string, values []any) error {
 				_m.TagRev = new(string)
 				*_m.TagRev = value.String
 			}
+		case dbpackage.FieldSonames:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field sonames", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Sonames); err != nil {
+					return fmt.Errorf("unmarshal field sonames: %w", err)
+				}
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -330,6 +340,9 @@ func (_m *DBPackage) String() string {
 		builder.WriteString("tag_rev=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("sonames=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Sonames))
 	builder.WriteByte(')')
 	return builder.String()
 }

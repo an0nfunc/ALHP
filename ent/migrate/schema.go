@@ -31,6 +31,7 @@ var (
 		{Name: "io_in", Type: field.TypeInt64, Nullable: true},
 		{Name: "io_out", Type: field.TypeInt64, Nullable: true},
 		{Name: "tag_rev", Type: field.TypeString, Nullable: true},
+		{Name: "sonames", Type: field.TypeJSON, Nullable: true},
 	}
 	// DbPackagesTable holds the schema information for the "db_packages" table.
 	DbPackagesTable = &schema.Table{

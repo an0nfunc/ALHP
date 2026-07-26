@@ -268,6 +268,12 @@ func (_c *DBPackageCreate) SetNillableTagRev(v *string) *DBPackageCreate {
 	return _c
 }
 
+// SetSonames sets the "sonames" field.
+func (_c *DBPackageCreate) SetSonames(v []string) *DBPackageCreate {
+	_c.mutation.SetSonames(v)
+	return _c
+}
+
 // Mutation returns the DBPackageMutation object of the builder.
 func (_c *DBPackageCreate) Mutation() *DBPackageMutation {
 	return _c.mutation
@@ -463,6 +469,10 @@ func (_c *DBPackageCreate) createSpec() (*DBPackage, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TagRev(); ok {
 		_spec.SetField(dbpackage.FieldTagRev, field.TypeString, value)
 		_node.TagRev = &value
+	}
+	if value, ok := _c.mutation.Sonames(); ok {
+		_spec.SetField(dbpackage.FieldSonames, field.TypeJSON, value)
+		_node.Sonames = value
 	}
 	return _node, _spec
 }

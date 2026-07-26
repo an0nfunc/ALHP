@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"somegit.dev/ALHP/ALHP.GO/ent"
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strconv"
@@ -30,6 +31,13 @@ const (
 	SkipReasonAnyArch        = "arch = any"
 	SkipReasonAnyArchMoved   = "arch = any (moved upstream)"
 	upstreamDefaultGitBranch = "main"
+	// archAny is the arch of packages that are not architecture specific.
+	archAny = "any"
+	// debugSuffix marks the pkgname of a package carrying debug symbols.
+	debugSuffix = "-debug"
+	// SkipReasonSonameMismatch prefixes the reason of a build we refused to
+	// publish because it links a soname the repos no longer carry.
+	SkipReasonSonameMismatch = "soname mismatch: "
 )
 
 type ProtoPackage struct {
@@ -60,7 +68,7 @@ var (
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	skipping := false
 	switch {
-	case p.Arch == "any":
+	case p.Arch == archAny:
 		log.Debugf("skipped %s: any-package", p.Pkgbase)
 		p.DBPackage.SkipReason = SkipReasonAnyArch
 		p.DBPackage.Status = dbpackage.StatusSkipped
@@ -187,6 +195,9 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 	log.Infof("[P] build starting: %s->%s->%s", p.FullRepo, p.Pkgbase, p.Version)
 
+	// kept across the build: SetStatus(Building) clears it, and the soname check
+	// below needs to know whether this package was already rejected once
+	priorSkipReason := p.DBPackage.SkipReason
 	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
 
 	err = p.importKeys()
@@ -329,6 +340,9 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		}
 	}
 
+	// the build itself succeeded, so any log from an earlier failure is stale.
+	// Removed before the soname check below, which can return early: leaving it
+	// behind lets logHK requeue the package and undo that check's escalation.
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log")); err == nil {
 		err := os.Remove(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"))
 		if err != nil {
@@ -336,7 +350,52 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		}
 	}
 
+	// Never publish an artifact that links a soname the repos no longer carry.
+	// The mirror's own dependency closure can be transiently unsatisfiable at
+	// the ABI level, and version comparison cannot see it: depends carry plain
+	// pkgnames, so nothing upstream says which soname a build needs.
+	//
+	// The previous baseline is kept unless a new one is computed, so a transient
+	// read error cannot disarm the housekeeping check for this package.
+	sonames := p.DBPackage.Sonames
+	if scan, sErr := scanPackagesSonames(p.runtimePkgFiles()); sErr != nil {
+		log.Warningf("[P] %s->%s error reading sonames: %v", p.FullRepo, p.Pkgbase, sErr)
+	} else {
+		buildManager.alpmMutex.Lock()
+		provided := buildManager.sonameIndex
+		stale, staleErr := staleAgainstDeps(scan, p.srcinfoDepends(), alpmHandle, provided)
+		buildManager.alpmMutex.Unlock()
+
+		switch {
+		case staleErr != nil:
+			log.Warningf("[P] %s->%s error resolving sonames: %v", p.FullRepo, p.Pkgbase, staleErr)
+		case len(stale) > 0:
+			reason := SkipReasonSonameMismatch + mismatchStrings(stale)
+			log.Warningf("[P] discarding %s->%s->%s: %s", p.FullRepo, p.Pkgbase, p.Version, reason)
+			if err := p.discardArtifacts(); err != nil {
+				return time.Since(start), fmt.Errorf("error discarding artifacts: %w", err)
+			}
+
+			// normally the library is mid-transition and the next cycle's chroot
+			// refresh resolves it, so delay and retry. If a rebuild already
+			// failed to resolve it, stop: retrying costs a full compile per
+			// cycle, and failed both surfaces it and lets housekeeping purge
+			// whatever stale version is still published.
+			status := dbpackage.StatusDelayed
+			if strings.HasPrefix(priorSkipReason, SkipReasonSonameMismatch) {
+				log.Warningf("[P] %s->%s rebuild did not resolve soname mismatch, marking failed",
+					p.FullRepo, p.Pkgbase)
+				status = dbpackage.StatusFailed
+			}
+			p.DBPackage.Update().SetStatus(status).SetSkipReason(reason).ExecX(ctx)
+			return time.Since(start), ErrorNotEligible
+		default:
+			sonames = scan.trackable(provided)
+		}
+	}
+
 	updatePkg := p.DBPackage.Update().
+		SetSonames(sonames).
 		SetStatus(dbpackage.StatusBuilt).
 		SetLto(dbpackage.LtoEnabled).
 		SetBuildTimeStart(start).
@@ -355,6 +414,57 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	updatePkg.ExecX(ctx)
 
 	return time.Since(start), nil
+}
+
+// srcinfoDepends lists every dependency the PKGBUILD declares, across the
+// pkgbase and all split packages, with duplicates removed. Used to decide which
+// sonames are supposed to be resolved through the repos.
+func (p *ProtoPackage) srcinfoDepends() []string {
+	if p.Srcinfo == nil {
+		return nil
+	}
+
+	deps := append(packages2slice(p.Srcinfo.Depends), packages2slice(p.Srcinfo.MakeDepends)...)
+	for i := range p.Srcinfo.Packages {
+		deps = append(deps, packages2slice(p.Srcinfo.Packages[i].Depends)...)
+	}
+
+	// an override emptied in a package_() function carries a sentinel value
+	deps = slices.DeleteFunc(deps, func(dep string) bool {
+		return dep == srcinfo.EmptyOverride
+	})
+	slices.Sort(deps)
+	return slices.Compact(deps)
+}
+
+// runtimePkgFiles are the built packages whose linkage matters. Debug packages
+// carry separate debug objects with no dynamic section, so scanning them only
+// buffers hundreds of MB for nothing.
+func (p *ProtoPackage) runtimePkgFiles() []string {
+	files := make([]string, 0, len(p.PkgFiles))
+	for _, file := range p.PkgFiles {
+		if Package(file).IsDebug() {
+			continue
+		}
+		files = append(files, file)
+	}
+	return files
+}
+
+// discardArtifacts removes the built packages from the holding dir so
+// movePackagesLive cannot publish them, and clears PkgFiles so IsBuilt no
+// longer reports the package as built.
+func (p *ProtoPackage) discardArtifacts() error {
+	for _, file := range p.PkgFiles {
+		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.Remove(file + ".sig"); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	p.PkgFiles = nil
+	return nil
 }
 
 func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
@@ -482,7 +592,8 @@ func (p *ProtoPackage) importKeys() error {
 	}
 
 	if p.Srcinfo.ValidPGPKeys != nil {
-		args := []string{"--keyserver", "keyserver.ubuntu.com", "--recv-keys"}
+		args := make([]string, 0, 3+len(p.Srcinfo.ValidPGPKeys))
+		args = append(args, "--keyserver", "keyserver.ubuntu.com", "--recv-keys")
 		args = append(args, p.Srcinfo.ValidPGPKeys...)
 		cmd := exec.Command("gpg", args...)
 		_, err := cmd.CombinedOutput()
@@ -734,8 +845,8 @@ func (p *ProtoPackage) toDBPackage(ctx context.Context, create bool) error {
 	return nil
 }
 
-func (p *ProtoPackage) exists() (bool, error) {
-	dbPkg, err := db.DBPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(context.Background())
+func (p *ProtoPackage) exists(ctx context.Context) (bool, error) {
+	dbPkg, err := db.DBPackage.Query().Where(dbpackage.And(dbpackage.Pkgbase(p.Pkgbase), dbpackage.March(p.March))).Exist(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -766,7 +877,7 @@ func (p *ProtoPackage) isMirrorLatest(h *alpm.Handle) (latest bool, foundPkg *al
 			return false, nil, "", UnableToSatisfyError{err}
 		}
 
-		svn2gitVer, err := (&ProtoPackage{ //nolint:exhaustruct,exhaustivestruct
+		svn2gitVer, err := (&ProtoPackage{ //nolint:exhaustruct
 			Pkgbase: pkg.Base(),
 			March:   p.March,
 		}).GitVersion(h)

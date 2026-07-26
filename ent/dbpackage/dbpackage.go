@@ -53,6 +53,8 @@ const (
 	FieldIoOut = "io_out"
 	// FieldTagRev holds the string denoting the tag_rev field in the database.
 	FieldTagRev = "tag_rev"
+	// FieldSonames holds the string denoting the sonames field in the database.
+	FieldSonames = "sonames"
 	// Table holds the table name of the dbpackage in the database.
 	Table = "db_packages"
 )
@@ -80,6 +82,7 @@ var Columns = []string{
 	FieldIoIn,
 	FieldIoOut,
 	FieldTagRev,
+	FieldSonames,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

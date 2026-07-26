@@ -59,6 +59,8 @@ type DBPackageMutation struct {
 	io_out             *int64
 	addio_out          *int64
 	tag_rev            *string
+	sonames            *[]string
+	appendsonames      []string
 	clearedFields      map[string]struct{}
 	done               bool
 	oldValue           func(context.Context) (*DBPackage, error)
@@ -1225,6 +1227,71 @@ func (m *DBPackageMutation) ResetTagRev() {
 	delete(m.clearedFields, dbpackage.FieldTagRev)
 }
 
+// SetSonames sets the "sonames" field.
+func (m *DBPackageMutation) SetSonames(s []string) {
+	m.sonames = &s
+	m.appendsonames = nil
+}
+
+// Sonames returns the value of the "sonames" field in the mutation.
+func (m *DBPackageMutation) Sonames() (r []string, exists bool) {
+	v := m.sonames
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSonames returns the old "sonames" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DBPackageMutation) OldSonames(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSonames is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSonames requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSonames: %w", err)
+	}
+	return oldValue.Sonames, nil
+}
+
+// AppendSonames adds s to the "sonames" field.
+func (m *DBPackageMutation) AppendSonames(s []string) {
+	m.appendsonames = append(m.appendsonames, s...)
+}
+
+// AppendedSonames returns the list of values that were appended to the "sonames" field in this mutation.
+func (m *DBPackageMutation) AppendedSonames() ([]string, bool) {
+	if len(m.appendsonames) == 0 {
+		return nil, false
+	}
+	return m.appendsonames, true
+}
+
+// ClearSonames clears the value of the "sonames" field.
+func (m *DBPackageMutation) ClearSonames() {
+	m.sonames = nil
+	m.appendsonames = nil
+	m.clearedFields[dbpackage.FieldSonames] = struct{}{}
+}
+
+// SonamesCleared returns if the "sonames" field was cleared in this mutation.
+func (m *DBPackageMutation) SonamesCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldSonames]
+	return ok
+}
+
+// ResetSonames resets all changes to the "sonames" field.
+func (m *DBPackageMutation) ResetSonames() {
+	m.sonames = nil
+	m.appendsonames = nil
+	delete(m.clearedFields, dbpackage.FieldSonames)
+}
+
 // Where appends a list predicates to the DBPackageMutation builder.
 func (m *DBPackageMutation) Where(ps ...predicate.DBPackage) {
 	m.predicates = append(m.predicates, ps...)
@@ -1259,7 +1326,7 @@ func (m *DBPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DBPackageMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -1320,6 +1387,9 @@ func (m *DBPackageMutation) Fields() []string {
 	if m.tag_rev != nil {
 		fields = append(fields, dbpackage.FieldTagRev)
 	}
+	if m.sonames != nil {
+		fields = append(fields, dbpackage.FieldSonames)
+	}
 	return fields
 }
 
@@ -1368,6 +1438,8 @@ func (m *DBPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.IoOut()
 	case dbpackage.FieldTagRev:
 		return m.TagRev()
+	case dbpackage.FieldSonames:
+		return m.Sonames()
 	}
 	return nil, false
 }
@@ -1417,6 +1489,8 @@ func (m *DBPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldIoOut(ctx)
 	case dbpackage.FieldTagRev:
 		return m.OldTagRev(ctx)
+	case dbpackage.FieldSonames:
+		return m.OldSonames(ctx)
 	}
 	return nil, fmt.Errorf("unknown DBPackage field %s", name)
 }
@@ -1566,6 +1640,13 @@ func (m *DBPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTagRev(v)
 		return nil
+	case dbpackage.FieldSonames:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSonames(v)
+		return nil
 	}
 	return fmt.Errorf("unknown DBPackage field %s", name)
 }
@@ -1710,6 +1791,9 @@ func (m *DBPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldTagRev) {
 		fields = append(fields, dbpackage.FieldTagRev)
 	}
+	if m.FieldCleared(dbpackage.FieldSonames) {
+		fields = append(fields, dbpackage.FieldSonames)
+	}
 	return fields
 }
 
@@ -1774,6 +1858,9 @@ func (m *DBPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldTagRev:
 		m.ClearTagRev()
+		return nil
+	case dbpackage.FieldSonames:
+		m.ClearSonames()
 		return nil
 	}
 	return fmt.Errorf("unknown DBPackage nullable field %s", name)
@@ -1842,6 +1929,9 @@ func (m *DBPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldTagRev:
 		m.ResetTagRev()
+		return nil
+	case dbpackage.FieldSonames:
+		m.ResetSonames()
 		return nil
 	}
 	return fmt.Errorf("unknown DBPackage field %s", name)

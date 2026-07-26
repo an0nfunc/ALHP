@@ -34,6 +34,7 @@ func (DBPackage) Fields() []ent.Field {
 		field.Int64("io_in").Optional().Nillable(),
 		field.Int64("io_out").Optional().Nillable(),
 		field.String("tag_rev").Optional().Nillable(),
+		field.Strings("sonames").Optional(),
 	}
 }
 

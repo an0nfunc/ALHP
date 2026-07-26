@@ -21,6 +21,12 @@ func (pkg Package) Name() string {
 	return strings.Join(fNameSplit[:len(fNameSplit)-3], "-")
 }
 
+// IsDebug returns whether pkg carries debug symbols rather than the package
+// itself. Debug packages are tracked separately and never enter a repo db.
+func (pkg Package) IsDebug() bool {
+	return strings.HasSuffix(pkg.Name(), debugSuffix)
+}
+
 // MArch returns package's march
 func (pkg Package) MArch() *string {
 	splitPath := strings.Split(string(pkg), string(filepath.Separator))

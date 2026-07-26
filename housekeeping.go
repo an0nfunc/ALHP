@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/Jguer/go-alpm/v2"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"somegit.dev/ALHP/ALHP.GO/ent"
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strings"
@@ -27,7 +29,7 @@ func sigRecheckInterval() time.Duration {
 	return d
 }
 
-func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) error {
+func housekeeping(ctx context.Context, repo, march string, provided providedSonames, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
 	log.Debugf("[%s] start housekeeping", fullRepo)
@@ -36,7 +38,12 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 		return err
 	}
 
+	if err := repoDBHK(ctx, fullRepo, packages); err != nil {
+		log.Warningf("[HK/%s] repo-db check failed: %v", fullRepo, err)
+	}
+
 	log.Debugf("[HK/%s] removing orphans, signature check", fullRepo)
+	backfilled := 0
 	for _, path := range packages {
 		mPackage := Package(path)
 
@@ -142,9 +149,48 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 		repoVer, err := pkg.repoVersion()
 		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK] %s->%s update repoVersion %s->%s", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev().Save(context.Background())
+			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev().Save(ctx)
 			if err != nil {
 				return err
+			}
+		}
+
+		// detect packages linked against a soname the repos no longer carry.
+		// Purging drops clients back to upstream Arch's working package right
+		// away, the requeue then supersedes it with a pkgrel-bumped rebuild.
+		// Only settled packages, for the same reason as the drift check below.
+		if pkg.DBPackage.Status == dbpackage.StatusLatest {
+			stale := staleRecorded(pkg.DBPackage.Sonames, provided)
+
+			// packages built before sonames were recorded have no baseline, so
+			// read it off what is published. Bounded per repo per cycle: this
+			// decompresses every package and the whole repo needs one pass.
+			// Gated on nil, not on length: a scanned package with nothing
+			// trackable records an empty slice, and treating that as unscanned
+			// would re-scan it every cycle and starve the budget.
+			if pkg.DBPackage.Sonames == nil && backfilled < sonameBackfillPerRepo {
+				backfilled++
+				recorded, bErr := backfillSonames(ctx, pkg, pkgResolved, provided)
+				if bErr != nil {
+					log.Warningf("[HK] %s->%s soname backfill failed: %v", pkg.FullRepo, pkg.Pkgbase, bErr)
+				} else {
+					stale = recorded
+				}
+			}
+
+			if len(stale) > 0 {
+				log.Infof("[HK] %s->%s soname mismatch (%s), purging+requeue", pkg.FullRepo, pkg.Pkgbase,
+					mismatchStrings(stale))
+				pkg.DBPackage, err = pkg.DBPackage.Update().
+					SetStatus(dbpackage.StatusQueued).
+					ClearTagRev().
+					ClearSonames().
+					Save(ctx)
+				if err != nil {
+					return err
+				}
+				buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
+				continue
 			}
 		}
 
@@ -178,7 +224,7 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 		dbpackage.And(
 			dbpackage.RepositoryEQ(dbpackage.Repository(repo)),
 			dbpackage.March(march),
-		)).All(context.Background())
+		)).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -196,7 +242,7 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 
 		if !pkg.isAvailable(ctx, alpmHandle) {
 			log.Infof("[HK] %s->%s not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
-			err = db.DBPackage.DeleteOne(dbPkg).Exec(context.Background())
+			err = db.DBPackage.DeleteOne(dbPkg).Exec(ctx)
 			if err != nil {
 				log.Errorf("[HK] error deleting package %s->%s: %v", pkg.FullRepo, dbPkg.Pkgbase, err)
 			}
@@ -300,7 +346,7 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 			buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
 		case dbPkg.Status == dbpackage.StatusSkipped && dbPkg.SkipReason == "blacklisted" && !MatchGlobList(pkg.Pkgbase, conf.Blacklist.Packages):
 			log.Infof("[HK] requeue previously blacklisted package %s->%s", fullRepo, dbPkg.Pkgbase)
-			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearSkipReason().ClearTagRev().Exec(context.Background())
+			err = dbPkg.Update().SetStatus(dbpackage.StatusQueued).ClearSkipReason().ClearTagRev().Exec(ctx)
 			if err != nil {
 				return err
 			}
@@ -317,6 +363,275 @@ func housekeeping(ctx context.Context, repo, march string, wg *sync.WaitGroup) e
 
 	log.Debugf("[HK/%s] all tasks finished", fullRepo)
 	return nil
+}
+
+// backfillSonames reads the needed sonames off a package that predates soname
+// recording, and reports the ones the repos no longer satisfy. When the package
+// is fine its baseline is stored, so later cycles are a map lookup instead of
+// another pass over the artifacts.
+//
+// Declared dependencies come from the upstream package rather than a SRCINFO:
+// ALHP builds the same PKGBUILD, so the dependency list is the same, and no
+// clone is needed to read it.
+func backfillSonames(ctx context.Context, pkg *ProtoPackage, syncPkg alpm.IPackage,
+	provided providedSonames,
+) ([]SonameMismatch, error) {
+	if err := pkg.findPkgFiles(); err != nil {
+		return nil, err
+	}
+
+	// findPkgFiles matches on pkgname alone, so an artifact paccache has not
+	// collected yet would fold its own sonames into the scan. Filtered into a
+	// local slice: pkg.PkgFiles is what the caller's purge acts on, and it has
+	// to keep covering every version on disk.
+	published := make([]string, 0, len(pkg.PkgFiles))
+	for _, file := range pkg.PkgFiles {
+		if Package(file).Version() == pkg.DBPackage.RepoVersion && !Package(file).IsDebug() {
+			published = append(published, file)
+		}
+	}
+
+	scan, err := scanPackagesSonames(published)
+	if err != nil {
+		return nil, err
+	}
+
+	recorded := []string{}
+	if len(scan.Needed) > 0 {
+		buildManager.alpmMutex.Lock()
+		depends := syncPkg.Depends().Slice()
+		deps := make([]string, 0, len(depends))
+		for _, dep := range depends {
+			deps = append(deps, dep.Name)
+		}
+		stale, sErr := staleAgainstDeps(scan, deps, alpmHandle, provided)
+		buildManager.alpmMutex.Unlock()
+		if sErr != nil {
+			return nil, sErr
+		}
+		if len(stale) > 0 {
+			return stale, nil
+		}
+		recorded = scan.trackable(provided)
+	}
+
+	// record even when there is nothing trackable, so this package is not
+	// re-scanned on every future cycle
+	if err := pkg.DBPackage.Update().SetSonames(recorded).Exec(ctx); err != nil {
+		return nil, fmt.Errorf("error recording sonames: %w", err)
+	}
+	return nil, nil
+}
+
+// repoDBHK compares a repo's pacman db against the package files on disk.
+// Nothing else does: the loops above compare files against db_packages rows,
+// and repoVersion reads the version off the filename, so a db entry pointing at
+// a deleted file (404 for clients) or a package on disk the db never learned
+// about (invisible to clients) passes every existing check.
+func repoDBHK(ctx context.Context, fullRepo string, onDisk []string) error {
+	repoDir := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch)
+	dbFile := repoDBPath(fullRepo)
+	if _, err := os.Stat(dbFile); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	listed, err := repoDBEntries(ctx, dbFile)
+	if err != nil {
+		return err
+	}
+	if len(listed) == 0 && len(onDisk) == 0 {
+		return nil
+	}
+	// guard both directions: an unreadable db makes every package look
+	// unlisted, an empty file list makes every entry look orphaned
+	if len(listed) == 0 || len(onDisk) == 0 {
+		log.Warningf("[HK/%s] skipping repo-db check: %d db entries, %d packages on disk",
+			fullRepo, len(listed), len(onDisk))
+		return nil
+	}
+
+	diskFiles := make(map[string]struct{}, len(onDisk))
+	diskByName := make(map[string]string, len(onDisk))
+	for _, path := range onDisk {
+		if filepath.Dir(path) != repoDir {
+			continue
+		}
+		diskFiles[filepath.Base(path)] = struct{}{}
+		name := Package(path).Name()
+		// paccache can leave more than one version behind, keep the newest
+		if prev, ok := diskByName[name]; !ok ||
+			alpm.VerCmp(Package(path).Version(), Package(prev).Version()) > 0 {
+			diskByName[name] = path
+		}
+	}
+
+	fix, orphans := diffRepoDB(fullRepo, listed, diskFiles, diskByName)
+
+	// a correct db never disagrees with disk at scale, so a large delta means our
+	// own view is wrong (mid-move, partial mount) rather than the db. Bounds the
+	// orphan removals only: a re-add cannot lose anything, and neither can the
+	// removal paired with it, since the file is on disk and the add follows.
+	if maxDrop := max(1, len(listed)/maxDBFixFraction); len(orphans) > maxDrop {
+		log.Errorf("[HK/%s] repo-db check wants to drop %d of %d entries, refusing",
+			fullRepo, len(orphans), len(listed))
+		fix.remove = slices.DeleteFunc(fix.remove, func(name string) bool {
+			return slices.Contains(orphans, name)
+		})
+		orphans = nil
+	}
+
+	// the db read and the file list were sampled a moment apart, so re-check the
+	// removals that a missing file justified. The removals paired with a re-add
+	// are exempt: a file existing is their precondition, not a contradiction.
+	fix.remove = slices.DeleteFunc(fix.remove, func(name string) bool {
+		if !slices.Contains(orphans, name) {
+			return false
+		}
+		matches, err := filepath.Glob(filepath.Join(repoDir, name+"-*.pkg.tar.zst"))
+		if err != nil {
+			return true
+		}
+		// the glob is a prefix match, so an unrelated split package can match:
+		// only a file whose pkgname is this one counts
+		return slices.ContainsFunc(matches, func(match string) bool {
+			return Package(match).Name() == name
+		})
+	})
+
+	if len(fix.readd) > 0 || len(fix.remove) > 0 {
+		buildManager.repoFix[fullRepo] <- fix
+	}
+	return nil
+}
+
+// diffRepoDB works out how to bring a repo db back in line with the packages on
+// disk. Split out from repoDBHK so the decision logic is testable without a
+// repo, a db or the worker channels.
+//
+// orphans are the removals justified by no package file existing for that
+// pkgname, as opposed to the ones paired with a re-add. Only those are worth
+// re-checking against the directory, since a file appearing is what would
+// invalidate them.
+func diffRepoDB(fullRepo string, listed map[string]string, diskFiles map[string]struct{},
+	diskByName map[string]string,
+) (fix repoDBFix, orphans []string) {
+	// a re-add whose pkgname the db already lists has to be paired with a
+	// removal: repo-add is invoked with -n (skip if pkgname-pkgver is already
+	// there) and -p (skip a downgrade), either of which would silently ignore
+	// the file. repoWorker runs the removals first, so the add then lands.
+	queued := make(map[string]struct{})
+	readd := func(name, path string) {
+		// both loops below can reach the same package
+		if _, dup := queued[name]; dup {
+			return
+		}
+		queued[name] = struct{}{}
+		fix.readd = append(fix.readd, path)
+		if _, stale := listed[name]; stale {
+			fix.remove = append(fix.remove, name)
+		}
+	}
+
+	for name, filename := range listed {
+		if _, ok := diskFiles[filename]; ok {
+			continue
+		}
+		path, ok := diskByName[name]
+		if !ok {
+			log.Infof("[HK] %s->%s db lists missing %s with no package on disk, dropping entry",
+				fullRepo, name, filename)
+			fix.remove = append(fix.remove, name)
+			orphans = append(orphans, name)
+			continue
+		}
+		log.Infof("[HK] %s->%s db lists missing %s, re-adding %s", fullRepo, name,
+			filename, filepath.Base(path))
+		readd(name, path)
+	}
+
+	for name, path := range diskByName {
+		filename, ok := listed[name]
+		if !ok {
+			log.Infof("[HK] %s->%s on disk but absent from db, adding %s", fullRepo, name,
+				filepath.Base(path))
+			readd(name, path)
+			continue
+		}
+		// the db lists an older version whose file still exists, which a
+		// partially applied repo-add leaves behind
+		if alpm.VerCmp(Package(path).Version(), Package(filename).Version()) > 0 {
+			log.Infof("[HK] %s->%s db lists %s but %s is newer, re-adding", fullRepo, name,
+				filename, filepath.Base(path))
+			readd(name, path)
+		}
+	}
+
+	return fix, orphans
+}
+
+// fields of a repo db desc entry that repoDBEntries cares about
+const (
+	dbDescFilename = "%FILENAME%"
+	dbDescName     = "%NAME%"
+)
+
+const (
+	// maxDBFixFraction bounds how much of a db one check may drop, as 1/n.
+	maxDBFixFraction = 10
+	// sonameBackfillPerRepo bounds how many packages one housekeeping pass
+	// reads sonames off, since each one decompresses the whole package.
+	sonameBackfillPerRepo = 50
+)
+
+// repoDBEntries maps pkgname to the %FILENAME% the repo db advertises for it.
+// Read via bsdtar since the db is tar.xz and the stdlib has no xz decoder.
+func repoDBEntries(ctx context.Context, dbFile string) (map[string]string, error) {
+	cmd := exec.CommandContext(ctx, "bsdtar", "-xOf", dbFile, "*/desc")
+	out, err := cmd.Output()
+	if err != nil {
+		// an empty db has no members to match, which bsdtar reports as an error
+		if cmd.ProcessState.ExitCode() == 1 && len(out) == 0 {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("error reading %s: %w", dbFile, err)
+	}
+
+	return parseRepoDBDesc(string(out)), nil
+}
+
+// parseRepoDBDesc pulls pkgname and %FILENAME% out of concatenated desc files.
+func parseRepoDBDesc(out string) map[string]string {
+	entries := make(map[string]string)
+	var name, filename string
+	flush := func() {
+		if name != "" && filename != "" {
+			entries[name] = filename
+		}
+		name, filename = "", ""
+	}
+
+	// every field is a %NAME% line followed by its value, so read ahead by one
+	// instead of tracking which section we are in
+	lines := strings.Split(out, "\n")
+	for i, line := range lines {
+		if i+1 >= len(lines) {
+			break
+		}
+		switch line {
+		case dbDescFilename:
+			// the first field of every entry, so the previous one is complete
+			flush()
+			filename = lines[i+1]
+		case dbDescName:
+			name = lines[i+1]
+		}
+	}
+	flush()
+
+	return entries
 }
 
 func logHK(ctx context.Context) error {
@@ -337,7 +652,7 @@ func logHK(ctx context.Context) error {
 			March:   march,
 		}
 
-		if exists, err := pkg.exists(); err != nil {
+		if exists, err := pkg.exists(ctx); err != nil {
 			return err
 		} else if !exists {
 			_ = os.Remove(logFile)
@@ -398,7 +713,7 @@ func debugHK() {
 	for _, march := range conf.March {
 		if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march)); err == nil {
 			log.Debugf("[DHK/%s] start cleanup debug packages", march)
-			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1")
+			cleanCmd := exec.Command("paccache", "-rc", filepath.Join(conf.Basedir.Debug, march), "-k", "1") //nolint:gosec
 			res, err := cleanCmd.CombinedOutput()
 			if err != nil {
 				log.Warningf("[DHK/%s] cleanup debug packages failed: %v (%s)", march, err, string(res))

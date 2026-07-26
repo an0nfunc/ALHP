@@ -20,11 +20,34 @@ import (
 
 const MaxUnknownBuilder = 2
 
+// repoChanBuffer sizes the per-repo worker channels.
+const repoChanBuffer = 1000
+
+// repoDBPath is the pacman db of a repo-march.
+func repoDBPath(fullRepo string) string {
+	return filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, fullRepo) + ".db.tar.xz"
+}
+
+// repoDBFix repairs a repo db that disagrees with the packages on disk.
+// Routed through repoWorker so every repo-add/repo-remove for a repo stays
+// serialized on one goroutine and cannot lose the db lock to a concurrent call.
+type repoDBFix struct {
+	// readd are package files present on disk that the db does not list.
+	readd []string
+	// remove are pkgnames the db lists with no package file behind them.
+	remove []string
+}
+
 type BuildManager struct {
-	repoPurge    map[string]chan []*ProtoPackage
-	repoAdd      map[string]chan []*ProtoPackage
-	repoWG       *sync.WaitGroup
-	alpmMutex    *sync.RWMutex
+	repoPurge map[string]chan []*ProtoPackage
+	repoAdd   map[string]chan []*ProtoPackage
+	repoFix   map[string]chan repoDBFix
+	repoWG    *sync.WaitGroup
+	alpmMutex *sync.RWMutex
+	// sonameIndex holds the sonames the sync DBs currently carry. Rebuilt
+	// together with alpmHandle, since it describes exactly that snapshot, and
+	// read by every builder and housekeeping goroutine. Guarded by alpmMutex.
+	sonameIndex  providedSonames
 	building     []*ProtoPackage
 	buildingLock *sync.RWMutex
 	queueSignal  chan struct{}
@@ -168,6 +191,24 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 	return nil
 }
 
+// refreshProvided rebuilds the soname index for the current alpmHandle.
+// Callers must hold alpmMutex for writing.
+func (b *BuildManager) refreshProvided() {
+	provided, err := collectProvidedSonames(alpmHandle)
+	if err != nil {
+		log.Warningf("error collecting provided sonames: %v", err)
+		provided = nil
+	}
+	b.sonameIndex = provided
+}
+
+// provided returns the soname index for the sync DB snapshot in use.
+func (b *BuildManager) provided() providedSonames {
+	b.alpmMutex.RLock()
+	defer b.alpmMutex.RUnlock()
+	return b.sonameIndex
+}
+
 func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 	for {
 		select {
@@ -178,7 +219,7 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				toAdd = append(toAdd, pkg.PkgFiles...)
 			}
 
-			args := []string{"-s", "-v", "-p", "-n", filepath.Join(conf.Basedir.Repo, repo, "os", conf.Arch, repo) + ".db.tar.xz"}
+			args := []string{"-s", "-v", "-p", "-n", repoDBPath(repo)}
 			args = append(args, toAdd...)
 			cmd := exec.CommandContext(ctx, "repo-add", args...)
 			res, err := cmd.CombinedOutput()
@@ -223,9 +264,37 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				log.Warningf("error updating lastupdate: %v", err)
 			}
 			b.repoWG.Done()
+		case fix := <-b.repoFix[repo]:
+			b.repoWG.Add(1)
+			dbFile := repoDBPath(repo)
+
+			if len(fix.remove) > 0 {
+				args := append([]string{"-s", "-v", dbFile}, fix.remove...)
+				cmd := exec.CommandContext(ctx, "repo-remove", args...)
+				res, err := cmd.CombinedOutput()
+				log.Debug(string(res))
+				if err != nil {
+					log.Warningf("[%s] error dropping stale db entries %v: %v", repo, fix.remove, err)
+				}
+			}
+
+			if len(fix.readd) > 0 {
+				args := append([]string{"-s", "-v", "-p", "-n", dbFile}, fix.readd...)
+				cmd := exec.CommandContext(ctx, "repo-add", args...)
+				res, err := cmd.CombinedOutput()
+				log.Debug(string(res))
+				if err != nil && cmd.ProcessState.ExitCode() != 1 {
+					log.Warningf("[%s] error re-adding %d package(s) to db: %v", repo, len(fix.readd), err)
+				}
+			}
+
+			if err := updateLastUpdated(); err != nil {
+				log.Warningf("error updating lastupdate: %v", err)
+			}
+			b.repoWG.Done()
 		case pkgL := <-b.repoPurge[repo]:
 			for _, pkg := range pkgL {
-				if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"); err != nil {
+				if _, err := os.Stat(repoDBPath(pkg.FullRepo)); err != nil {
 					continue
 				}
 				if len(pkg.PkgFiles) == 0 {
@@ -244,10 +313,17 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				}
 
 				var realPkgs []string
+				seen := make(map[string]struct{})
 				for _, filePath := range pkg.PkgFiles {
-					if _, err := os.Stat(filePath); err == nil {
-						realPkgs = append(realPkgs, Package(filePath).Name())
+					if _, err := os.Stat(filePath); err != nil {
+						continue
 					}
+					name := Package(filePath).Name()
+					if _, dup := seen[name]; dup {
+						continue
+					}
+					seen[name] = struct{}{}
+					realPkgs = append(realPkgs, name)
 				}
 
 				if len(realPkgs) == 0 {
@@ -255,7 +331,8 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				}
 
 				b.repoWG.Add(1)
-				args := []string{"-s", "-v", filepath.Join(conf.Basedir.Repo, pkg.FullRepo, "os", conf.Arch, pkg.FullRepo) + ".db.tar.xz"}
+				args := make([]string, 0, 3+len(realPkgs))
+				args = append(args, "-s", "-v", repoDBPath(pkg.FullRepo))
 				args = append(args, realPkgs...)
 				cmd := exec.CommandContext(ctx, "repo-remove", args...)
 				res, err := cmd.CombinedOutput()
@@ -324,7 +401,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			wg.Add(1)
 			splitRepo := strings.Split(repo, "-")
 			go func() {
-				err := housekeeping(ctx, splitRepo[0], strings.Join(splitRepo[1:], "-"), wg)
+				err := housekeeping(ctx, splitRepo[0], strings.Join(splitRepo[1:], "-"), b.provided(), wg)
 				if err != nil {
 					log.Warningf("[%s] housekeeping failed: %v", repo, err)
 				}
@@ -360,6 +437,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Warningf("error while alpm-init: %v", err)
 		}
+		b.refreshProvided()
 		b.alpmMutex.Unlock()
 
 		queue, err := b.genQueue(ctx)
@@ -474,12 +552,12 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 				// a concrete arch and state.git left the old any file behind).
 				// Skip this iteration without writing to the DB so the sibling
 				// concrete-arch state file is authoritative.
-				if pkg.SyncPkg.Architecture() != "any" && pkg.Arch == "any" {
+				if pkg.SyncPkg.Architecture() != archAny && pkg.Arch == archAny {
 					log.Debugf("[QG] %s->%s ignoring stale extra-any state file (upstream arch: %s)",
 						pkg.FullRepo, pkg.Pkgbase, pkg.SyncPkg.Architecture())
 					continue
 				}
-				if pkg.SyncPkg.Architecture() == "any" && pkg.Arch == "x86_64" {
+				if pkg.SyncPkg.Architecture() == archAny && pkg.Arch == "x86_64" {
 					// Already marked from a prior cycle: nothing to redo.
 					// Accept SkipReasonAnyArch too — when both extra-any and
 					// extra-x86_64 state files exist, isEligible's any-path

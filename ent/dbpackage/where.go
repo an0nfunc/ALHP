@@ -1154,6 +1154,16 @@ func TagRevContainsFold(v string) predicate.DBPackage {
 	return predicate.DBPackage(sql.FieldContainsFold(FieldTagRev, v))
 }
 
+// SonamesIsNil applies the IsNil predicate on the "sonames" field.
+func SonamesIsNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldIsNull(FieldSonames))
+}
+
+// SonamesNotNil applies the NotNil predicate on the "sonames" field.
+func SonamesNotNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNotNull(FieldSonames))
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.DBPackage) predicate.DBPackage {
 	return predicate.DBPackage(sql.AndPredicates(predicates...))

@@ -42,22 +42,21 @@ const (
 )
 
 var (
-	reVar                   = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]*)([)"])[^\S\r\n]*$`)
-	reEnvClean              = regexp.MustCompile(`(?m) ([\s\\]+) `)
-	rePkgRel                = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
-	rePkgFile               = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
-	reLdError               = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
-	reDownloadError         = regexp.MustCompile(`(?m)^error: could not rename .+$`)
-	reDownloadError2        = regexp.MustCompile(`(?m)^error: failed retrieving file '.+' from .*: The requested URL returned error: .+$`)
-	rePortError             = regexp.MustCompile(`(?m)^OSError: \x5bErrno 98\x5d Address already in use$`)
-	reSigError              = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
-	reRustLTOError          = regexp.MustCompile(`(?m)^error: options \x60-C (.+)\x60 and \x60-C lto\x60 are incompatible$`)
-	reReplaceSinglePlus     = regexp.MustCompile(`(?m)([a-zA-Z0-9]+)\+([a-zA-Z]+)`)
-	reReplaceRemainingPlus  = regexp.MustCompile(`(?m)\+`)
-	reReplaceSpecialChars   = regexp.MustCompile(`(?m)[^a-zA-Z0-9_\-.]`)
-	reReplaceUnderscore     = regexp.MustCompile(`(?m)[_\-]{2,}`)
-	reReplaceTree           = regexp.MustCompile(`(?m)^tree$`)
-	reReplacePacsiftWarning = regexp.MustCompile(`(?m)^warning:.*\n*`)
+	reVar                  = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]*)([)"])[^\S\r\n]*$`)
+	reEnvClean             = regexp.MustCompile(`(?m) ([\s\\]+) `)
+	rePkgRel               = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
+	rePkgFile              = regexp.MustCompile(`^(.+)(?:-.+){2}-(?:x86_64|any)\.pkg\.tar\.zst(?:\.sig)*$`)
+	reLdError              = regexp.MustCompile(`(?mi).*collect2: error: ld returned (\d+) exit status.*`)
+	reDownloadError        = regexp.MustCompile(`(?m)^error: could not rename .+$`)
+	reDownloadError2       = regexp.MustCompile(`(?m)^error: failed retrieving file '.+' from .*: The requested URL returned error: .+$`)
+	rePortError            = regexp.MustCompile(`(?m)^OSError: \x5bErrno 98\x5d Address already in use$`)
+	reSigError             = regexp.MustCompile(`(?m)^error: .*: signature from .* is invalid$`)
+	reRustLTOError         = regexp.MustCompile(`(?m)^error: options \x60-C (.+)\x60 and \x60-C lto\x60 are incompatible$`)
+	reReplaceSinglePlus    = regexp.MustCompile(`(?m)([a-zA-Z0-9]+)\+([a-zA-Z]+)`)
+	reReplaceRemainingPlus = regexp.MustCompile(`(?m)\+`)
+	reReplaceSpecialChars  = regexp.MustCompile(`(?m)[^a-zA-Z0-9_\-.]`)
+	reReplaceUnderscore    = regexp.MustCompile(`(?m)[_\-]{2,}`)
+	reReplaceTree          = regexp.MustCompile(`(?m)^tree$`)
 )
 
 type Conf struct {
@@ -194,12 +193,12 @@ func movePackagesLive(ctx context.Context, fullRepo string) error {
 		pkg := Package(file)
 		dbPkg, err := pkg.DBPackageIsolated(ctx, march, dbpackage.Repository(repo), db)
 		if err != nil {
-			if strings.HasSuffix(pkg.Name(), "-debug") {
+			if pkg.IsDebug() {
 				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0o755)
 				if mkErr != nil {
 					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
 				}
-				forPackage := strings.TrimSuffix(pkg.Name(), "-debug")
+				forPackage := strings.TrimSuffix(pkg.Name(), debugSuffix)
 				log.Debugf("[MOVE] found debug package for package %s: %s", forPackage, pkg.Name())
 				debugPkgs++
 
@@ -269,14 +268,14 @@ func movePackagesLive(ctx context.Context, fullRepo string) error {
 func packages2slice(pkgs any) []string {
 	switch v := pkgs.(type) {
 	case []srcinfo.Package:
-		var sPkgs []string
+		sPkgs := make([]string, 0, len(v))
 		for i := range v {
 			sPkgs = append(sPkgs, v[i].Pkgname)
 		}
 
 		return sPkgs
 	case []srcinfo.ArchString:
-		var sPkgs []string
+		sPkgs := make([]string, 0, len(v))
 		for _, p := range v {
 			sPkgs = append(sPkgs, p.Value)
 		}
@@ -404,6 +403,7 @@ func syncMarchs(ctx context.Context) error {
 		return err
 	}
 
+	var startWorkers []string
 	for _, march := range conf.March {
 		err := setupMakepkg(march, flagCfg)
 		if err != nil {
@@ -413,9 +413,12 @@ func syncMarchs(ctx context.Context) error {
 		for _, repo := range conf.Repos {
 			fRepo := fmt.Sprintf("%s-%s", repo, march)
 			repos = append(repos, fRepo)
-			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, 1000)
-			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, 1000)
-			go buildManager.repoWorker(ctx, fRepo)
+			buildManager.repoAdd[fRepo] = make(chan []*ProtoPackage, repoChanBuffer)
+			buildManager.repoPurge[fRepo] = make(chan []*ProtoPackage, repoChanBuffer)
+			buildManager.repoFix[fRepo] = make(chan repoDBFix, repoChanBuffer)
+			// workers are started once every channel exists: repoWorker selects
+			// on all three maps, and writing them while one runs races it
+			startWorkers = append(startWorkers, fRepo)
 
 			if _, err := os.Stat(filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch)); os.IsNotExist(err) {
 				log.Debugf("creating path %s", filepath.Join(conf.Basedir.Repo, fRepo, "os", conf.Arch))
@@ -429,6 +432,10 @@ func syncMarchs(ctx context.Context) error {
 				eRepos = append(eRepos[:i], eRepos[i+1:]...)
 			}
 		}
+	}
+
+	for _, fRepo := range startWorkers {
+		go buildManager.repoWorker(ctx, fRepo)
 	}
 
 	log.Infof("repos: %s", repos)
@@ -793,7 +800,7 @@ func getDescendantPIDs(rootPID int) ([]int, error) {
 			continue
 		}
 
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if strings.HasPrefix(line, "PPid:") {
 				fields := strings.Fields(line)
 				if len(fields) == 2 {
@@ -830,7 +837,7 @@ func getMemoryStats(pid int) (MemStats, error) {
 	}
 
 	stats := MemStats{}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		if strings.HasPrefix(line, "VmRSS:") {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {

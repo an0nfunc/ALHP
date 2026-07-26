@@ -1,94 +1,109 @@
-linters-settings:
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 3
-    min-occurrences: 4
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - whyNoLint
-      - filepathJoin
-  mnd:
-    checks:
-      - argument
-      - case
-      - condition
-      - return
-    ignored-numbers:
-      - '0'
-      - '1'
-      - '2'
-      - '3'
-      - '4'
-      - '5'
-      - '6'
-      - '7'
-      - '8'
-      - '9'
-      - '10'
-      - '100'
-      - '1000'
-    ignored-functions:
-      - strings.SplitN
-      - os.OpenFile
-      - os.MkdirAll
-      - os.WriteFile
-  govet:
-    check-shadowing: false
-  lll:
-    line-length: 140
-  misspell:
-    locale: US
-  nolintlint:
-    allow-unused: false # report any unused nolint directives
-    require-explanation: false # don't require an explanation for nolint directives
-    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
-  tagliatelle:
-    case:
-      use-field-name: true
-      rules:
-        # Any struct tag type can be used.
-        # Support string case: `camel`, `pascal`, `kebab`, `snake`, `upperSnake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`, `header`.
-        json: snake
-        yaml: snake
-        xml: camel
-
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - gochecknoglobals
-    - depguard
-    - gci
-    - gofumpt
-    - goimports
-    - varnamelen
-    - funlen
     - cyclop
-    - wsl
-    - nosnakecase
-    - nlreturn
-    - godot
-    - nestif
-    - wrapcheck
-    - gocognit
-    - gocyclo
-    - maintidx
-    - nonamedreturns
-    - exhaustivestruct
+    - depguard
+    - err113
+    - errname
     - exhaustruct
     - forcetypeassert
+    - funcorder
+    - funlen
+    - gochecknoglobals
+    - gocognit
+    - gocyclo
+    - godot
     - godox
-    - nakedret
-    - tagalign
-    - maligned
-    # remove for new projects
-    - errname
-    - goerr113
-    - depguard
+    - gomodguard
+    - maintidx
+    - nestif
+    - nlreturn
     - noctx
+    - noinlineerr
+    - nonamedreturns
+    - tagalign
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - wsl_v5
+  settings:
+    dupl:
+      threshold: 100
+    goconst:
+      min-len: 3
+      min-occurrences: 4
+    gocritic:
+      disabled-checks:
+        - whyNoLint
+        - filepathJoin
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - return
+      ignored-numbers:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"
+        - "10"
+        - "100"
+        - "1000"
+      ignored-functions:
+        - strings.SplitN
+        - os.OpenFile
+        - os.MkdirAll
+        - os.WriteFile
+    nolintlint:
+      require-explanation: false
+      require-specific: false
+      allow-unused: false
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          xml: camel
+          yaml: snake
+        use-field-name: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

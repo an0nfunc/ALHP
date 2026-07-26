@@ -94,6 +94,7 @@ func main() {
 	buildManager = &BuildManager{
 		repoPurge:    make(map[string]chan []*ProtoPackage),
 		repoAdd:      make(map[string]chan []*ProtoPackage),
+		repoFix:      make(map[string]chan repoDBFix),
 		queueSignal:  make(chan struct{}),
 		alpmMutex:    new(sync.RWMutex),
 		building:     []*ProtoPackage{},
@@ -117,6 +118,10 @@ func main() {
 	if err != nil {
 		log.Panicf("error while ALPM-init: %v", err)
 	}
+	// so the first housekeeping pass after a restart checks sonames too
+	buildManager.alpmMutex.Lock()
+	buildManager.refreshProvided()
+	buildManager.alpmMutex.Unlock()
 
 	go func() {
 		_ = buildManager.syncWorker(ctx)

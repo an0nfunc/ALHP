@@ -417,6 +417,24 @@ func (_u *DBPackageUpdate) ClearTagRev() *DBPackageUpdate {
 	return _u
 }
 
+// SetSonames sets the "sonames" field.
+func (_u *DBPackageUpdate) SetSonames(v []string) *DBPackageUpdate {
+	_u.mutation.SetSonames(v)
+	return _u
+}
+
+// AppendSonames appends value to the "sonames" field.
+func (_u *DBPackageUpdate) AppendSonames(v []string) *DBPackageUpdate {
+	_u.mutation.AppendSonames(v)
+	return _u
+}
+
+// ClearSonames clears the value of the "sonames" field.
+func (_u *DBPackageUpdate) ClearSonames() *DBPackageUpdate {
+	_u.mutation.ClearSonames()
+	return _u
+}
+
 // Mutation returns the DBPackageMutation object of the builder.
 func (_u *DBPackageUpdate) Mutation() *DBPackageMutation {
 	return _u.mutation
@@ -616,6 +634,17 @@ func (_u *DBPackageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.TagRevCleared() {
 		_spec.ClearField(dbpackage.FieldTagRev, field.TypeString)
+	}
+	if value, ok := _u.mutation.Sonames(); ok {
+		_spec.SetField(dbpackage.FieldSonames, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSonames(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, dbpackage.FieldSonames, value)
+		})
+	}
+	if _u.mutation.SonamesCleared() {
+		_spec.ClearField(dbpackage.FieldSonames, field.TypeJSON)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -1026,6 +1055,24 @@ func (_u *DBPackageUpdateOne) ClearTagRev() *DBPackageUpdateOne {
 	return _u
 }
 
+// SetSonames sets the "sonames" field.
+func (_u *DBPackageUpdateOne) SetSonames(v []string) *DBPackageUpdateOne {
+	_u.mutation.SetSonames(v)
+	return _u
+}
+
+// AppendSonames appends value to the "sonames" field.
+func (_u *DBPackageUpdateOne) AppendSonames(v []string) *DBPackageUpdateOne {
+	_u.mutation.AppendSonames(v)
+	return _u
+}
+
+// ClearSonames clears the value of the "sonames" field.
+func (_u *DBPackageUpdateOne) ClearSonames() *DBPackageUpdateOne {
+	_u.mutation.ClearSonames()
+	return _u
+}
+
 // Mutation returns the DBPackageMutation object of the builder.
 func (_u *DBPackageUpdateOne) Mutation() *DBPackageMutation {
 	return _u.mutation
@@ -1255,6 +1302,17 @@ func (_u *DBPackageUpdateOne) sqlSave(ctx context.Context) (_node *DBPackage, er
 	}
 	if _u.mutation.TagRevCleared() {
 		_spec.ClearField(dbpackage.FieldTagRev, field.TypeString)
+	}
+	if value, ok := _u.mutation.Sonames(); ok {
+		_spec.SetField(dbpackage.FieldSonames, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSonames(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, dbpackage.FieldSonames, value)
+		})
+	}
+	if _u.mutation.SonamesCleared() {
+		_spec.ClearField(dbpackage.FieldSonames, field.TypeJSON)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &DBPackage{config: _u.config}
