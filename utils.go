@@ -9,6 +9,7 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 	"github.com/c2h5oh/datasize"
 	"github.com/gobwas/glob"
+	"github.com/prometheus/procfs"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io"
@@ -74,6 +75,12 @@ type Conf struct {
 		Makej       int
 		Checks      bool
 		MemoryLimit datasize.ByteSize `yaml:"memory_limit"`
+		// StallTimeout is how long a build may produce neither output nor CPU work
+		// before it is killed. time.ParseDuration string, "0" disables.
+		StallTimeout string `yaml:"stall_timeout"`
+		// Timeout is an absolute wall-clock cap per build, a backstop for hangs that
+		// keep burning CPU. time.ParseDuration string, "0" (the default) disables.
+		Timeout string `yaml:"timeout"`
 	}
 	Logging struct {
 		Level string
@@ -776,7 +783,9 @@ func downloadSRCINFO(pkg, tag string) (*srcinfo.Srcinfo, error) {
 }
 
 func getDescendantPIDs(rootPID int) ([]int, error) {
-	pidToPpid := map[int]int{}
+	// children is keyed by parent so the walk below is O(processes) instead of
+	// re-scanning every process once per descendant found
+	children := map[int][]int{}
 	var descendants []int
 
 	procEntries, err := os.ReadDir("/proc")
@@ -805,22 +814,22 @@ func getDescendantPIDs(rootPID int) ([]int, error) {
 				fields := strings.Fields(line)
 				if len(fields) == 2 {
 					ppid, _ := strconv.Atoi(fields[1])
-					pidToPpid[pid] = ppid
+					children[ppid] = append(children[ppid], pid)
 				}
 			}
 		}
 	}
 
-	var walk func(int)
-	walk = func(current int) {
-		for pid, ppid := range pidToPpid {
-			if ppid == current {
-				descendants = append(descendants, pid)
-				walk(pid)
-			}
-		}
+	// copied rather than aliased: the walk appends to queue, which would otherwise
+	// write into the map's own backing array
+	queue := append([]int(nil), children[rootPID]...)
+	for len(queue) > 0 {
+		pid := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		descendants = append(descendants, pid)
+		queue = append(queue, children[pid]...)
 	}
-	walk(rootPID)
+
 	return descendants, nil
 }
 
@@ -857,44 +866,59 @@ func getMemoryStats(pid int) (MemStats, error) {
 	return stats, nil
 }
 
-func pollMemoryUsage(pid int, interval time.Duration, done chan bool, result chan int64) {
-	var totalMemory int64
+// clockTick is the kernel's USER_HZ, the unit of the CPU times in /proc/<pid>/stat.
+// Linux hardcodes this to 100 on every supported architecture. procfs knows the same
+// value but only exposes it for a process' own time, not for its reaped children.
+const clockTick = 100
 
-	for {
-		select {
-		case <-done:
-			result <- totalMemory
-			return
-		default:
-			var totalRSS, totalSwap int64
-
-			rootStats, err := getMemoryStats(pid)
-			if err == nil {
-				totalRSS += rootStats.RSS
-				totalSwap += rootStats.Swap
-			} else {
-				log.Errorf("failed to get memory stats for root process: %v", err)
-			}
-
-			descendants, err := getDescendantPIDs(pid)
-			if err != nil {
-				log.Errorf("failed to get descendants: %v", err)
-			}
-
-			for _, dpid := range descendants {
-				stats, err := getMemoryStats(dpid)
-				if err == nil {
-					totalRSS += stats.RSS
-					totalSwap += stats.Swap
-				}
-			}
-
-			newMemory := totalRSS + totalSwap
-			if newMemory > totalMemory {
-				totalMemory = newMemory
-			}
-
-			time.Sleep(interval)
-		}
+// getCPUTime returns the CPU time consumed by pid, including the time of the children
+// it has already reaped. Counting reaped children is what keeps the sum over a process
+// tree non-decreasing as build steps come and go: when a process is reaped its time
+// moves into its parent's cutime/cstime rather than disappearing.
+func getCPUTime(pid int) (time.Duration, error) {
+	proc, err := procfs.NewProc(pid)
+	if err != nil {
+		return 0, err
 	}
+
+	stat, err := proc.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	ticks := int64(stat.UTime) + int64(stat.STime) + int64(stat.CUTime) + int64(stat.CSTime) //nolint:gosec
+	return time.Duration(ticks) * time.Second / clockTick, nil
+}
+
+// sampleProcessTree sums memory (RSS+swap, in kB) and CPU time over rootPID and all
+// its descendants.
+func sampleProcessTree(rootPID int) (memory int64, cpu time.Duration) {
+	memory, cpu = sampleProcess(rootPID)
+
+	descendants, err := getDescendantPIDs(rootPID)
+	if err != nil {
+		log.Errorf("failed to get descendants: %v", err)
+	}
+
+	for _, pid := range descendants {
+		dMemory, dCPU := sampleProcess(pid)
+		memory += dMemory
+		cpu += dCPU
+	}
+
+	return memory, cpu
+}
+
+// sampleProcess reads one process' memory and CPU time, treating a process that
+// vanished mid-sample as contributing nothing.
+func sampleProcess(pid int) (memory int64, cpu time.Duration) {
+	if stats, err := getMemoryStats(pid); err == nil {
+		memory = stats.RSS + stats.Swap
+	}
+
+	if t, err := getCPUTime(pid); err == nil {
+		cpu = t
+	}
+
+	return memory, cpu
 }

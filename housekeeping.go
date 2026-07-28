@@ -19,14 +19,8 @@ import (
 const defaultSigRecheckInterval = 24 * time.Hour
 
 func sigRecheckInterval() time.Duration {
-	if conf.Housekeeping.SignatureRecheckInterval == "" {
-		return defaultSigRecheckInterval
-	}
-	d, err := time.ParseDuration(conf.Housekeeping.SignatureRecheckInterval)
-	if err != nil {
-		return defaultSigRecheckInterval
-	}
-	return d
+	return confDuration(conf.Housekeeping.SignatureRecheckInterval, defaultSigRecheckInterval,
+		"housekeeping.signature_recheck_interval")
 }
 
 func housekeeping(ctx context.Context, repo, march string, provided providedSonames, wg *sync.WaitGroup) error {
@@ -682,7 +676,11 @@ func logHK(ctx context.Context) error {
 		if rePortError.MatchString(sLogContent) || reSigError.MatchString(sLogContent) || reDownloadError.MatchString(sLogContent) ||
 			reDownloadError2.MatchString(sLogContent) {
 			rows, err := db.DBPackage.Update().Where(dbpackage.Pkgbase(pkg.Pkgbase), dbpackage.March(pkg.March),
-				dbpackage.StatusEQ(dbpackage.StatusFailed)).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(ctx)
+				dbpackage.StatusEQ(dbpackage.StatusFailed),
+				// a build we killed leaves a log truncated mid-stream, which can match
+				// one of these patterns by accident; requeueing it just rebuilds the hang
+				dbpackage.SkipReasonNotIn(SkipReasonStalled, SkipReasonTimeout),
+			).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -696,6 +694,7 @@ func logHK(ctx context.Context) error {
 				dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed),
 				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
+				dbpackage.SkipReasonNotIn(SkipReasonStalled, SkipReasonTimeout),
 			).ClearTagRev().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(ctx)
 			if err != nil {
 				return err

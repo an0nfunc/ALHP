@@ -38,6 +38,14 @@ const (
 	// SkipReasonSonameMismatch prefixes the reason of a build we refused to
 	// publish because it links a soname the repos no longer carry.
 	SkipReasonSonameMismatch = "soname mismatch: "
+	// noSkipReason clears any skip reason when recording a failed build.
+	noSkipReason = ""
+	// SkipReasonStalled and SkipReasonTimeout mark builds ALHP killed itself. These
+	// values are load-bearing: housekeeping keys on them to keep a killed build out
+	// of its requeue path, since a truncated kill log can match a fixable-error
+	// pattern by accident and would otherwise be rebuilt into the same hang forever.
+	SkipReasonStalled = "build stalled"
+	SkipReasonTimeout = "build timeout"
 )
 
 type ProtoPackage struct {
@@ -228,41 +236,75 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		// use non-lto makepkg.conf if LTO is blacklisted for this package
 		makepkgFile = makepkgLTO
 	}
-	cmd := exec.CommandContext(ctx, "makechrootpkg", "-c", "-D", filepath.Join(conf.Basedir.Work, makepkgDir), //nolint:gosec
+	// buildCtx carries the per-build deadlines; canceling it kills the build without
+	// disturbing the process-wide ctx, and the cause tells the two deadlines apart.
+	buildCtx, cancelBuild := context.WithCancelCause(ctx)
+	defer cancelBuild(nil)
+	if timeout := buildTimeout(); timeout > 0 {
+		var stopTimeout context.CancelFunc
+		buildCtx, stopTimeout = context.WithTimeoutCause(buildCtx, timeout, ErrBuildTimeout)
+		defer stopTimeout()
+	}
+
+	cmd := exec.CommandContext(buildCtx, "makechrootpkg", "-c", "-D", filepath.Join(conf.Basedir.Work, makepkgDir), //nolint:gosec
 		"-l", chroot, "-r", filepath.Join(conf.Basedir.Work, chrootDir), "--", "-m", "--noprogressbar", "--config",
 		filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Dir = filepath.Dir(p.Pkgbuild)
 	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	progress := newProgressWriter(&out)
+	cmd.Stdout = progress
+	cmd.Stderr = progress
+	cmd.Cancel = killProcessGroup(cmd)
+	// the output pipe stays open as long as any process in the group holds it, so
+	// bound how long Wait may block on a leaked child after the kill
+	cmd.WaitDelay = buildKillGrace
 
 	if err = cmd.Start(); err != nil {
 		return time.Since(start), fmt.Errorf("error starting build: %w", err)
 	}
 
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err != nil {
-		log.Errorf("error getting PGID: %v", err)
-	}
-
-	done := make(chan bool)
-	result := make(chan int64)
-	go pollMemoryUsage(pgid, 1*time.Second, done, result)
+	stallTimeout := buildStallTimeout()
+	monitor := startBuildMonitor(cmd.Process.Pid, progress, stallTimeout, func() {
+		log.Warningf("[P] no progress from %s->%s->%s for %s, killing build", p.FullRepo, p.Pkgbase, p.Version, stallTimeout)
+		cancelBuild(ErrBuildStalled)
+	})
 
 	err = cmd.Wait()
-	close(done)
-	peakMem := <-result
-	close(result)
+	peakMem := monitor.stop()
 
-	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
-	if !ok {
-		log.Panicf("rusage is not of type *syscall.Rusage, are we running on unix-like?")
+	// a child that outlived a successful build and held the output pipe open trips
+	// WaitDelay. os/exec closes the pipes and drains its copy goroutines before
+	// returning this, so the log and the artifacts are complete and only the pipe was
+	// late; without this the build would be recorded as "failed: exit code 0".
+	// Gated on ctx so a shutdown landing in this window still takes the early return
+	// below instead of publishing against a canceled context.
+	if ctx.Err() == nil && errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success() {
+		// not redundant with the ctx gate above, which only sees the process-wide
+		// context: our own stall can set the cause during Wait's pipe drain, after
+		// the cancel handshake, so nothing was killed but the build still exited 0
+		if _, _, killed := killReason(context.Cause(buildCtx)); !killed {
+			log.Warningf("[P] %s->%s->%s exited successfully but left a child holding the output pipe",
+				p.FullRepo, p.Pkgbase, p.Version)
+			err = nil
+		}
 	}
 
 	if err != nil {
 		if ctx.Err() != nil {
 			return time.Since(start), ctx.Err()
+		}
+
+		// checked before the log heuristics below: a killed build's log is truncated
+		// mid-stream and could incidentally match one of them, which would requeue the
+		// package and hang it again on the next pass
+		cause := context.Cause(buildCtx)
+		if metric, skipReason, killed := killReason(cause); killed {
+			buildManager.metrics.buildsKilled.WithLabelValues(p.FullRepo, metric).Inc()
+			if fErr := p.recordFailedBuild(ctx, start, out.String(), skipReason); fErr != nil {
+				return time.Since(start), fErr
+			}
+			return time.Since(start), fmt.Errorf("build killed: %w", cause)
 		}
 
 		if p.DBPackage.Lto != dbpackage.LtoAutoDisabled && p.DBPackage.Lto != dbpackage.LtoDisabled &&
@@ -277,29 +319,15 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			return time.Since(start), errors.New("known build error detected")
 		}
 
-		err = os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, p.March), 0o755)
-		if err != nil {
-			return time.Since(start), fmt.Errorf("error creating logdir: %w", err)
+		if fErr := p.recordFailedBuild(ctx, start, out.String(), noSkipReason); fErr != nil {
+			return time.Since(start), fErr
 		}
-		err = os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"), //nolint:gosec
-			[]byte(strings.ToValidUTF8(out.String(), "")), 0o644)
-		if err != nil {
-			return time.Since(start), fmt.Errorf("error warting to logdir: %w", err)
-		}
-
-		p.DBPackage.Update().
-			SetStatus(dbpackage.StatusFailed).
-			ClearSkipReason().
-			SetBuildTimeStart(start).
-			ClearMaxRss().
-			ClearLastVersionBuild().
-			ClearIoOut().
-			ClearIoIn().
-			ClearUTime().
-			ClearSTime().
-			SetTagRev(p.State.TagRev).
-			ExecX(ctx)
 		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
+	}
+
+	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
+	if !ok {
+		log.Panicf("rusage is not of type *syscall.Rusage, are we running on unix-like?")
 	}
 
 	pkgFiles, err := filepath.Glob(filepath.Join(filepath.Dir(p.Pkgbuild), "*.pkg.tar.zst"))
@@ -414,6 +442,38 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	updatePkg.ExecX(ctx)
 
 	return time.Since(start), nil
+}
+
+// recordFailedBuild writes the build log to the log directory and marks the package
+// as failed. skipReason is kept for operator visibility; an empty value clears it.
+func (p *ProtoPackage) recordFailedBuild(ctx context.Context, start time.Time, buildLog, skipReason string) error {
+	if err := os.MkdirAll(filepath.Join(conf.Basedir.Repo, logDir, p.March), 0o755); err != nil {
+		return fmt.Errorf("error creating logdir: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(conf.Basedir.Repo, logDir, p.March, p.Pkgbase+".log"), //nolint:gosec
+		[]byte(strings.ToValidUTF8(buildLog, "")), 0o644); err != nil {
+		return fmt.Errorf("error writing to logdir: %w", err)
+	}
+
+	updatePkg := p.DBPackage.Update().
+		SetStatus(dbpackage.StatusFailed).
+		SetBuildTimeStart(start).
+		ClearMaxRss().
+		ClearLastVersionBuild().
+		ClearIoOut().
+		ClearIoIn().
+		ClearUTime().
+		ClearSTime().
+		SetTagRev(p.State.TagRev)
+
+	if skipReason == "" {
+		updatePkg.ClearSkipReason()
+	} else {
+		updatePkg.SetSkipReason(skipReason)
+	}
+
+	updatePkg.ExecX(ctx)
+	return nil
 }
 
 // srcinfoDepends lists every dependency the PKGBUILD declares, across the

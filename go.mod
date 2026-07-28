@@ -14,6 +14,7 @@ require (
 	github.com/klauspost/compress v1.19.1
 	github.com/otiai10/copy v1.14.1
 	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/procfs v0.21.1
 	github.com/sethvargo/go-retry v0.4.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/wercker/journalhook v0.0.0-20230927020745-64542ffa4117
@@ -44,7 +45,6 @@ require (
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
-	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/zclconf/go-cty v1.19.0 // indirect
 	github.com/zclconf/go-cty-yaml v1.2.0 // indirect

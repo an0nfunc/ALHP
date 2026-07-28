@@ -52,7 +52,8 @@ type BuildManager struct {
 	buildingLock *sync.RWMutex
 	queueSignal  chan struct{}
 	metrics      struct {
-		queueSize *prometheus.GaugeVec
+		queueSize    *prometheus.GaugeVec
+		buildsKilled *prometheus.CounterVec
 	}
 }
 

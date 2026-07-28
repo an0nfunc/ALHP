@@ -42,6 +42,15 @@ build:
   # this will also decide how many builds will run concurrently,
   # since ALHP will try to optimise the queue for speed while not going over this limit
   memory_limit: "16gb"
+  # kill a build that produces neither output nor meaningful CPU work for this long.
+  # a build that is silent but busy (e.g. a long LTO link) is not affected.
+  # accepts any time.ParseDuration string, "0" disables, default: 2h
+  stall_timeout: "2h"
+  # absolute wall-clock limit for the makechrootpkg invocation, backstop for hangs
+  # that keep burning CPU. does not cover the PKGBUILD checkout before it or the
+  # signing after it.
+  # accepts any time.ParseDuration string, "0" disables, default: 0
+  timeout: "0"
 
 logging:
   level: INFO
