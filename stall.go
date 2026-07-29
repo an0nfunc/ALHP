@@ -86,6 +86,12 @@ func killReason(cause error) (metric, skipReason string, ok bool) {
 // against pid reuse, this signals a raw pid. Cmd.Wait reaps the child before it
 // resolves the cancel handshake, so a cancel landing in that window signals a
 // released pid; that needs a full pid wraparound inside a microsecond to bite.
+//
+// Only works when ALHP itself runs as root. makechrootpkg elevates via sudo, so
+// the whole build tree is root-owned; signaling it from an unprivileged ALHP
+// returns EPERM and kills nothing. That is why network-isolated builds route
+// cancellation through the alhp-netns helper instead, which does the killing as
+// root. This path remains for build.network_isolation: false.
 func killProcessGroup(cmd *exec.Cmd) func() error {
 	return func() error {
 		if cmd.Process == nil {

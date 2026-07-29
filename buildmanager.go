@@ -15,6 +15,7 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,6 +23,11 @@ const MaxUnknownBuilder = 2
 
 // repoChanBuffer sizes the per-repo worker channels.
 const repoChanBuffer = 1000
+
+// maxIsolationFailures aborts a queue pass once the netns helper is persistently
+// broken, so a host-wide fault stops the cycle instead of re-cloning every package
+// from upstream forever.
+const maxIsolationFailures = 5
 
 // repoDBPath is the pacman db of a repo-march.
 func repoDBPath(fullRepo string) string {
@@ -51,10 +57,51 @@ type BuildManager struct {
 	building     []*ProtoPackage
 	buildingLock *sync.RWMutex
 	queueSignal  chan struct{}
-	metrics      struct {
+	// isolationFailures counts helper setup failures (exit 121) since the last
+	// build in this pass that ran to completion. Not "consecutive": an ordinary
+	// build failure does not reset it, because "some build got all the way through"
+	// is far better evidence that the helper works than "some build exited
+	// non-zero", so this errs toward tripping. One success zeroes what several
+	// concurrent failures raised, which is intended.
+	//
+	// It exists because the 121 path deliberately requeues without pinning TagRev,
+	// so without a breaker a host-wide fault (pasta missing, a bad resolv.conf, a
+	// sudoers edit) puts every eligible package back every cycle, each doing a
+	// fresh checkout from gitlab.archlinux.org before failing at the same place.
+	isolationFailures atomic.Int64
+	metrics           struct {
 		queueSize    *prometheus.GaugeVec
 		buildsKilled *prometheus.CounterVec
 	}
+}
+
+// buildingBlocks reports whether pkg must wait for an in-flight build. Two builds
+// of the same pkgbase on the same march are never concurrent: they share a build
+// directory, the PKGBUILD increasePkgRel rewrites, and a log path, none of which
+// are repo-keyed. Across different marchs they may run in parallel once both sides
+// have a recorded peak RSS, because the memory budget sums those peaks; without one
+// there is nothing to sum and MaxUnknownBuilder is the only bound, so those stay
+// serialized per pkgbase.
+//
+// Callers must hold buildingLock.
+func buildingBlocks(building []*ProtoPackage, pkg *ProtoPackage) bool {
+	// First pass touches no DBPackage. It also catches pkg itself when pkg is
+	// already building, which is what makes the candidate's DBPackage read in the
+	// second pass safe. Do not fold these two loops together: with a single loop the
+	// DBPackage read happens on the first same-pkgbase entry, and slice order does
+	// not guarantee that is the same-march one.
+	for _, b := range building {
+		if b.Pkgbase == pkg.Pkgbase && b.March == pkg.March {
+			return true
+		}
+	}
+	for _, b := range building {
+		if b.Pkgbase == pkg.Pkgbase && (b.maxRSS == nil || pkg.DBPackage.MaxRss == nil) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) error {
@@ -63,9 +110,51 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 		doneQLock     = new(sync.RWMutex)
 		unknownBuilds bool
 		queueNoMatch  bool
+		isolationWait bool
 	)
 
+	b.isolationFailures.Store(0)
+
 	for len(doneQ) != len(queue) {
+		if n := b.isolationFailures.Load(); n >= maxIsolationFailures {
+			b.buildingLock.RLock()
+			inFlight := len(b.building)
+			b.buildingLock.RUnlock()
+			if inFlight == 0 {
+				log.Errorf("[Q] aborting queue: %d network isolation setup failures, "+
+					"check that the alhp-netns helper and pasta are installed", n)
+
+				return nil
+			}
+			// Returning with builds still running would be the only early exit this
+			// function has ever had, and everything syncWorker does next assumes it
+			// drained: it releases alpmHandle under a lock isMirrorLatest does not
+			// take, moves packages live out of a directory a build may be mid-copy
+			// into, and sweeps namespaces assuming none are starting.
+			//
+			// This waits rather than aborts, and the wait is not guaranteed to end: a
+			// helper that wedges before it can observe EOF leaves build() parked in
+			// Process.Wait forever, since WaitDelay bounds the pipe drain and not a
+			// process that never exits. That is pre-existing, such a build already made
+			// the loop condition permanently true, and build.timeout is the cover for
+			// it.
+			if !isolationWait {
+				isolationWait = true
+				log.Warningf("[Q] network isolation broken; admitting no further builds, "+
+					"waiting for %d in-flight builds to finish", inFlight)
+			}
+			// The park at the bottom of this loop only wakes on queueSignal, and every
+			// signal sent while we sleep here is dropped, since the senders are
+			// non-blocking on an unbuffered channel. A build completing here can also
+			// clear the counter, so we can un-trip mid-sleep; without this the next
+			// iteration falls through to the park with queueNoMatch frozen true, no
+			// sender left, and buildQueue never returns.
+			queueNoMatch = false
+			time.Sleep(time.Second)
+
+			continue
+		}
+		isolationWait = false
 		up := 0
 		b.buildingLock.RLock()
 		if (pkgList2MaxMem(b.building) < conf.Build.MemoryLimit &&
@@ -82,9 +171,8 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 				}
 				doneQLock.RUnlock()
 
-				// check if package is already building (we do not build packages from different marchs simultaneously)
 				b.buildingLock.RLock()
-				if ContainsPkg(b.building, pkg, false) {
+				if buildingBlocks(b.building, pkg) {
 					log.Debugf("[Q] skipped already building package %s->%s", pkg.FullRepo, pkg.Pkgbase)
 					b.buildingLock.RUnlock()
 					continue
@@ -133,6 +221,9 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 				}
 
 				b.buildingLock.Lock()
+				// snapshot under the same lock that publishes the package, so the
+				// scheduler never reads DBPackage while build() reassigns it
+				pkg.maxRSS = pkg.DBPackage.MaxRss
 				b.building = append(b.building, pkg)
 				b.buildingLock.Unlock()
 				queueNoMatch = false
@@ -153,8 +244,11 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 					b.buildingLock.Lock()
 					doneQ = append(doneQ, pkg)
 
-					for i := 0; i < len(b.building); i++ {
-						if b.building[i].PkgbaseEquals(pkg, true) {
+					// pointer identity, not a key comparison: admission keys the build
+					// slot on (Pkgbase, March) and this is the same object that was
+					// appended, so matching on identity keeps the two from drifting
+					for i := range b.building {
+						if b.building[i] == pkg {
 							b.building = append(b.building[:i], b.building[i+1:]...)
 							break
 						}
@@ -415,6 +509,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 			log.Warningf("log-housekeeping failed: %v", err)
 		}
 		debugHK()
+		sweepNetns(ctx)
 
 		// fetch updates between sync runs
 		b.alpmMutex.Lock()

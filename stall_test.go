@@ -200,6 +200,49 @@ func TestBuildMonitorKillsIdleTree(t *testing.T) {
 	}
 }
 
+// startGrandchildTree starts cmd and returns the pid of the grandchild it prints
+// on its first line. Shared with the cancel-pipe test in netns_test.go, which
+// guards the same property through the other cancellation mechanism.
+func startGrandchildTree(t *testing.T, cmd *exec.Cmd) int {
+	t.Helper()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	line, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		t.Fatalf("reading grandchild pid: %v", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(line))
+	if err != nil {
+		t.Fatalf("parsing grandchild pid %q: %v", line, err)
+	}
+
+	return pid
+}
+
+// requireGone polls rather than asserting immediately: the grandchild is orphaned
+// onto init once its parent dies, so it is not reaped the instant the group is
+// signaled.
+func requireGone(t *testing.T, pid int) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat("/proc/" + strconv.Itoa(pid)); os.IsNotExist(err) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	t.Fatalf("grandchild %d survived", pid)
+}
+
 // TestKillProcessGroup guards the property the whole feature rests on: killing a
 // build must take its grandchildren with it. Signaling only the direct child (the
 // os/exec default) leaves systemd-nspawn running and Wait blocked on the pipe.
@@ -215,23 +258,7 @@ func TestKillProcessGroup(t *testing.T) {
 	cmd.Cancel = killProcessGroup(cmd)
 	cmd.WaitDelay = 5 * time.Second
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start: %v", err)
-	}
-
-	line, err := bufio.NewReader(stdout).ReadString('\n')
-	if err != nil {
-		t.Fatalf("reading grandchild pid: %v", err)
-	}
-	grandchild, err := strconv.Atoi(strings.TrimSpace(line))
-	if err != nil {
-		t.Fatalf("parsing grandchild pid %q: %v", line, err)
-	}
-
+	grandchild := startGrandchildTree(t, cmd)
 	cancel()
 
 	waited := make(chan error, 1)
@@ -249,15 +276,5 @@ func TestKillProcessGroup(t *testing.T) {
 		t.Fatal("Wait did not return after cancel")
 	}
 
-	// the grandchild is orphaned onto init once the shell dies, so poll rather than
-	// assume it is reaped the instant the group is signaled
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, err := os.Stat("/proc/" + strconv.Itoa(grandchild)); os.IsNotExist(err) {
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	t.Fatalf("grandchild %d survived the kill", grandchild)
+	requireGone(t, grandchild)
 }

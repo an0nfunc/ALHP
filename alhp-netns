@@ -1,0 +1,936 @@
+#!/usr/bin/env python3
+"""Per-build network namespace helper for ALHP.
+
+Runs makechrootpkg inside a private network namespace with outbound connectivity
+via pasta, so concurrent builds cannot collide on ports and cannot reach host
+loopback services.
+
+Also owns the kill path. ALHP runs unprivileged and the build tree is root-owned,
+so ALHP cannot signal it; instead ALHP holds a pipe on this helper's stdin and
+closes it to cancel. Everything in the namespace is then killed from here, as
+root.
+
+Verbs:
+    run <name> -- <argv...>   set up, supervise, tear down
+    sweep                     reclaim leftovers from a crashed helper
+    selftest                  prove the mechanism works, for startup preflight
+
+Requires the passt and nftables packages. Install and grant sudo:
+
+    install -m 755 alhp-netns /usr/local/bin/alhp-netns
+
+    # /etc/sudoers.d/alhp
+    Cmnd_Alias ALHPNETNS = /usr/local/bin/alhp-netns
+    alhp ALL= (ALL) NOPASSWD: ALHPNETNS
+    Defaults!ALHPNETNS !logfile, !syslog, !pam_session, !use_pty
+
+No part of that last line is cosmetic. Without !logfile and !pam_session every
+build adds auth-log noise and a PAM session setup. Without !use_pty, which sudo
+enables by default since 1.9.14, sudo allocates a pty whenever ALHP is started
+from a terminal rather than by systemd; fd 0 is then the pty slave rather than the
+cancel pipe, closing the pipe produces no EOF, and stall_timeout and build.timeout
+silently stop killing anything. cmd_run asserts fd 0 is a pipe rather than trusting
+that line to have been copied correctly.
+
+This grants no privilege that the existing NOPASSWD entry for makechrootpkg does
+not already grant, since makechrootpkg with an attacker-chosen -r is
+root-equivalent; only makechrootpkg may be run through here. Argument validation
+lives in this script rather than in a sudoers pattern.
+"""
+
+import fcntl
+import ipaddress
+import os
+import re
+import selectors
+import signal
+import socket
+import stat as statmod
+import subprocess
+import sys
+import time
+
+IP = "/usr/bin/ip"
+NSENTER = "/usr/bin/nsenter"
+PASTA = "/usr/bin/pasta"
+ALLOWED_CHILD = "/usr/bin/makechrootpkg"
+NETNS_RUN_DIR = "/run/netns"
+# namespaces that would not drain, so a later sweep retries them instead of
+# skipping them as someone else's live build
+STUCK_DIR = "/run/alhp-netns/stuck"
+# claim/<name> holds the pid of the helper that owns <name>, written before the
+# namespace exists and removed by teardown. Without it, sweep cannot tell a
+# namespace being set up by a live helper from one whose helper was SIGKILLed
+# mid-setup, and treating an attached pasta as proof of life makes the latter
+# unreclaimable forever.
+CLAIM_DIR = "/run/alhp-netns/claim"
+RESOLV_CONF = "/etc/resolv.conf"
+
+NAME_RE = re.compile(r"^alhp-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+
+NFT = "/usr/bin/nft"
+# pasta names the tap after the host's outbound interface by default, so pin it:
+# the netdev chain below has to name a device, and it must not depend on the
+# host's interface naming
+NS_IFNAME = "alhp0"
+# Private destinations a build has no business reaching. pasta forwards through
+# sockets in the host namespace, so without this a build reaches every host address
+# that --config-net did not copy in (a container bridge, a second NIC, a tunnel
+# address) and every LAN peer. Verified: with pasta alone a build could still reach
+# services bound to such an address, including ALHP's own metrics port.
+BLOCKED_V4 = ("10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, "
+              # link-local, which is also where cloud metadata services live
+              "169.254.0.0/16, "
+              # CGNAT, which is what Tailscale hands out to tailnet peers and where
+              # its MagicDNS resolver sits; without it a tailnet is fully reachable
+              # from every build while the filter still looks like it works
+              "100.64.0.0/10")
+BLOCKED_V6 = "fc00::/7, fe80::/10"
+
+# Setup failed and no build ran. Distinct from any makepkg exit code so
+# "isolation broken" is legible without opening the build log.
+EXIT_SETUP = 121
+
+# Teardown must fit inside cmd.WaitDelay (30s), after which os/exec closes the
+# output pipes and anything logged here is lost. It must also bound itself: on
+# the stall path signals are disarmed and no systemd stop-job timeout applies,
+# so there is no outer limit but this one.
+TERM_GRACE = 3.0
+KILL_ROUNDS = 5
+KILL_ROUND_WAIT = 0.5
+REAP_TIMEOUT = 5.0
+SUBPROC_TIMEOUT = 10.0
+# The sleeps above sum to 5.5s, but each round also probes via a subprocess that
+# can burn SUBPROC_TIMEOUT, so without an overall ceiling a slow /proc walk pushes
+# teardown well past the 30s WaitDelay and the "did not drain" message is lost.
+TEARDOWN_BUDGET = 12.0
+# Each retry costs a full teardown, and the Go side gives the whole sweep two
+# minutes; at startup a timeout there is fatal, so cleanup must not become the
+# reason ALHP will not start.
+MAX_STUCK_RETRIES_PER_SWEEP = 2
+
+
+def log(msg):
+    print("alhp-netns: " + msg, file=sys.stderr, flush=True)
+
+
+def die(msg):
+    log(msg)
+    sys.exit(EXIT_SETUP)
+
+
+def run_cmd(argv, check=True, capture=False, timeout=SUBPROC_TIMEOUT, stdin_data=None):
+    """Every subprocess in this helper carries a timeout; see the budget above."""
+    try:
+        proc = subprocess.run(
+            argv,
+            input=stdin_data.encode() if stdin_data is not None else None,
+            stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        if check:
+            die("timed out: " + " ".join(argv))
+        log("timed out: " + " ".join(argv))
+        return None
+    if proc.returncode != 0:
+        detail = proc.stderr.decode(errors="replace").strip()
+        if check:
+            die("failed (%d): %s: %s" % (proc.returncode, " ".join(argv), detail))
+        return None
+    return proc.stdout.decode(errors="replace") if capture else None
+
+
+def validate_name(name):
+    if not NAME_RE.match(name):
+        die("refusing malformed namespace name: %r" % name)
+    return name
+
+
+def read_resolvers():
+    """Nameservers from the host resolv.conf, which is what the container gets via
+    nspawn's --resolv-conf=auto."""
+    try:
+        with open(RESOLV_CONF) as handle:
+            lines = handle.readlines()
+    except OSError as err:
+        die("cannot read %s: %s" % (RESOLV_CONF, err))
+
+    servers = []
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "nameserver":
+            # validated before it is interpolated into an nft ruleset; the file is
+            # root-owned, but a value that is not an address has no business here
+            try:
+                servers.append(str(ipaddress.ip_address(parts[1].split("%")[0])))
+            except ValueError:
+                log("ignoring unparseable nameserver %r in %s" % (parts[1], RESOLV_CONF))
+
+    return servers
+
+
+def onlink_prefixes(name, family):
+    """Prefixes pasta installed as on-link in the namespace, i.e. the host's LAN.
+
+    Derived rather than enumerated because IPv6 cannot be enumerated: if the host
+    has a global prefix, every LAN peer holds an address inside it and no static
+    private-range list matches. This also catches an IPv4 LAN that is not RFC1918.
+    """
+    # check=True, not False: a failed probe must not read as "no on-link prefixes".
+    # The static list cannot express a global IPv6 LAN prefix, so this is the only
+    # thing covering it, and degrading silently would hand every build the LAN back.
+    # An empty result stays legitimate, a namespace with only a default route.
+    out = run_cmd([NSENTER, "--net=" + netns_path(name), "--",
+                   IP, "-%d" % family, "route", "show"], capture=True)
+
+    prefixes = []
+    for line in out.splitlines():
+        parts = line.split()
+        # on-link means a prefix with no "via"; skip the default route
+        if not parts or parts[0] == "default" or "via" in parts:
+            continue
+        # validated before interpolation, like read_resolvers does, and it rejects
+        # the unreachable/blackhole route forms for free
+        try:
+            prefixes.append(str(ipaddress.ip_network(parts[0], strict=False)))
+        except ValueError:
+            continue
+
+    return prefixes
+
+
+def apply_egress_filter(name):
+    """Drop private and on-link destinations from inside the namespace.
+
+    Applied here rather than on the host because it needs no persistent firewall
+    state: the ruleset lives in the namespace and goes away with it. DNS to the
+    host's configured resolvers is allowed explicitly, since those are themselves
+    on private addresses and the build would otherwise lose name resolution.
+
+    Two chains, and both are required:
+
+    output   the IP layer, which covers ordinary sockets.
+    netdev   the device layer, which covers AF_PACKET. systemd-nspawn retains
+             CAP_NET_RAW (measured: CapEff 0xfdecafff, bit 13 set), and a build
+             reaches container root trivially because makechrootpkg writes
+             "builduser ALL = NOPASSWD: /usr/bin/pacman" into the chroot. A raw
+             frame goes out via dev_queue_xmit and never traverses the IP hook,
+             so the output chain alone is bypassable. Measured: with only the
+             output chain, a hand-built ICMP frame to a blocked address got a
+             reply; with the netdev chain, the send is refused, including with
+             PACKET_QDISC_BYPASS set.
+
+    CAP_NET_ADMIN is *not* retained, so a build cannot edit either ruleset, and
+    unsharing a fresh netns only yields one with no connectivity, since pasta
+    serves the original.
+    """
+    servers = read_resolvers()
+    v4 = [s for s in servers if ":" not in s]
+    v6 = [s for s in servers if ":" in s]
+    drop4 = ", ".join([BLOCKED_V4] + onlink_prefixes(name, 4))
+    drop6 = ", ".join([BLOCKED_V6] + onlink_prefixes(name, 6))
+
+    def body(include_local):
+        out = []
+        if include_local:
+            # the namespace's own copied-in address sits inside a blocked range, and
+            # locally destined traffic still traverses the output hook; without this
+            # a test suite connecting to its own primary address fails, looking like
+            # a package bug rather than an isolation setting
+            out.append("    fib daddr type local accept")
+        # fe80::/10 is in the drop set, which would take unicast neighbour discovery
+        # with it: multicast NDP still resolves, but NUD probes and advertisements
+        # to a link-local unicast would be dropped, so v6 neighbours expire to
+        # FAILED and egress stalls until multicast re-resolves them
+        out.append("    icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, "
+                   "nd-router-solicit, nd-router-advert } accept")
+        for family, addrs in (("ip", v4), ("ip6", v6)):
+            if not addrs:
+                continue
+            joined = ", ".join(addrs)
+            out.append("    %s daddr { %s } udp dport 53 accept" % (family, joined))
+            out.append("    %s daddr { %s } tcp dport 53 accept" % (family, joined))
+        out.append("    ip daddr { %s } drop" % drop4)
+        out.append("    ip6 daddr { %s } drop" % drop6)
+
+        return out
+
+    rules = ["table inet alhp_egress {", "  chain output {",
+             "    type filter hook output priority filter; policy accept;"]
+    rules += body(include_local=True)
+    rules += ["  }", "}",
+              "table netdev alhp_egress_l2 {", "  chain egress {",
+              '    type filter hook egress device "%s" priority 0; policy accept;' % NS_IFNAME]
+    # no fib-local accept here: the netdev hook only sees frames leaving the tap,
+    # so locally delivered traffic never reaches it
+    rules += body(include_local=False)
+    rules += ["  }", "}"]
+
+    run_cmd([NSENTER, "--net=" + netns_path(name), "--", NFT, "-f", "-"],
+            stdin_data="\n".join(rules) + "\n")
+
+
+def assert_resolvable():
+    """A loopback resolver plus --map-host-loopback none means no DNS at all.
+
+    Checked per build, not just at startup: /etc/resolv.conf is managed
+    externally, and enabling systemd-resolved later would flip it. The failure
+    is otherwise silent, with every build losing DNS, failing on downloads, and
+    being requeued forever by ALHP's fixable-error matching.
+    """
+    servers = read_resolvers()
+    if not servers:
+        die("%s lists no nameserver" % RESOLV_CONF)
+    routable = [s for s in servers
+                if not s.startswith("127.") and s != "::1"]
+    if not routable:
+        die("%s lists only loopback resolvers %r, which --map-host-loopback none "
+            "blocks; builds would have no DNS" % (RESOLV_CONF, servers))
+
+
+def netns_path(name):
+    return os.path.join(NETNS_RUN_DIR, name)
+
+
+def stuck_path(name):
+    return os.path.join(STUCK_DIR, name)
+
+
+def claim_path(name):
+    return os.path.join(CLAIM_DIR, name)
+
+
+# held open for the helper's lifetime; the kernel drops the lock when the process
+# dies, which is what makes ownership survivable across a SIGKILL
+_claim_fd = None
+
+
+def claim(name):
+    """Record ownership before the namespace exists, so a crash cannot leave one
+    that looks permanently live.
+
+    The lock, not the pid, is the signal. A stored pid would reinstate the very
+    bug this exists to fix: a build farm forks enough to traverse the whole pid
+    space repeatedly, and after a wrap a dead helper's pid is held by some
+    unrelated process, so the claim reads as live forever. The pid is written for
+    diagnostics only and never trusted.
+    """
+    global _claim_fd
+    try:
+        os.makedirs(CLAIM_DIR, mode=0o700, exist_ok=True)
+        os.chmod(CLAIM_DIR, 0o700)
+        fd = os.open(claim_path(name), os.O_CREAT | os.O_RDWR | os.O_TRUNC, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # a concurrent sweep can unlink between the open and the flock above, which
+        # would leave us holding a lock on an orphaned inode and a claim no later
+        # sweep can see; fail closed into a requeue rather than run unclaimed
+        if os.fstat(fd).st_nlink == 0:
+            os.close(fd)
+            die("claim for %s was unlinked concurrently" % name)
+        os.write(fd, str(os.getpid()).encode())
+    except OSError as err:
+        die("could not claim %s: %s" % (name, err))
+    # PEP 446: os.open is non-inheritable, so nsenter and the build tree do not
+    # inherit the lock and liveness stays tied to the helper rather than the build
+    _claim_fd = fd
+
+
+def release_claim(name):
+    try:
+        os.remove(claim_path(name))
+    except FileNotFoundError:
+        pass
+    except OSError as err:
+        log("could not release claim for %s: %s" % (name, err))
+
+
+def claim_is_live(name):
+    """True while the helper that created the claim still holds its lock."""
+    try:
+        fd = os.open(claim_path(name), os.O_RDONLY)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True  # cannot tell: fail closed rather than reclaim a live build
+    try:
+        # shared, so concurrent sweeps do not block each other
+        fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+
+    return False
+
+
+def mark_stuck(name):
+    """Without this, a namespace that would not drain leaks forever: teardown
+    leaves it deliberately, and sweep's liveness rule then skips it precisely
+    because processes are still inside."""
+    try:
+        os.makedirs(STUCK_DIR, mode=0o700, exist_ok=True)
+        # makedirs' mode is umask-masked and exist_ok does not repair an existing
+        # directory; a writable STUCK_DIR is a cross-build kill primitive
+        os.chmod(STUCK_DIR, 0o700)
+        os.close(os.open(stuck_path(name), os.O_CREAT | os.O_WRONLY, 0o600))
+    except OSError as err:
+        log("could not mark %s stuck: %s" % (name, err))
+
+
+def clear_stuck(name):
+    try:
+        os.remove(stuck_path(name))
+    except FileNotFoundError:
+        pass
+    except OSError as err:
+        log("could not clear stuck mark for %s: %s" % (name, err))
+
+
+def netns_pids(name):
+    """Point-in-time scan of /proc/*/ns/net. Callers must re-enumerate.
+
+    Returns None if the probe itself failed, which must not be confused with an
+    empty namespace: treating a failed probe as "drained" would delete the
+    namespace while processes are still in it, producing the orphan the
+    re-enumeration exists to prevent, now unnamed and invisible to sweep.
+    """
+    out = run_cmd([IP, "netns", "pids", name], check=False, capture=True)
+    if out is None:
+        return None
+    return [int(tok) for tok in out.split() if tok.isdigit()]
+
+
+def start_pasta(name):
+    """Give the namespace outbound connectivity.
+
+    pasta forks to background once initialisation is done, so a zero exit is the
+    readiness signal and no ready-fd plumbing is needed.
+
+    Every flag here is load-bearing, and the defaults are actively wrong for this
+    use case. Measured on the build server:
+
+    --runas 0:0        pasta drops to "nobody" by default, which happens before
+                       it joins the target namespace, so it then fails with
+                       "Couldn't switch to pasta namespaces: Operation not
+                       permitted". The namespace is root-owned, so joining it
+                       needs root.
+    -t/-u/-T/-U none   port forwarding defaults to "auto" in both directions.
+                       Left on, a port bound inside the namespace appears on the
+                       host, which recreates exactly the cross-build collision
+                       this helper exists to prevent, and the outbound splice
+                       rule makes the host's loopback services reachable from
+                       the build even with --map-host-loopback none. Verified:
+                       with the defaults a build could open 127.0.0.1:5432 and
+                       reach ALHP's own database.
+    --map-host-loopback none
+                       stops the guest's default gateway address translating to
+                       the host's loopback. Necessary but, per the above, not
+                       sufficient on its own.
+
+    No resolv.conf is written: pasta forwards through sockets in the host
+    namespace and copies the host's addresses and routes into the target, so the
+    host's own resolvers stay reachable and the container keeps getting them via
+    nspawn's --resolv-conf=auto. The default MTU is already 65520.
+    """
+    run_cmd(
+        [PASTA, "--config-net", "--runas", "0:0", "--map-host-loopback", "none",
+         "--tcp-ports", "none", "--udp-ports", "none",
+         "--tcp-ns", "none", "--udp-ns", "none",
+         "--ns-ifname", NS_IFNAME, "--netns", netns_path(name)],
+    )
+
+
+def pasta_pids(name):
+    """pasta runs outside the namespace it serves, so ip netns pids never lists
+    it and it has to be found by the namespace path in its argv."""
+    path = netns_path(name)
+    return [pid for pid, arg in _pasta_processes() if arg == path]
+
+
+def terminate(list_pids, grace=TERM_GRACE, rounds=KILL_ROUNDS, budget=TEARDOWN_BUDGET):
+    """SIGTERM everything list_pids reports, then SIGKILL whatever is left.
+
+    Every phase re-enumerates rather than reusing the first snapshot. The grace
+    window is exactly when survivors legitimately fork (bash traps,
+    move_logfiles, delete_chroot in makechrootpkg), and a process forked after
+    the snapshot would survive a snapshot-based kill. Converges fast, because a
+    SIGKILLed process cannot fork.
+
+    list_pids may return None to mean "could not tell", which is never treated as
+    drained.
+
+    Returns whether the set drained.
+    """
+    end = time.monotonic() + budget
+    for pid in list_pids() or ():
+        _signal(pid, signal.SIGTERM)
+
+    deadline = min(time.monotonic() + grace, end)
+    while time.monotonic() < deadline:
+        if list_pids() == []:
+            return True
+        time.sleep(KILL_ROUND_WAIT)
+
+    for _ in range(rounds):
+        if time.monotonic() >= end:
+            break
+        pids = list_pids()
+        if pids == []:
+            return True
+        for pid in pids or ():
+            _signal(pid, signal.SIGKILL)
+        time.sleep(KILL_ROUND_WAIT)
+
+    return list_pids() == []
+
+
+def stop_pasta(name, budget=TEARDOWN_BUDGET):
+    """pasta exits on its own once the namespace path is removed, but teardown
+    should not depend on that ordering, and the non-convergence path deliberately
+    leaves the namespace in place."""
+    if not terminate(lambda: pasta_pids(name), budget=budget):
+        log("pasta for %s would not die" % name)
+
+
+def setup_netns(name):
+    if os.path.exists(netns_path(name)):
+        die("namespace %s already exists" % name)
+    run_cmd([IP, "netns", "add", name])
+    run_cmd([IP, "-n", name, "link", "set", "lo", "up"])
+
+
+def delete_netns(name, timeout=SUBPROC_TIMEOUT):
+    if os.path.exists(netns_path(name)):
+        run_cmd([IP, "netns", "delete", name], check=False, timeout=timeout)
+
+
+class Teardown:
+    """Kills everything in the namespace, then removes it.
+
+    Membership rather than process group or cgroup: the nspawn payload lands in
+    its own transient scope under devtools-*.slice and its PID-namespace init is
+    the --as-pid2 stub, so neither killpg nor a helper-owned cgroup reaches it.
+    Every process in the build does share the namespace, and that is exact.
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.done = False
+        self.converged = True
+        self.end = None
+
+    def _remaining(self):
+        """Whatever is left of the one teardown budget. Per-phase budgets would
+        stack: kill, reap, stop pasta and delete each taking their own ceiling
+        overruns the 30s WaitDelay, after which the 'did not drain' line is lost."""
+        return max(0.5, self.end - time.monotonic())
+
+    def __call__(self, child=None):
+        # Guard set on entry, not on completion: signals can no longer re-enter
+        # once disarmed below, but a TimeoutExpired escaping into the caller's
+        # finally would otherwise restart the whole grace sequence from zero.
+        if self.done:
+            return
+        self.done = True
+        self.end = time.monotonic() + TEARDOWN_BUDGET
+
+        # An exception raised inside a running finally replaces the in-flight
+        # unwind, which would abandon teardown partway and leak the namespace.
+        # Safe because systemd's SIGKILL cannot be masked and still bounds the
+        # shutdown path, and because everything below carries its own timeout.
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        self._kill_namespace()
+        if child is not None:
+            self._reap(child)
+
+        if not self.converged:
+            # Leave the namespace named and its pasta alive. A survivor with no
+            # network is the worst of both, and an unnamed namespace is
+            # invisible to sweep and to the operator.
+            log("namespace %s did not drain; marked for sweep to retry" % self.name)
+            mark_stuck(self.name)
+            return
+
+        stop_pasta(self.name, budget=self._remaining())
+        delete_netns(self.name, timeout=self._remaining())
+        clear_stuck(self.name)
+        release_claim(self.name)
+
+    def _kill_namespace(self):
+        if not os.path.exists(netns_path(self.name)):
+            return
+
+        if not terminate(lambda: netns_pids(self.name), budget=self._remaining()):
+            self.converged = False
+
+    def _reap(self, child):
+        """Bounded, because a process in uninterruptible sleep with SIGKILL
+        pending is both the likeliest cause of non-convergence above and the
+        state in which an unbounded wait would hang forever."""
+        try:
+            child.wait(timeout=REAP_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            log("child pid %d did not exit after SIGKILL" % child.pid)
+            self.converged = False
+
+
+def _signal(pid, signo):
+    try:
+        os.kill(pid, signo)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        log("cannot signal pid %d" % pid)
+
+
+def child_exit_code(child):
+    """Translate the child's wait status into our exit status.
+
+    Never 0 for a build that was killed: ALHP's `if err != nil` guard fails open,
+    so a zero would make a killed build indistinguishable from a clean one and
+    would get the currently published package purged.
+    """
+    # Key on whether a status exists, NOT on teardown.converged. converged is
+    # cleared by a surviving grandchild as well as by a timed-out reap, so keying
+    # on it would report 137 for a build that exited 0 with one leftover process,
+    # and ALHP purges the published package for a non-zero exit. The loud log and
+    # the deliberately retained namespace are the operator signal for that case.
+    if child.returncode is None:
+        # the reap timed out: the child itself is the survivor, so there is no
+        # status to keep and 137 is what the helper asked for
+        return 128 + signal.SIGKILL
+    if child.returncode < 0:
+        return 128 + (-child.returncode)
+    return child.returncode
+
+
+def cmd_run(argv):
+    if len(argv) < 3 or argv[1] != "--":
+        die("usage: alhp-netns run <name> -- <argv...>")
+    name = validate_name(argv[0])
+    child_argv = argv[2:]
+    if child_argv[0] != ALLOWED_CHILD:
+        # Keeps this helper's privilege identical to the makechrootpkg entry the
+        # sudoers file already grants.
+        die("refusing to run %r; only %s is permitted" % (child_argv[0], ALLOWED_CHILD))
+
+    # Fail closed rather than trusting `Defaults!ALHPNETNS !use_pty` to have been
+    # copied correctly: on a pty, sel.register succeeds, no EOF ever arrives, and
+    # the build becomes uncancellable, which is strictly worse than a failed one.
+    try:
+        stdin_mode = os.fstat(0).st_mode
+    except OSError as err:
+        die("cannot stat stdin: %s" % err)
+    if not statmod.S_ISFIFO(stdin_mode):
+        die("stdin is not a pipe (missing `Defaults!ALHPNETNS !use_pty`?); "
+            "cancellation would not work, refusing to run a build that cannot be killed")
+
+    assert_resolvable()
+
+    # Signals become a readable fd the selector already watches. A flag set by a
+    # handler would never wake a blocked select(): PEP 475 retries the
+    # interrupted epoll_wait with a recomputed timeout, so with no timeout the
+    # loop would block forever.
+    sigr, sigw = socket.socketpair()
+    sigr.setblocking(False)
+    sigw.setblocking(False)
+    signal.set_wakeup_fd(sigw.fileno())
+    caught = []
+    handler = lambda signo, _frame: caught.append(signo)
+    signal.signal(signal.SIGTERM, handler)
+    signal.signal(signal.SIGINT, handler)
+
+    # outside the try: this is the "not mine, do not touch" guard, and running
+    # teardown on it would kill and delete a namespace we did not create
+    if os.path.exists(netns_path(name)):
+        die("namespace %s already exists" % name)
+
+    claim(name)
+    teardown = Teardown(name)
+    child = None
+    try:
+        # inside the try: setup_netns is two subprocesses, and a failure of the
+        # second would otherwise leak the namespace past the finally
+        setup_netns(name)
+        start_pasta(name)
+        apply_egress_filter(name)
+        child = subprocess.Popen(
+            [NSENTER, "--net=" + netns_path(name), "--"] + child_argv,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        # Before any poll(): pidfd_open raises on an already-reaped child.
+        pidfd = os.pidfd_open(child.pid)
+        try:
+            signo = _supervise(pidfd, sigr, caught)
+        finally:
+            os.close(pidfd)
+
+        # not redundant with the finally below, despite the run-once guard:
+        # Teardown._reap is the only caller of child.wait(), so child.returncode is
+        # None until teardown has run, and computing the status first would report
+        # 137 for every build
+        teardown(child=child)
+        if signo is not None:
+            return 128 + signo
+        return child_exit_code(child)
+    finally:
+        teardown(child=child)
+        signal.set_wakeup_fd(-1)
+        sigr.close()
+        sigw.close()
+
+
+def _supervise(pidfd, sigr, caught):
+    """Block until the child exits, ALHP closes our stdin, or we are signalled.
+
+    Returns the signal number if we were signalled, else None.
+    """
+    sel = selectors.DefaultSelector()
+    sel.register(pidfd, selectors.EVENT_READ, "child")
+    sel.register(sigr, selectors.EVENT_READ, "signal")
+    try:
+        sel.register(sys.stdin, selectors.EVENT_READ, "cancel")
+    except (ValueError, OSError):
+        # same reasoning as the FIFO check in cmd_run: no cancel channel means an
+        # uncancellable root build
+        die("stdin is not selectable; refusing to run a build that cannot be killed")
+
+    try:
+        while True:
+            events = sel.select()
+            ready = {key.data for key, _ in events}
+            # Child first: on shutdown all three routinely become ready in the
+            # same return and epoll fills the array in readiness order, not
+            # registration order. Both paths reach the same exit status, but
+            # taking cancel here would burn the whole grace on an empty
+            # namespace.
+            if "child" in ready:
+                return None
+            if "signal" in ready:
+                try:
+                    sigr.recv(64)  # level-triggered; drain or we spin
+                except BlockingIOError:
+                    pass
+                if caught:
+                    return caught[-1]
+            if "cancel" in ready:
+                if not os.read(sys.stdin.fileno(), 4096):
+                    log("cancel requested")
+                    return None
+    finally:
+        sel.close()
+
+
+def cmd_sweep(_argv):
+    """Reclaim namespaces and pasta processes left by a killed helper."""
+    try:
+        names = sorted(os.listdir(NETNS_RUN_DIR))
+    except FileNotFoundError:
+        names = []
+
+    retried = 0
+    stuck = set()
+    try:
+        stuck = {n for n in os.listdir(STUCK_DIR) if NAME_RE.match(n)}
+    except FileNotFoundError:
+        pass
+    # a mark whose namespace is already gone has served its purpose
+    for name in stuck - set(names):
+        clear_stuck(name)
+    try:
+        for name in set(os.listdir(CLAIM_DIR)) - set(names):
+            # liveness re-checked: names was listed earlier, so a helper that
+            # claimed since then is alive and its namespace is about to exist
+            if NAME_RE.match(name) and not claim_is_live(name):
+                release_claim(name)
+    except FileNotFoundError:
+        pass
+
+    for name in names:
+        if not NAME_RE.match(name):
+            continue
+        if name in stuck:
+            if retried >= MAX_STUCK_RETRIES_PER_SWEEP:
+                log("deferring stuck namespace %s to the next sweep" % name)
+                continue
+            retried += 1
+            # A previous teardown could not drain this one, so its processes are
+            # ours to kill rather than evidence of someone else's live build.
+            log("retrying stuck namespace %s" % name)
+            if not terminate(lambda n=name: netns_pids(n)):
+                log("namespace %s still will not drain" % name)
+                continue
+            stop_pasta(name)
+            delete_netns(name)
+            clear_stuck(name)
+            release_claim(name)
+            continue
+        # Liveness is "a helper still owns this", which the claim answers exactly.
+        # An attached pasta is not proof of life: a helper SIGKILLed between
+        # start_pasta and spawning the build leaves one running, and treating that
+        # as live would make the namespace unreclaimable forever. netns_pids
+        # returning None means the probe failed, which is not "empty".
+        if claim_is_live(name) or netns_pids(name) != []:
+            log("skipping live namespace %s" % name)
+            continue
+        log("reclaiming namespace %s" % name)
+        if not terminate(lambda n=name: netns_pids(n)):
+            log("namespace %s would not drain" % name)
+            mark_stuck(name)
+            continue
+        stop_pasta(name)
+        delete_netns(name)
+        release_claim(name)
+
+    # A pasta whose namespace path is gone serves nothing. pasta exits by itself
+    # when that happens, so this is only a backstop. Keyed solely on the path
+    # being absent: a namespace that still exists is either live or was created
+    # after the listdir above, and neither is ours to touch.
+    for pid, path in _pasta_processes():
+        if os.path.exists(path):
+            continue
+        log("reclaiming orphaned pasta pid %d for %s" % (pid, os.path.basename(path)))
+        _signal(pid, signal.SIGTERM)
+    return 0
+
+
+def _pasta_processes():
+    """(pid, namespace path) for every pasta serving an ALHP namespace."""
+    found = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            with open("/proc/%s/cmdline" % entry, "rb") as handle:
+                args = handle.read().split(b"\0")
+        except OSError:
+            continue
+        # argv[0] is "pasta", but comm is the dispatched variant ("passt.avx2" on
+        # this hardware), so pgrep -x pasta finds nothing and the name has to come
+        # from cmdline. Both spellings are accepted because the binary is one
+        # program with two entry points and dispatches per CPU.
+        if not args or not os.path.basename(args[0]).startswith((b"pasta", b"passt")):
+            continue
+        for arg in args:
+            decoded = arg.decode(errors="replace")
+            if decoded.startswith(NETNS_RUN_DIR + "/alhp-"):
+                found.append((int(entry), decoded))
+                break
+    return found
+
+
+def assert_l2_filter(name):
+    """Prove the netdev chain actually stops a raw frame.
+
+    The whole reason that chain exists is that AF_PACKET bypasses the IP-layer
+    hook, and that it does not bypass the device-layer one is a kernel behaviour
+    measured once rather than something documented we can point at. Checking it
+    at startup turns that into a standing guarantee and catches a kernel upgrade
+    that moves the hook.
+    """
+    probe = (
+        "import errno, socket, struct, subprocess, sys\n"
+        "mac = subprocess.run(['%s','-brief','link','show','dev','%s'],\n"
+        "                     capture_output=True, text=True).stdout.split()[2]\n"
+        "s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))\n"
+        "s.bind(('%s', 0))\n"
+        "ip = struct.pack('!BBHHHBBH4s4s', 0x45, 0, 28, 0x1234, 0, 64, 1, 0,\n"
+        "                 socket.inet_aton('10.0.0.2'), socket.inet_aton('10.0.0.1'))\n"
+        "frame = b'\\x9a\\x55\\x9a\\x55\\x9a\\x55' + bytes.fromhex(mac.replace(':','')) \\\n"
+        "        + b'\\x08\\x00' + ip + struct.pack('!BBHHH', 8, 0, 0, 1, 1)\n"
+        "try:\n"
+        "    s.send(frame)\n"
+        "except OSError as e:\n"
+        # ENOBUFS is what net_xmit_errno(NET_XMIT_DROP) maps to, i.e. an nft drop.
+        # Anything else (ENETDOWN, EMSGSIZE, a full qdisc) is not evidence.
+        "    sys.exit(0 if e.errno == errno.ENOBUFS else 2)\n"
+        "sys.exit(1)\n"
+    ) % (IP, NS_IFNAME, NS_IFNAME)
+
+    # run directly rather than through run_cmd, which collapses every non-zero exit
+    # to None: the probe deliberately distinguishes "the filter let it through"
+    # from "the probe could not tell", and both are fatal but they are not the same
+    # diagnosis to hand an operator during an outage
+    try:
+        proc = subprocess.run(
+            [NSENTER, "--net=" + netns_path(name), "--", sys.executable, "-c", probe],
+            capture_output=True, timeout=SUBPROC_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        die("timed out testing the device-layer egress filter in %s" % name)
+    if proc.returncode == 2:
+        die("could not test the device-layer egress filter: %s"
+            % proc.stderr.decode(errors="replace").strip())
+    if proc.returncode != 0:
+        die("the device-layer egress filter did not stop a raw frame: AF_PACKET can "
+            "bypass it on this kernel, so builds could reach private addresses")
+
+
+def cmd_selftest(_argv):
+    """Prove the whole mechanism before ALHP starts taking builds."""
+    assert_resolvable()
+    name = "alhp-00000000-0000-4000-8000-000000000000"
+    # consult the claim before deleting: selftest uses a fixed name, so the process
+    # most likely to collide is another instance's selftest, and deleting its
+    # namespace would take both instances down rather than just this one
+    if claim_is_live(name):
+        die("another instance is running its selftest in %s" % name)
+    if os.path.exists(netns_path(name)):
+        delete_netns(name)
+    # claimed like any build namespace, so a second instance's startup sweep cannot
+    # reclaim it out from under us mid-selftest
+    claim(name)
+    setup_netns(name)
+    try:
+        start_pasta(name)
+        # proves the ruleset loads (nftables installed, syntax valid) before ALHP
+        # starts taking builds, rather than failing on the first one
+        apply_egress_filter(name)
+        assert_l2_filter(name)
+        # assert on the output, not just the exit status: `ip address show`
+        # exits 0 on a namespace with nothing but lo, so a bare run_cmd would
+        # pass even if pasta had configured no interface at all
+        out = run_cmd([NSENTER, "--net=" + netns_path(name), "--",
+                       IP, "-brief", "address", "show"], capture=True)
+        configured = [ln for ln in (out or "").splitlines()
+                      if ln.strip() and not ln.startswith("lo ")]
+        if not configured:
+            die("pasta configured no interface in %s; builds would have no network" % name)
+    finally:
+        stop_pasta(name)
+        delete_netns(name)
+        release_claim(name)
+    log("selftest ok")
+    return 0
+
+
+def main():
+    if os.geteuid() != 0:
+        die("must run as root")
+    if len(sys.argv) < 2:
+        die("usage: alhp-netns {run|sweep|selftest} [args]")
+
+    verbs = {"run": cmd_run, "sweep": cmd_sweep, "selftest": cmd_selftest}
+    verb = sys.argv[1]
+    if verb not in verbs:
+        die("unknown verb %r" % verb)
+    return verbs[verb](sys.argv[2:])
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as err:  # noqa: BLE001 - deliberate catch-all
+        # EXIT_SETUP, not 1: "we do not know what happened" must never be spelled
+        # the same way as "this package is broken", because ALHP purges the
+        # published package for the latter. Popen raising on fd or pid exhaustion
+        # is the realistic case, and a fork-heavy build creates exactly that state.
+        log("unhandled %s: %s" % (type(err).__name__, err))
+        sys.exit(EXIT_SETUP)

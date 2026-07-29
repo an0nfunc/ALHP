@@ -34,10 +34,18 @@ blacklist:
     - rust
 
 build:
-  # number of workers total
-  worker: 4
   makej: 8
-  checks: true
+  # run each build in its own network namespace via the alhp-netns helper.
+  # prevents concurrent builds from colliding on ports and stops a package's
+  # check() from reaching host loopback services. also the only working kill path
+  # for stall_timeout/timeout when ALHP runs unprivileged, since the build tree is
+  # root-owned. requires the passt package and alhp-netns installed to
+  # /usr/local/bin; see the header of alhp-netns for the sudoers entry.
+  # builds also get an in-namespace nftables ruleset dropping RFC1918, link-local
+  # and ULA destinations, so a package cannot reach the LAN or host services bound
+  # to a bridge/second-NIC address. DNS to the host's own resolvers is allowed.
+  # default: true
+  network_isolation: true
   # how much memory ALHP should use
   # this will also decide how many builds will run concurrently,
   # since ALHP will try to optimise the queue for speed while not going over this limit

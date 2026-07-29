@@ -7,7 +7,11 @@ User=alhp
 Group=alhp
 WorkingDirectory=/home/alhp/ALHP.GO
 ExecStart=/home/alhp/ALHP.GO/ALHP.go
-KillMode=mixed
+# deliberately NOT KillMode=mixed: the default control-group signals the whole
+# cgroup at the start of the stop job, which reaches the systemd-nspawn
+# supervisor, and nspawn then kills the container. Under mixed the supervisor
+# only ever gets SIGKILL, its shutdown handler never runs, and build payloads
+# silently survive systemctl stop.
 TimeoutStopSec=5min
 MemoryHigh=30G
 CPUQuota=700%

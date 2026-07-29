@@ -156,3 +156,7 @@ $RECYCLE.BIN/
 
 /ALHP.go
 /config.yaml
+
+### Python ###
+__pycache__/
+*.py[cod]

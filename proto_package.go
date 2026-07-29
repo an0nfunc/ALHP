@@ -67,10 +67,19 @@ type ProtoPackage struct {
 	// upstreamDefaultGitBranch (main) instead of state.TagVer/state.TagRev.
 	// Set when upstream Arch ships a rebuild that state.git did not record.
 	UseLatest bool
+	// maxRSS is DBPackage.MaxRss snapshotted when the package was admitted to
+	// BuildManager.building, written and read under buildingLock. The scheduler
+	// needs the peak of every in-flight build, but build() reassigns DBPackage as
+	// it goes, so reading it there would race.
+	maxRSS *int64
 }
 
 var (
 	ErrorNotEligible = errors.New("package is not eligible")
+	// ErrInvalidMeta marks upstream metadata rejected by checkMetaName. Callers
+	// must map it to ErrorNotEligible: a malformed new version says nothing about
+	// the package already published, and any other error purges that build.
+	ErrInvalidMeta = errors.New("invalid package metadata")
 )
 
 func (p *ProtoPackage) isEligible(ctx context.Context) bool {
@@ -130,10 +139,23 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 
 func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	start := time.Now().UTC()
-	chroot := "build_" + uuid.New().String()
+	// one id per build, rendered as the chroot copy name and the network namespace
+	// name; neither is derived from the other
+	buildID := uuid.New().String()
+	chroot := chrootName(buildID)
 
 	buildFolder, err := p.setupBuildDir(ctx)
 	if err != nil {
+		if errors.Is(err, ErrInvalidMeta) {
+			// reachable before build()'s own check below, because genQueue assigns
+			// Version from an HTTP-fetched .SRCINFO for UseLatest packages
+			log.Warningf("[P] skipping %s->%s: %v", p.FullRepo, p.Pkgbase, err)
+			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).
+				SetSkipReason("invalid version").SetTagRev(p.State.TagRev).SaveX(ctx)
+
+			return time.Since(start), ErrorNotEligible
+		}
+
 		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
 	}
 	defer func() {
@@ -150,6 +172,19 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
 	}
 	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+	// the .SRCINFO this came from is fetched over HTTP and is not linted by makepkg;
+	// the version becomes a directory name that helpers running as root are handed
+	if err := checkMetaName("version", p.Version); err != nil {
+		// ErrorNotEligible so a bad new upstream version does not delete the good
+		// published build. TagRev is pinned like every other terminal skip, though
+		// note genQueue's re-pick guard is skipped for UseLatest packages, which is
+		// exactly the case whose version came from upstream unvalidated.
+		log.Warningf("[P] skipping %s->%s: %v", p.FullRepo, p.Pkgbase, err)
+		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusSkipped).
+			SetSkipReason("invalid version").SetTagRev(p.State.TagRev).SaveX(ctx)
+
+		return time.Since(start), ErrorNotEligible
+	}
 	p.DBPackage = p.DBPackage.Update().SetPackages(packages2slice(p.Srcinfo.Packages)).SaveX(ctx)
 
 	// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
@@ -246,19 +281,15 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		defer stopTimeout()
 	}
 
-	cmd := exec.CommandContext(buildCtx, "makechrootpkg", "-c", "-D", filepath.Join(conf.Basedir.Work, makepkgDir), //nolint:gosec
-		"-l", chroot, "-r", filepath.Join(conf.Basedir.Work, chrootDir), "--", "-m", "--noprogressbar", "--config",
-		filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(makepkgFile, p.March)))
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Dir = filepath.Dir(p.Pkgbuild)
+	cmd, releaseCmd, err := buildCommand(buildCtx, p, buildID, makepkgFile)
+	if err != nil {
+		return time.Since(start), err
+	}
+	defer releaseCmd()
 	var out bytes.Buffer
 	progress := newProgressWriter(&out)
 	cmd.Stdout = progress
 	cmd.Stderr = progress
-	cmd.Cancel = killProcessGroup(cmd)
-	// the output pipe stays open as long as any process in the group holds it, so
-	// bound how long Wait may block on a leaked child after the kill
-	cmd.WaitDelay = buildKillGrace
 
 	if err = cmd.Start(); err != nil {
 		return time.Since(start), fmt.Errorf("error starting build: %w", err)
@@ -295,6 +326,23 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 			return time.Since(start), ctx.Err()
 		}
 
+		// Isolation never came up, so no build ran and this says nothing about the
+		// package. Checked before everything below because the alternative is the
+		// generic failure path, which records a failed build pinned to the current
+		// TagRev and purges the published package: one bad /etc/resolv.conf would
+		// walk the whole repo and delete it, with no requeue until upstream moves.
+		if networkIsolationEnabled() && cmd.ProcessState.ExitCode() == exitIsolationSetup {
+			p.DBPackage.Update().SetStatus(dbpackage.StatusQueued).ExecX(ctx)
+			// ErrorNotEligible, so buildmanager.go's error branch does not purge: the
+			// published package is still good, and 121 is a host-wide fault that would
+			// otherwise delete one package per build until someone noticed.
+			log.Errorf("[P] %s->%s network isolation setup failed: %s", p.FullRepo, p.Pkgbase,
+				strings.TrimSpace(lastLine(out.String())))
+			buildManager.isolationFailures.Add(1)
+
+			return time.Since(start), ErrorNotEligible
+		}
+
 		// checked before the log heuristics below: a killed build's log is truncated
 		// mid-stream and could incidentally match one of them, which would requeue the
 		// package and hang it again on the next pass
@@ -324,6 +372,8 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		}
 		return time.Since(start), fmt.Errorf("build failed: exit code %d", cmd.ProcessState.ExitCode())
 	}
+
+	buildManager.isolationFailures.Store(0)
 
 	Rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if !ok {
@@ -528,6 +578,17 @@ func (p *ProtoPackage) discardArtifacts() error {
 }
 
 func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
+	// Guarded at the sink, not only where Version is assigned: there are three
+	// assignment sites and genQueue's runs before build()'s check, so a UseLatest
+	// package reaches here with a version straight from an HTTP-fetched .SRCINFO.
+	// This is where it becomes a path that root-run helpers are handed.
+	if err := checkMetaName("pkgbase", p.Pkgbase); err != nil {
+		return "", err
+	}
+	if err := checkMetaName("version", p.Version); err != nil {
+		return "", err
+	}
+
 	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
 	err := cleanBuildDir(buildDir, "")
@@ -589,6 +650,9 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 
 	if p.Version == "" {
 		p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
+		if err := checkMetaName("version", p.Version); err != nil {
+			return err
+		}
 	}
 
 	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0o644)

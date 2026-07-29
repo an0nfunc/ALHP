@@ -40,9 +40,13 @@ const (
 	makepkgLTO     = "makepkg-%s-non-lto.conf"
 	makepkg        = "makepkg-%s.conf"
 	flagConfig     = "flags.yaml"
+	rmChrootBin    = "/usr/local/bin/rm_chroot.py"
 )
 
 var (
+	// upstream metadata that ends up in filesystem paths and root-run command
+	// arguments; see checkMetaName
+	reValidMeta            = regexp.MustCompile(`^[A-Za-z0-9._+:~@-]+$`)
 	reVar                  = regexp.MustCompile(`(?mU)^#?[^\S\r\n]*(\w+)[^\S\r\n]*=[^\S\r\n]*([("])([^)"]*)([)"])[^\S\r\n]*$`)
 	reEnvClean             = regexp.MustCompile(`(?m) ([\s\\]+) `)
 	rePkgRel               = regexp.MustCompile(`(?m)^pkgrel\s*=\s*(.+)$`)
@@ -73,7 +77,6 @@ type Conf struct {
 	} `yaml:"db"`
 	Build struct {
 		Makej       int
-		Checks      bool
 		MemoryLimit datasize.ByteSize `yaml:"memory_limit"`
 		// StallTimeout is how long a build may produce neither output nor CPU work
 		// before it is killed. time.ParseDuration string, "0" disables.
@@ -81,6 +84,12 @@ type Conf struct {
 		// Timeout is an absolute wall-clock cap per build, a backstop for hangs that
 		// keep burning CPU. time.ParseDuration string, "0" (the default) disables.
 		Timeout string `yaml:"timeout"`
+		// NetworkIsolation runs each build in its own network namespace via the
+		// alhp-netns helper. A pointer because nil must mean enabled: config is
+		// unmarshaled into a nil *Conf at startup, where an absent key would leave a
+		// plain bool false, but into the existing non-nil one on SIGUSR1 reload,
+		// where yaml merges rather than zeroes. The two sites would disagree.
+		NetworkIsolation *bool `yaml:"network_isolation"`
 	}
 	Logging struct {
 		Level string
@@ -125,7 +134,7 @@ func updateLastUpdated() error {
 
 func cleanBuildDir(dir, chrootDir string) error {
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		rmCmd := exec.Command("sudo", "rm_chroot.py", dir)
+		rmCmd := exec.Command(sudoBin, rmChrootBin, dir)
 		_, err := rmCmd.CombinedOutput()
 		if err != nil {
 			return err
@@ -134,7 +143,7 @@ func cleanBuildDir(dir, chrootDir string) error {
 
 	if chrootDir != "" {
 		if stat, err := os.Stat(chrootDir); err == nil && stat.IsDir() {
-			rmCmd := exec.Command("sudo", "rm_chroot.py", chrootDir)
+			rmCmd := exec.Command(sudoBin, rmChrootBin, chrootDir)
 			_, err := rmCmd.CombinedOutput()
 			if err != nil {
 				return err
@@ -148,11 +157,14 @@ func cleanBuildDir(dir, chrootDir string) error {
 	return nil
 }
 
+// pkgList2MaxMem sums the recorded peak RSS of the given builds. Callers must hold
+// buildingLock: it reads the maxRSS snapshot taken at admission, not DBPackage,
+// which the build goroutines reassign as they run.
 func pkgList2MaxMem(pkgList []*ProtoPackage) datasize.ByteSize {
 	var sum uint64
 	for _, pkg := range pkgList {
-		if pkg.DBPackage.MaxRss != nil {
-			sum += uint64(*pkg.DBPackage.MaxRss) //nolint:gosec
+		if pkg.maxRSS != nil {
+			sum += uint64(*pkg.maxRSS) //nolint:gosec
 		}
 	}
 
@@ -365,7 +377,7 @@ func setupChroot(ctx context.Context) error {
 		}
 
 		// copy pacman.conf into pristine chroot to enable multilib
-		cmd = exec.CommandContext(ctx, "sudo", "cp", pacmanConf, //nolint:gosec
+		cmd = exec.CommandContext(ctx, sudoBin, "/usr/bin/cp", pacmanConf, //nolint:gosec
 			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/pacman.conf"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -374,7 +386,7 @@ func setupChroot(ctx context.Context) error {
 		}
 
 		// remove makepkg conf extension, they are covered by our custom makepkg
-		cmd = exec.CommandContext(ctx, "sudo", "rm_chroot.py", //nolint:gosec
+		cmd = exec.CommandContext(ctx, sudoBin, rmChrootBin, //nolint:gosec
 			filepath.Join(conf.Basedir.Work, chrootDir, pristineChroot, "etc/makepkg.conf.d"))
 		res, err = cmd.CombinedOutput()
 		log.Debug(string(res))
@@ -610,18 +622,53 @@ func setupMakepkg(march string, flags map[string]any) error {
 	return nil
 }
 
+// checkMetaName rejects package metadata that must never reach a filesystem path
+// or a command argument. Everything here is upstream-controlled: state files come
+// from state.git and versions from a .SRCINFO fetched over HTTP, neither of which
+// ALHP can vouch for. The build directory is named after these, and that name is
+// passed to helpers that run as root, so the character set has to be constrained
+// here rather than trusted downstream.
+//
+// The allowlist is deliberately narrower than makepkg's own lint, which rejects
+// only whitespace, "/", ":", "-" and non-ASCII in pkgver.
+func checkMetaName(kind, value string) error {
+	if value == "" {
+		return fmt.Errorf("empty %s: %w", kind, ErrInvalidMeta)
+	}
+	if !reValidMeta.MatchString(value) {
+		return fmt.Errorf("refusing %s %q: contains characters outside [A-Za-z0-9._+:~@-]: %w",
+			kind, value, ErrInvalidMeta)
+	}
+	// "." and ".." would escape or alias the directory they name
+	if strings.Trim(value, ".") == "" {
+		return fmt.Errorf("refusing %s %q: %w", kind, value, ErrInvalidMeta)
+	}
+
+	return nil
+}
+
 func parseState(state string) (*StateInfo, error) {
 	ss := strings.Split(state, " ")
 	if len(ss) != 4 {
 		return nil, errors.New("invalid state file")
 	}
 
-	return &StateInfo{
+	si := &StateInfo{
 		Pkgbase: ss[0],
 		PkgVer:  ss[1],
 		TagVer:  ss[2],
 		TagRev:  strings.Trim(ss[3], "\n"),
-	}, nil
+	}
+
+	for kind, value := range map[string]string{
+		"pkgbase": si.Pkgbase, "pkgver": si.PkgVer, "tagver": si.TagVer, "tagrev": si.TagRev,
+	} {
+		if err := checkMetaName(kind, value); err != nil {
+			return nil, err
+		}
+	}
+
+	return si, nil
 }
 
 func ContainsPkg(pkgs []*ProtoPackage, pkg *ProtoPackage, repoSensitive bool) bool {

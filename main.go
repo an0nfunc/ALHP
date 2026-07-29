@@ -104,6 +104,16 @@ func main() {
 
 	buildManager.setupMetrics(conf.Metrics.Port)
 
+	if networkIsolationEnabled() {
+		// refuse to start rather than silently build without isolation
+		if err := setupNetworkIsolation(ctx); err != nil {
+			log.Panicf("network isolation unavailable: %v", err)
+		}
+	} else {
+		log.Warning("build.network_isolation is disabled: builds share the host network namespace, " +
+			"and stall_timeout/timeout cannot kill a build unless ALHP runs as root")
+	}
+
 	err = setupChroot(ctx)
 	if err != nil {
 		log.Panicf("unable to setup chroot: %v", err)
@@ -148,7 +158,9 @@ killLoop:
 				log.Panicf("failure setting logging level: %v", err)
 			}
 			log.SetLevel(lvl)
-			log.Infof("config reloaded")
+			// the startup preflight does not re-run on reload, so state the
+			// effective value rather than leaving a flipped flag silent
+			log.Infof("config reloaded (network isolation: %t)", networkIsolationEnabled())
 		}
 	}
 
