@@ -434,8 +434,14 @@ def start_pasta(name):
     host's own resolvers stay reachable and the container keeps getting them via
     nspawn's --resolv-conf=auto. The default MTU is already 65520.
     """
+    # --quiet: once pasta backgrounds it logs to syslog, which bypasses the stderr
+    # run_cmd captures, so without this every build writes a ~25 line banner to the
+    # journal. It suppresses only informational output: failures still exit 1 with
+    # the real cause on stderr, and in fact report it more clearly, since otherwise
+    # the first stderr line is "No interfaces with usable IPv6 routes" rather than
+    # whatever actually went wrong.
     run_cmd(
-        [PASTA, "--config-net", "--runas", "0:0", "--map-host-loopback", "none",
+        [PASTA, "--config-net", "--quiet", "--runas", "0:0", "--map-host-loopback", "none",
          "--tcp-ports", "none", "--udp-ports", "none",
          "--tcp-ns", "none", "--udp-ns", "none",
          "--ns-ifname", NS_IFNAME, "--netns", netns_path(name)],
