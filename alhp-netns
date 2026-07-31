@@ -38,6 +38,7 @@ root-equivalent; only makechrootpkg may be run through here. Argument validation
 lives in this script rather than in a sudoers pattern.
 """
 
+import ctypes
 import fcntl
 import ipaddress
 import os
@@ -65,6 +66,21 @@ STUCK_DIR = "/run/alhp-netns/stuck"
 # unreclaimable forever.
 CLAIM_DIR = "/run/alhp-netns/claim"
 RESOLV_CONF = "/etc/resolv.conf"
+# Resolvers handed to every container, instead of whatever the host happens to be
+# using. nspawn copies the host's /etc/resolv.conf in, so builds otherwise inherit
+# whatever is configured there: those addresses can be rewritten under a running
+# build, and any that the namespace cannot reach produce DNS failures the build has
+# no way to avoid. Pinning also lets the egress filter drop its port 53 exception,
+# as long as the resolvers are outside the blocked ranges.
+# Override by listing one address per line in RESOLVERS_FILE.
+DEFAULT_RESOLVERS = ("1.1.1.1", "9.9.9.9")
+RESOLVERS_FILE = "/etc/alhp-netns/resolvers"
+BUILD_RESOLV_CONF = "/run/alhp-netns/resolv.conf"
+
+# mount(2) flags; MS_PRIVATE|MS_REC keeps our bind from propagating to the host
+MS_BIND = 0x1000
+MS_REC = 0x4000
+MS_PRIVATE = 0x40000
 
 NAME_RE = re.compile(r"^alhp-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
 
@@ -148,27 +164,60 @@ def validate_name(name):
     return name
 
 
-def read_resolvers():
-    """Nameservers from the host resolv.conf, which is what the container gets via
-    nspawn's --resolv-conf=auto."""
+def build_resolvers():
+    """The resolvers containers will use. Ours, not the host's."""
     try:
-        with open(RESOLV_CONF) as handle:
-            lines = handle.readlines()
+        with open(RESOLVERS_FILE) as handle:
+            raw = [ln.split("#")[0].strip() for ln in handle]
+    except FileNotFoundError:
+        raw = list(DEFAULT_RESOLVERS)
     except OSError as err:
-        die("cannot read %s: %s" % (RESOLV_CONF, err))
+        die("cannot read %s: %s" % (RESOLVERS_FILE, err))
 
     servers = []
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 2 and parts[0] == "nameserver":
-            # validated before it is interpolated into an nft ruleset; the file is
-            # root-owned, but a value that is not an address has no business here
-            try:
-                servers.append(str(ipaddress.ip_address(parts[1].split("%")[0])))
-            except ValueError:
-                log("ignoring unparseable nameserver %r in %s" % (parts[1], RESOLV_CONF))
+    for entry in [r for r in raw if r]:
+        try:
+            servers.append(str(ipaddress.ip_address(entry)))
+        except ValueError:
+            die("%s: %r is not an IP address" % (RESOLVERS_FILE, entry))
+    if not servers:
+        die("no resolvers configured; builds would have no DNS")
 
     return servers
+
+
+def write_build_resolv_conf(servers):
+    """Materialise the resolv.conf that gets bound over /etc/resolv.conf for the
+    build, which is what nspawn then copies into the container."""
+    try:
+        os.makedirs(os.path.dirname(BUILD_RESOLV_CONF), mode=0o755, exist_ok=True)
+        fd = os.open(BUILD_RESOLV_CONF, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o644)
+        with os.fdopen(fd, "w") as handle:
+            handle.write("".join("nameserver %s\n" % s for s in servers))
+    except OSError as err:
+        die("cannot write %s: %s" % (BUILD_RESOLV_CONF, err))
+
+
+def _bind_resolv_conf():
+    """Runs in the forked child, before exec: give it a private mount namespace
+    and bind our resolv.conf over /etc/resolv.conf.
+
+    nspawn has no --resolv-conf passthrough through makechrootpkg, so the only way
+    to choose what it copies is to change what it reads. The namespace is private
+    and dies with the build, so the host's file is never touched.
+    """
+    libc = ctypes.CDLL("libc.so.6", use_errno=True)
+
+    def mount(src, tgt, flags):
+        if libc.mount(src.encode() if src else None, tgt.encode(), None,
+                      ctypes.c_ulong(flags), None) != 0:
+            err = ctypes.get_errno()
+            raise OSError(err, "mount %s -> %s: %s" % (src, tgt, os.strerror(err)))
+
+    os.unshare(os.CLONE_NEWNS)
+    # stop the bind below propagating back to the host mount namespace
+    mount("none", "/", MS_REC | MS_PRIVATE)
+    mount(BUILD_RESOLV_CONF, RESOLV_CONF, MS_BIND)
 
 
 def onlink_prefixes(name, family):
@@ -191,7 +240,7 @@ def onlink_prefixes(name, family):
         # on-link means a prefix with no "via"; skip the default route
         if not parts or parts[0] == "default" or "via" in parts:
             continue
-        # validated before interpolation, like read_resolvers does, and it rejects
+        # validated before interpolation, like build_resolvers does, and it rejects
         # the unreachable/blackhole route forms for free
         try:
             prefixes.append(str(ipaddress.ip_network(parts[0], strict=False)))
@@ -226,7 +275,18 @@ def apply_egress_filter(name):
     unsharing a fresh netns only yields one with no connectivity, since pasta
     serves the original.
     """
-    servers = read_resolvers()
+    # Only resolvers that land inside a blocked range need an exception. With the
+    # default public ones this is empty, so the filter carries no port 53 hole at
+    # all; it stays correct if an operator pins a private resolver.
+    blocked4 = [ipaddress.ip_network(n.strip()) for n in BLOCKED_V4.split(",")]
+    blocked6 = [ipaddress.ip_network(n.strip()) for n in BLOCKED_V6.split(",")]
+
+    def needs_exception(addr):
+        a = ipaddress.ip_address(addr)
+        nets = blocked6 if a.version == 6 else blocked4
+        return any(a in n for n in nets)
+
+    servers = [a for a in build_resolvers() if needs_exception(a)]
     v4 = [s for s in servers if ":" not in s]
     v6 = [s for s in servers if ":" in s]
     drop4 = ", ".join([BLOCKED_V4] + onlink_prefixes(name, 4))
@@ -272,22 +332,22 @@ def apply_egress_filter(name):
             stdin_data="\n".join(rules) + "\n")
 
 
-def assert_resolvable():
-    """A loopback resolver plus --map-host-loopback none means no DNS at all.
+def assert_resolvable(servers):
+    """Refuse to build with resolvers the container could never reach.
 
-    Checked per build, not just at startup: /etc/resolv.conf is managed
-    externally, and enabling systemd-resolved later would flip it. The failure
-    is otherwise silent, with every build losing DNS, failing on downloads, and
-    being requeued forever by ALHP's fixable-error matching.
+    A loopback resolver would be blocked by --map-host-loopback none, and a
+    resolver inside a dropped range with no matching exception would be blocked by
+    the egress filter. Either way the failure is otherwise silent: every build
+    loses DNS, fails on downloads, and gets requeued forever by ALHP's
+    fixable-error matching.
     """
-    servers = read_resolvers()
     if not servers:
-        die("%s lists no nameserver" % RESOLV_CONF)
-    routable = [s for s in servers
-                if not s.startswith("127.") and s != "::1"]
-    if not routable:
-        die("%s lists only loopback resolvers %r, which --map-host-loopback none "
-            "blocks; builds would have no DNS" % (RESOLV_CONF, servers))
+        die("no resolvers configured; builds would have no DNS")
+    for addr in servers:
+        a = ipaddress.ip_address(addr)
+        if a.is_loopback:
+            die("resolver %s is loopback, which --map-host-loopback none blocks; "
+                "builds would have no DNS" % addr)
 
 
 def netns_path(name):
@@ -635,7 +695,9 @@ def cmd_run(argv):
         die("stdin is not a pipe (missing `Defaults!ALHPNETNS !use_pty`?); "
             "cancellation would not work, refusing to run a build that cannot be killed")
 
-    assert_resolvable()
+    resolvers = build_resolvers()
+    assert_resolvable(resolvers)
+    write_build_resolv_conf(resolvers)
 
     # Signals become a readable fd the selector already watches. A flag set by a
     # handler would never wake a blocked select(): PEP 475 retries the
@@ -668,6 +730,9 @@ def cmd_run(argv):
             [NSENTER, "--net=" + netns_path(name), "--"] + child_argv,
             stdin=subprocess.DEVNULL,
             start_new_session=True,
+            # gives the build its own mount namespace with our resolv.conf bound
+            # over /etc/resolv.conf, which is what nspawn copies into the container
+            preexec_fn=_bind_resolv_conf,
         )
         # Before any poll(): pidfd_open raises on an already-reaped child.
         pidfd = os.pidfd_open(child.pid)
@@ -877,9 +942,40 @@ def assert_l2_filter(name):
             "bypass it on this kernel, so builds could reach private addresses")
 
 
+def assert_resolv_bind(servers):
+    """Prove the mount-namespace bind actually replaces /etc/resolv.conf.
+
+    Without this the preflight would pass while every container silently kept the
+    host's resolvers, which is the failure this whole mechanism exists to prevent
+    and which is invisible from outside the build.
+    """
+    probe = "import sys; sys.stdout.write(open(%r).read())" % RESOLV_CONF
+    try:
+        proc = subprocess.run([sys.executable, "-c", probe], capture_output=True,
+                              timeout=SUBPROC_TIMEOUT, preexec_fn=_bind_resolv_conf)
+    except (OSError, subprocess.SubprocessError) as err:
+        die("could not bind %s for the build: %s" % (RESOLV_CONF, err))
+    if proc.returncode != 0:
+        die("resolv.conf bind probe failed: %s" % proc.stderr.decode(errors="replace").strip())
+
+    seen = [ln.split()[1] for ln in proc.stdout.decode().splitlines()
+            if ln.split()[:1] == ["nameserver"] and len(ln.split()) > 1]
+    if seen != servers:
+        die("resolv.conf bind did not take: container would see %r, expected %r"
+            % (seen, servers))
+
+    # and the host's own file must be untouched
+    with open(RESOLV_CONF) as handle:
+        if handle.read() == "".join("nameserver %s\n" % s for s in servers):
+            die("the bind leaked into the host mount namespace")
+
+
 def cmd_selftest(_argv):
     """Prove the whole mechanism before ALHP starts taking builds."""
-    assert_resolvable()
+    resolvers = build_resolvers()
+    assert_resolvable(resolvers)
+    write_build_resolv_conf(resolvers)
+    assert_resolv_bind(resolvers)
     name = "alhp-00000000-0000-4000-8000-000000000000"
     # consult the claim before deleting: selftest uses a fixed name, so the process
     # most likely to collide is another instance's selftest, and deleting its
