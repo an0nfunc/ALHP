@@ -22,6 +22,7 @@ import (
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,6 +34,7 @@ const (
 	pristineChroot = "root"
 	buildDir       = "build"
 	lastUpdate     = "lastupdate"
+	repoLock       = "repo.lck"
 	stateDir       = "state"
 	chrootDir      = "chroot"
 	makepkgDir     = "makepkg"
@@ -122,6 +124,48 @@ type StateInfo struct {
 	PkgVer  string
 	TagVer  string
 	TagRev  string
+}
+
+// lockRepoShared keeps the mirror push from snapshotting the repo mid-mutation.
+//
+// repo-add lands the db and its detached signature as two separate renames and
+// unlinks the .db/.db.sig symlinks in between, so an rsync reading across that
+// window copies a db and a signature from different generations. The pair then
+// fails verification for everyone pulling it, and because nothing vanished rsync
+// exits 0, leaving nothing downstream able to detect it.
+//
+// Held shared on purpose: mutations for different repos touch different db files
+// and never conflict with each other, they only need excluding while the mirror
+// holds this file exclusively for the few milliseconds it reflink-copies the db
+// set aside. A lock that cannot be taken is logged and ignored rather than
+// stalling builds, which leaves the pre-existing race as the worst case.
+//
+// The Flock call is not ctx-interruptible and runs after repoWG.Add, so an
+// exclusive holder that never releases would stall shutdown until the unit's
+// TimeoutStopSec. That is bounded in practice because the mirror only holds it
+// across a local reflink copy, never across its network transfer.
+func lockRepoShared() *os.File {
+	path := filepath.Join(conf.Basedir.Work, repoLock)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0o644)
+	if err != nil {
+		log.Warningf("unable to open repo lock %s: %v", path, err)
+		return nil
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_SH); err != nil {
+		log.Warningf("unable to lock repo lock %s: %v", path, err)
+		_ = f.Close()
+		return nil
+	}
+	return f
+}
+
+// unlockRepo releases a lock taken by lockRepoShared. Closing the descriptor drops
+// the flock, so a nil file (lock never acquired) is a no-op.
+func unlockRepo(f *os.File) {
+	if f == nil {
+		return
+	}
+	_ = f.Close()
 }
 
 func updateLastUpdated() error {

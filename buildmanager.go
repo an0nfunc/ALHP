@@ -309,6 +309,7 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 		select {
 		case pkgL := <-b.repoAdd[repo]:
 			b.repoWG.Add(1)
+			repoLockFile := lockRepoShared()
 			toAdd := make([]string, 0)
 			for _, pkg := range pkgL {
 				toAdd = append(toAdd, pkg.PkgFiles...)
@@ -358,9 +359,11 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 			if err != nil {
 				log.Warningf("error updating lastupdate: %v", err)
 			}
+			unlockRepo(repoLockFile)
 			b.repoWG.Done()
 		case fix := <-b.repoFix[repo]:
 			b.repoWG.Add(1)
+			repoLockFile := lockRepoShared()
 			dbFile := repoDBPath(repo)
 
 			if len(fix.remove) > 0 {
@@ -386,6 +389,7 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 			if err := updateLastUpdated(); err != nil {
 				log.Warningf("error updating lastupdate: %v", err)
 			}
+			unlockRepo(repoLockFile)
 			b.repoWG.Done()
 		case pkgL := <-b.repoPurge[repo]:
 			for _, pkg := range pkgL {
@@ -426,6 +430,7 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				}
 
 				b.repoWG.Add(1)
+				repoLockFile := lockRepoShared()
 				args := make([]string, 0, 3+len(realPkgs))
 				args = append(args, "-s", "-v", repoDBPath(pkg.FullRepo))
 				args = append(args, realPkgs...)
@@ -451,6 +456,7 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 				if err != nil {
 					log.Warningf("error updating lastupdate: %v", err)
 				}
+				unlockRepo(repoLockFile)
 				b.repoWG.Done()
 			}
 		}
