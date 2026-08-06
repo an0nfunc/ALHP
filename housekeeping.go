@@ -310,6 +310,32 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 				continue
 			}
 
+			// A drift rebuild that built from main and picked up a tag upstream
+			// staged but never released. Purge it and rebuild from the pinned
+			// tag; leaving it published ships a package no mirror carries.
+			//
+			// This assumes conf.Blacklist.Repo excludes the sub-repos, as the
+			// shipped config does. genQueue would otherwise queue testing and
+			// staging state files too, and such a build is legitimately ahead of
+			// both the released state file and the mirror while looking identical
+			// here: TagRev cannot tell the two apart, because movePackagesLive
+			// re-pins it from the released state file for every published row.
+			// The result would be a purge and rebuild every cycle.
+			if pkg.SyncPkg != nil && aheadOfUpstream(dbPkg.Version, state.PkgVer, pkg.SyncPkg.Version()) {
+				log.Infof("[HK] %s->%s published %s which upstream never released (state: %s, upstream repo: %s), purging",
+					fullRepo, dbPkg.Pkgbase, dbPkg.Version, state.PkgVer, pkg.SyncPkg.Version())
+				pkg.DBPackage, err = pkg.DBPackage.Update().
+					SetStatus(dbpackage.StatusQueued).
+					ClearTagRev().
+					ClearRepoVersion().
+					Save(ctx)
+				if err != nil {
+					return err
+				}
+				buildManager.repoPurge[fullRepo] <- []*ProtoPackage{pkg}
+				continue
+			}
+
 			// Only reset when state.git has moved ahead of us. If dbPkg is
 			// already at-or-above state.PkgVer the mismatch is from a drift
 			// rebuild (built from main while state.git stayed stale) and we

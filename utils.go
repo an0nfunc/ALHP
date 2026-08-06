@@ -356,6 +356,37 @@ func constructVersion(pkgver, pkgrel, epoch string) string {
 	return epoch + ":" + pkgver + "-" + pkgrel
 }
 
+// driftToMain reports whether a package must be built from the packaging repo's
+// main branch instead of the ref state.git pins.
+//
+// syncVer is what upstream actually publishes, stateVer what state.git records,
+// repoVer what we published ourselves (empty when we never built it). Drift is
+// state.git lagging upstream, so only syncVer against stateVer decides it:
+// comparing against repoVer instead would call every ordinary update drift, since
+// we are behind upstream by definition until we build it, and main carries tags
+// upstream staged for testing or staging but never released.
+//
+// repoVer gates the rebuild rather than defining drift. Once we have caught up
+// with upstream there is nothing left to chase, which is what stops a stale state
+// file from re-triggering a build every cycle.
+func driftToMain(syncVer, stateVer, repoVer string) bool {
+	if alpm.VerCmp(syncVer, stateVer) <= 0 {
+		return false
+	}
+	return repoVer == "" || alpm.VerCmp(syncVer, repoVer) > 0
+}
+
+// aheadOfUpstream reports whether ver is a version no upstream repo carries,
+// which is what a build from main looks like when it picked up a tag staged for
+// testing or staging.
+//
+// Being ahead of stateVer alone is a legitimate drift rebuild, and being ahead of
+// syncVer alone is just building before the mirror synced. Both together mean
+// nothing upstream has this version, and its dependencies may not be installable.
+func aheadOfUpstream(ver, stateVer, syncVer string) bool {
+	return alpm.VerCmp(ver, stateVer) > 0 && alpm.VerCmp(ver, syncVer) > 0
+}
+
 func initALPM(root, dbpath string) (*alpm.Handle, error) {
 	h, err := alpm.Initialize(root, dbpath)
 	if err != nil {

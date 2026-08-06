@@ -40,6 +40,11 @@ const (
 	SkipReasonSonameMismatch = "soname mismatch: "
 	// noSkipReason clears any skip reason when recording a failed build.
 	noSkipReason = ""
+	// SkipReasonUnreleased marks a UseLatest build whose PKGBUILD is newer than
+	// anything upstream has in the repo, i.e. main carried a tag staged for
+	// testing or staging. Publishing it would ship a package Arch has not
+	// released, with dependencies no released package satisfies.
+	SkipReasonUnreleased = "ahead of upstream repo"
 	// SkipReasonStalled and SkipReasonTimeout mark builds ALHP killed itself. These
 	// values are load-bearing: housekeeping keys on them to keep a killed build out
 	// of its requeue path, since a truncated kill log can match a fixable-error
@@ -185,6 +190,28 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 
 		return time.Since(start), ErrorNotEligible
 	}
+
+	// Refuse to publish what only main has. Upstream tags a rebuild for staging
+	// or testing long before releasing it, so a build from main can resolve
+	// against packages only staging carries and hand users a dependency they
+	// cannot install. Guarded on UseLatest: from the pinned tag, being ahead of
+	// the mirror is just state.git having moved before the mirror synced.
+	if p.UseLatest && p.SyncPkg != nil && aheadOfUpstream(p.Version, p.State.PkgVer, p.SyncPkg.Version()) {
+		log.Infof("[P] skipping %s->%s->%s: %s has not released it yet (upstream repo: %s)",
+			p.FullRepo, p.Pkgbase, p.Version, upstreamDefaultGitBranch, p.SyncPkg.Version())
+		// Delayed, not skipped: this resolves itself once upstream promotes the
+		// tag, and housekeeping purges the published build of any package left
+		// skipped. Purging here would take down the good older build over a
+		// version upstream has not released.
+		// TagRev is left alone because terminal outcomes pin it and delays do
+		// not; the other delays below do the same. Nothing published, so
+		// nothing to re-pin to.
+		p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).
+			SetSkipReason(SkipReasonUnreleased).SaveX(ctx)
+
+		return time.Since(start), ErrorNotEligible
+	}
+
 	p.DBPackage = p.DBPackage.Update().SetPackages(packages2slice(p.Srcinfo.Packages)).SaveX(ctx)
 
 	// skip haskell packages, since they cannot be optimized currently (no -O3 & march has no effect as far as I know)
