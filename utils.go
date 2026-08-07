@@ -387,6 +387,31 @@ func aheadOfUpstream(ver, stateVer, syncVer string) bool {
 	return alpm.VerCmp(ver, stateVer) > 0 && alpm.VerCmp(ver, syncVer) > 0
 }
 
+// upstreamVersion strips the build number increasePkgRel appends to pkgrel,
+// recovering the upstream version a published artifact was built from.
+//
+// RepoVersion is the only durable record of what we published, but it carries
+// that build number, and "1.0-1.1" outranks its own upstream "1.0-1": fed to
+// aheadOfUpstream unstripped it would match every package we ever built.
+//
+// The build number is always the last dot-separated component of pkgrel, so the
+// search is anchored after the last dash; stripping the last dot of the whole
+// string would turn a plain "1.2.3-1" into "1.2". When upstream's own pkgrel
+// carries a dot, the result lands below the real version rather than above it,
+// which misses a purge rather than causing a wrong one.
+func upstreamVersion(repoVer string) string {
+	dash := strings.LastIndex(repoVer, "-")
+	if dash < 0 {
+		return repoVer
+	}
+	pkgrel := repoVer[dash+1:]
+	dot := strings.LastIndex(pkgrel, ".")
+	if dot < 0 {
+		return repoVer
+	}
+	return repoVer[:dash+1] + pkgrel[:dot]
+}
+
 func initALPM(root, dbpath string) (*alpm.Handle, error) {
 	h, err := alpm.Initialize(root, dbpath)
 	if err != nil {

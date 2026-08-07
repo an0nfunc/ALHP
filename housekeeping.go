@@ -321,9 +321,13 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 			// here: TagRev cannot tell the two apart, because movePackagesLive
 			// re-pins it from the released state file for every published row.
 			// The result would be a purge and rebuild every cycle.
-			if pkg.SyncPkg != nil && aheadOfUpstream(dbPkg.Version, state.PkgVer, pkg.SyncPkg.Version()) {
+			//
+			// Keyed on RepoVersion, not Version: isEligible rewrites Version to
+			// state.PkgVer on any later pass, so the row stops recording what it
+			// actually published.
+			if pkg.SyncPkg != nil && aheadOfUpstream(upstreamVersion(dbPkg.RepoVersion), state.PkgVer, pkg.SyncPkg.Version()) {
 				log.Infof("[HK] %s->%s published %s which upstream never released (state: %s, upstream repo: %s), purging",
-					fullRepo, dbPkg.Pkgbase, dbPkg.Version, state.PkgVer, pkg.SyncPkg.Version())
+					fullRepo, dbPkg.Pkgbase, dbPkg.RepoVersion, state.PkgVer, pkg.SyncPkg.Version())
 				pkg.DBPackage, err = pkg.DBPackage.Update().
 					SetStatus(dbpackage.StatusQueued).
 					ClearTagRev().
