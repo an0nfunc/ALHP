@@ -176,29 +176,129 @@ func updateLastUpdated() error {
 	return nil
 }
 
-func cleanBuildDir(dir, chrootDir string) error {
-	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		rmCmd := exec.Command(sudoBin, rmChrootBin, dir)
-		_, err := rmCmd.CombinedOutput()
-		if err != nil {
-			return err
+// cleanBuildDir removes a build tree and a makechrootpkg working copy, the latter
+// together with its lock. Both paths are root-owned, hence the helper.
+//
+// Either may be empty, which skips that half, so a caller holding only one of the
+// two passes "" for the other.
+func cleanBuildDir(dir, chroot string) error {
+	if dir != "" {
+		if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
+			rmCmd := exec.Command(sudoBin, rmChrootBin, dir)
+			// the helper's own output, not just "exit status 1": callers that only
+			// log this (the sweep) would otherwise report nothing actionable, and the
+			// failures worth seeing here are a busy mount or a bad sudoers rule
+			if out, err := rmCmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+			}
 		}
 	}
 
-	if chrootDir != "" {
-		if stat, err := os.Stat(chrootDir); err == nil && stat.IsDir() {
-			rmCmd := exec.Command(sudoBin, rmChrootBin, chrootDir)
-			_, err := rmCmd.CombinedOutput()
-			if err != nil {
-				return err
+	if chroot != "" {
+		if stat, err := os.Stat(chroot); err == nil && stat.IsDir() {
+			rmCmd := exec.Command(sudoBin, rmChrootBin, chroot)
+			if out, err := rmCmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
 			}
-			_ = os.Remove(chrootDir + ".lock")
+			_ = os.Remove(chroot + ".lock")
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("chroot dir was not an directory or failed to stat: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// sweepTargets splits a chroot directory listing into the working copies to hand
+// to cleanBuildDir and every matching lock to unlink. The lock half exists for
+// the ones whose working copy is already gone, which nothing else would ever
+// remove, since cleanBuildDir only drops a lock alongside the directory it
+// belongs to; taking the rest with them is harmless because their copy is about
+// to go anyway.
+//
+// Split out from sweepBuildDirs so the decision can be tested without root, sudo
+// or a workspace: everything it selects is deleted, and the pristine chroot lives
+// in the same directory.
+func sweepTargets(entries []os.DirEntry) (copies, locks []string) {
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), chrootPrefix) {
+			continue
+		}
+		if entry.IsDir() {
+			copies = append(copies, entry.Name())
+		} else {
+			locks = append(locks, entry.Name())
+		}
+	}
+
+	return copies, locks
+}
+
+// sweepBuildDirs reclaims makechrootpkg working copies and build trees left by
+// builds that never ran their own cleanup: a SIGKILL at the end of a stop job, a
+// crash, or a power loss. waitForBuilds covers the graceful path, nothing covers
+// those, so the invariant is restored here instead.
+//
+// Startup only, and it has to stay that way. A build_* copy belongs to a live
+// build for as long as that build runs, so sweeping mid-cycle would delete a
+// chroot out from under makechrootpkg. At startup none can be live, which rests
+// on the same one-instance-per-workspace assumption the shared repo db already
+// makes.
+func sweepBuildDirs() {
+	swept := 0
+
+	chroots := filepath.Join(conf.Basedir.Work, chrootDir)
+	// the two halves are independent, so a failed listing warns and the sweep goes
+	// on with whatever ReadDir still returned, rather than giving up on the rest. a
+	// missing directory is a workspace nothing has built in yet, not a fault.
+	entries, err := os.ReadDir(chroots)
+	if err != nil && !os.IsNotExist(err) {
+		log.Warningf("[SWEEP] cannot read %s: %v", chroots, err)
+	}
+	copies, locks := sweepTargets(entries)
+	for _, name := range locks {
+		_ = os.Remove(filepath.Join(chroots, name))
+	}
+	for _, name := range copies {
+		path := filepath.Join(chroots, name)
+		if err := cleanBuildDir("", path); err != nil {
+			log.Warningf("[SWEEP] cannot remove chroot %s: %v", path, err)
+			continue
+		}
+		swept++
+	}
+
+	builds := filepath.Join(conf.Basedir.Work, buildDir)
+	marches, err := os.ReadDir(builds)
+	if err != nil && !os.IsNotExist(err) {
+		log.Warningf("[SWEEP] cannot read %s: %v", builds, err)
+	}
+	for _, march := range marches {
+		if !march.IsDir() {
+			continue
+		}
+		marchDir := filepath.Join(builds, march.Name())
+		trees, err := os.ReadDir(marchDir)
+		if err != nil {
+			log.Warningf("[SWEEP] cannot read %s: %v", marchDir, err)
+			continue
+		}
+		for _, tree := range trees {
+			if !tree.IsDir() {
+				continue
+			}
+			path := filepath.Join(marchDir, tree.Name())
+			if err := cleanBuildDir(path, ""); err != nil {
+				log.Warningf("[SWEEP] cannot remove builddir %s: %v", path, err)
+				continue
+			}
+			swept++
+		}
+	}
+
+	if swept > 0 {
+		log.Infof("[SWEEP] reclaimed %d orphaned build directories", swept)
+	}
 }
 
 // pkgList2MaxMem sums the recorded peak RSS of the given builds. Callers must hold

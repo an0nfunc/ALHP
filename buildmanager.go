@@ -28,6 +28,13 @@ const repoChanBuffer = 1000
 // from upstream forever.
 const maxIsolationFailures = 5
 
+// buildShutdownTimeout bounds how long shutdown waits for in-flight builds to
+// run their own cleanup. It has to stay comfortably under the unit's
+// TimeoutStopSec, since overrunning that trades a few orphaned directories for a
+// SIGKILL that orphans all of them. Removing a handful of chroot copies is
+// seconds of work, so this is a backstop against a wedged rm, not a budget.
+const buildShutdownTimeout = 60 * time.Second
+
 // repoDBPath is the pacman db of a repo-march.
 func repoDBPath(fullRepo string) string {
 	return filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, fullRepo) + ".db.tar.xz"
@@ -48,6 +55,12 @@ type BuildManager struct {
 	repoAdd   map[string]chan []*ProtoPackage
 	repoFix   map[string]chan repoDBFix
 	repoWG    *sync.WaitGroup
+	// buildWG tracks in-flight build goroutines so shutdown can let their
+	// deferred cleanup run. Without it main returns as soon as repoWG drains,
+	// the process exits, and every build's chroot copy and build tree is left
+	// behind with nothing logged, because a goroutine that dies with the
+	// process cannot report it.
+	buildWG   *sync.WaitGroup
 	alpmMutex *sync.RWMutex
 	// sonameIndex holds the sonames the sync DBs currently carry. Rebuilt
 	// together with alpmHandle, since it describes exactly that snapshot, and
@@ -55,7 +68,10 @@ type BuildManager struct {
 	sonameIndex  providedSonames
 	building     []*ProtoPackage
 	buildingLock *sync.RWMutex
-	queueSignal  chan struct{}
+	// stopped closes admission once shutdown starts. Guarded by buildingLock,
+	// which is what orders it against buildWG.Add; see waitForBuilds.
+	stopped     bool
+	queueSignal chan struct{}
 	// isolationFailures counts helper setup failures (exit 121) since the last
 	// build in this pass that ran to completion. Not "consecutive": an ordinary
 	// build failure does not reset it, because "some build got all the way through"
@@ -71,6 +87,35 @@ type BuildManager struct {
 	metrics           struct {
 		queueSize    *prometheus.GaugeVec
 		buildsKilled *prometheus.CounterVec
+	}
+}
+
+// waitForBuilds blocks until every in-flight build has returned and run its
+// deferred cleanup, or until buildShutdownTimeout expires.
+//
+// Bounded rather than an open Wait: builds run root-owned helpers ALHP cannot
+// signal, so one wedged build would otherwise hold the process past
+// TimeoutStopSec and get the whole cgroup SIGKILLed, which is the outcome this
+// is meant to avoid.
+func (b *BuildManager) waitForBuilds() {
+	// Ordering, not politeness: every buildWG.Add happens under this lock too, so
+	// once stopped is published no further Add can be in flight and Wait cannot
+	// hit sync.WaitGroup's Add-concurrent-with-Wait panic.
+	b.buildingLock.Lock()
+	b.stopped = true
+	b.buildingLock.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		b.buildWG.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(buildShutdownTimeout):
+		log.Warningf("builds still running after %s, leaving their chroots for the next startup sweep",
+			buildShutdownTimeout)
 	}
 }
 
@@ -220,24 +265,46 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 				}
 
 				b.buildingLock.Lock()
+				// buildWG.Add under the same lock waitForBuilds takes to set stopped,
+				// so an Add can never land concurrently with its Wait. Without that
+				// ordering the admission loop, which has no ctx check of its own and
+				// keeps admitting after cancel(), races Wait's counter-reaches-zero
+				// window and panics the process, which loses every in-flight build's
+				// deferred cleanup and orphans their chroots.
+				if b.stopped {
+					b.buildingLock.Unlock()
+					break
+				}
 				// snapshot under the same lock that publishes the package, so the
 				// scheduler never reads DBPackage while build() reassigns it
 				pkg.maxRSS = pkg.DBPackage.MaxRss
 				b.building = append(b.building, pkg)
+				b.buildWG.Add(1)
 				b.buildingLock.Unlock()
 				queueNoMatch = false
 				b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "queued").Dec()
 				b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "building").Inc()
 
 				go func(pkg *ProtoPackage) {
+					defer b.buildWG.Done()
 					dur, err := pkg.build(ctx)
 					b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "building").Dec()
-					if err != nil && !errors.Is(err, ErrorNotEligible) {
-						log.Warningf("[Q] error building package %s->%s in %s: %s", pkg.FullRepo, pkg.Pkgbase, dur, err)
-						b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
-					} else if err == nil {
+					switch {
+					case err == nil:
 						log.Infof("[Q] build successful: %s->%s (%s)", pkg.FullRepo, pkg.Pkgbase, dur)
 						b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "built").Inc()
+					case ctx.Err() != nil:
+						// A SIGTERM says nothing about the package, so it must not delete
+						// the published build, for the same reason build()'s isolation-setup
+						// path returns ErrorNotEligible. Load-bearing because waitForBuilds keeps
+						// the process alive long enough for the purge below to be picked up
+						// and to run to completion. Checked on ctx rather than the error,
+						// which arrives wrapped from setupBuildDir.
+						log.Infof("[Q] build of %s->%s interrupted by shutdown, leaving the published version in place",
+							pkg.FullRepo, pkg.Pkgbase)
+					case !errors.Is(err, ErrorNotEligible):
+						log.Warningf("[Q] error building package %s->%s in %s: %s", pkg.FullRepo, pkg.Pkgbase, dur, err)
+						b.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 					}
 					doneQLock.Lock()
 					b.buildingLock.Lock()

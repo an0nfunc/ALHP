@@ -164,11 +164,10 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
 	}
 	defer func() {
-		chroot := chroot
 		log.Debugf("removing chroot %s", chroot)
 		err := cleanBuildDir(buildFolder, filepath.Join(conf.Basedir.Work, chrootDir, chroot))
 		if err != nil {
-			log.Errorf("error removing builddir/chroot %s/%s: %v", buildDir, chroot, err)
+			log.Errorf("error removing builddir %s and chroot %s: %v", buildFolder, chroot, err)
 		}
 	}()
 
@@ -616,14 +615,16 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	buildDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
+	// treeDir, not buildDir: a local of that name shadows the const this Join
+	// needs, and the two read identically at every use below
+	treeDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
-	err := cleanBuildDir(buildDir, "")
+	err := cleanBuildDir(treeDir, "")
 	if err != nil {
 		return "", fmt.Errorf("removing old builddir failed: %w", err)
 	}
 
-	err = os.MkdirAll(buildDir, 0o755)
+	err = os.MkdirAll(treeDir, 0o755)
 	if err != nil {
 		return "", err
 	}
@@ -639,7 +640,7 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 
 	if err := retry.Do(ctx, gr, func(ctx context.Context) error {
 		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", p.cloneBranch(), //nolint:gosec
-			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), buildDir)
+			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), treeDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))
 		if err != nil {
@@ -649,9 +650,9 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 	}); err != nil {
 		return "", err
 	}
-	p.Pkgbuild = filepath.Join(buildDir, "PKGBUILD")
+	p.Pkgbuild = filepath.Join(treeDir, "PKGBUILD")
 
-	return buildDir, nil
+	return treeDir, nil
 }
 
 func (p *ProtoPackage) repoVersion() (string, error) {

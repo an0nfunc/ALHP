@@ -100,6 +100,7 @@ func main() {
 		building:     []*ProtoPackage{},
 		buildingLock: new(sync.RWMutex),
 		repoWG:       new(sync.WaitGroup),
+		buildWG:      new(sync.WaitGroup),
 	}
 
 	buildManager.setupMetrics(conf.Metrics.Port)
@@ -113,6 +114,10 @@ func main() {
 		log.Warning("build.network_isolation is disabled: builds share the host network namespace, " +
 			"and stall_timeout/timeout cannot kill a build unless ALHP runs as root")
 	}
+
+	// before setupChroot: orphans from the last run are dead weight the pacman
+	// -Syuu below would otherwise compete with for disk
+	sweepBuildDirs()
 
 	err = setupChroot(ctx)
 	if err != nil {
@@ -165,6 +170,9 @@ killLoop:
 	}
 
 	cancel()
+	// let in-flight builds return so their deferred cleanup runs; nothing else
+	// removes their chroot copies
+	buildManager.waitForBuilds()
 	buildManager.repoWG.Wait()
 	_ = alpmHandle.Release()
 }

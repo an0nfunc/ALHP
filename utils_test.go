@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"io/fs"
+	"os"
+	"slices"
+	"testing"
+)
 
 // Versions are named after the case that produced this pair of helpers: upstream
 // tagged obs-studio 32.2.1-4 as an mbedtls3 rebuild for staging while extra kept
@@ -118,5 +123,67 @@ func TestUpstreamVersion(t *testing.T) {
 				t.Errorf("upstreamVersion(%q) = %q, want %q", tc.repoVer, got, tc.want)
 			}
 		})
+	}
+}
+
+// fakeDirEntry is the minimum of os.DirEntry sweepTargets reads.
+type fakeDirEntry struct {
+	name string
+	dir  bool
+}
+
+func (f fakeDirEntry) Name() string      { return f.name }
+func (f fakeDirEntry) IsDir() bool       { return f.dir }
+func (f fakeDirEntry) Type() fs.FileMode { return 0 }
+
+// never called: sweepTargets reads only Name and IsDir.
+func (f fakeDirEntry) Info() (fs.FileInfo, error) { return nil, fs.ErrInvalid }
+
+func TestSweepTargets(t *testing.T) {
+	t.Parallel()
+
+	// the pristine chroot and its lock share this directory with the working
+	// copies, and everything sweepTargets returns is deleted.
+	entries := []os.DirEntry{
+		fakeDirEntry{name: pristineChroot, dir: true},
+		fakeDirEntry{name: pristineChroot + ".lock", dir: false},
+		fakeDirEntry{name: "build_26b4fa2f-4aaf-4f37-82da-9199770a8975", dir: true},
+		fakeDirEntry{name: "build_26b4fa2f-4aaf-4f37-82da-9199770a8975.lock", dir: false},
+		fakeDirEntry{name: "build_3dba0086-3139-4bfa-b02a-830b45f39a26", dir: true},
+		// no chrootPrefix: not ours, must survive
+		fakeDirEntry{name: "buildsomething", dir: true},
+		fakeDirEntry{name: "somedir", dir: true},
+	}
+
+	copies, locks := sweepTargets(entries)
+
+	wantCopies := []string{
+		"build_26b4fa2f-4aaf-4f37-82da-9199770a8975",
+		"build_3dba0086-3139-4bfa-b02a-830b45f39a26",
+	}
+	if !slices.Equal(copies, wantCopies) {
+		t.Errorf("copies = %q, want %q", copies, wantCopies)
+	}
+
+	wantLocks := []string{"build_26b4fa2f-4aaf-4f37-82da-9199770a8975.lock"}
+	if !slices.Equal(locks, wantLocks) {
+		t.Errorf("locks = %q, want %q", locks, wantLocks)
+	}
+
+	for _, name := range append(append([]string{}, copies...), locks...) {
+		if name == pristineChroot || name == pristineChroot+".lock" {
+			t.Fatalf("sweepTargets selected the pristine chroot %q for deletion", name)
+		}
+	}
+}
+
+func TestSweepTargetsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// ReadDir on a missing directory yields no entries, which must be a no-op
+	// rather than a nil-deref or a blanket match.
+	copies, locks := sweepTargets(nil)
+	if len(copies) != 0 || len(locks) != 0 {
+		t.Errorf("sweepTargets(nil) = %q, %q, want empty", copies, locks)
 	}
 }
