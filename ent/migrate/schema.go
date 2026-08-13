@@ -23,6 +23,8 @@ var (
 		{Name: "updated", Type: field.TypeTime, Nullable: true},
 		{Name: "lto", Type: field.TypeEnum, Nullable: true, Enums: []string{"enabled", "unknown", "disabled", "auto_disabled"}, Default: "unknown"},
 		{Name: "last_version_build", Type: field.TypeString, Nullable: true},
+		{Name: "max_version_base", Type: field.TypeString, Nullable: true},
+		{Name: "build_no", Type: field.TypeInt, Nullable: true, Default: 0},
 		{Name: "last_verified", Type: field.TypeTime, Nullable: true},
 		{Name: "debug_symbols", Type: field.TypeEnum, Nullable: true, Enums: []string{"available", "unknown", "not_available"}, Default: "unknown"},
 		{Name: "max_rss", Type: field.TypeInt64, Nullable: true},

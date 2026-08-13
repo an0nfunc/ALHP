@@ -98,7 +98,10 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 				log.Infof("[HK] %s->%s not included in repo (blacklisted pkgbase %s)", pkg.FullRepo, mPackage.Name(), pkg.Pkgbase)
 			}
 
-			// package not found on mirror/db -> not part of any repo anymore
+			// package not found on mirror/db -> not part of any repo anymore.
+			// Deleting the row forfeits its build counter, so a package that
+			// returns under a different repository restarts numbering. Accepted:
+			// keeping it would need the counter to outlive the row it keys on.
 			err = pkg.findPkgFiles()
 			if err != nil {
 				log.Errorf("[HK] %s->%s unable to get pkg-files: %v", pkg.FullRepo, mPackage.Name(), err)
@@ -143,7 +146,16 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 		repoVer, err := pkg.repoVersion()
 		if err == nil && repoVer != dbPkg.RepoVersion {
 			log.Infof("[HK] %s->%s update repoVersion %s->%s", pkg.FullRepo, pkg.Pkgbase, dbPkg.RepoVersion, repoVer)
-			pkg.DBPackage, err = pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev().Save(ctx)
+			update := pkg.DBPackage.Update().SetRepoVersion(repoVer).ClearTagRev()
+
+			// the only place the row is reconciled against what is actually
+			// published, so it is where a counter left behind the artifacts gets
+			// caught: a restore from backup, or a row seedBuildNo could not read
+			if maxVersionBase, buildNo := raiseBuildNo(dbPkg.MaxVersionBase, dbPkg.BuildNo, repoVer); maxVersionBase != "" {
+				update.SetMaxVersionBase(maxVersionBase).SetBuildNo(buildNo)
+			}
+
+			pkg.DBPackage, err = update.Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -235,6 +247,7 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 		}
 
 		if !pkg.isAvailable(ctx, alpmHandle) {
+			// forfeits the build counter with the row, as above
 			log.Infof("[HK] %s->%s not found on mirror, removing", pkg.FullRepo, pkg.Pkgbase)
 			err = db.DBPackage.DeleteOne(dbPkg).Exec(ctx)
 			if err != nil {

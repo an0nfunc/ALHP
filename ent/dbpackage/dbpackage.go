@@ -37,6 +37,10 @@ const (
 	FieldLto = "lto"
 	// FieldLastVersionBuild holds the string denoting the last_version_build field in the database.
 	FieldLastVersionBuild = "last_version_build"
+	// FieldMaxVersionBase holds the string denoting the max_version_base field in the database.
+	FieldMaxVersionBase = "max_version_base"
+	// FieldBuildNo holds the string denoting the build_no field in the database.
+	FieldBuildNo = "build_no"
 	// FieldLastVerified holds the string denoting the last_verified field in the database.
 	FieldLastVerified = "last_verified"
 	// FieldDebugSymbols holds the string denoting the debug_symbols field in the database.
@@ -74,6 +78,8 @@ var Columns = []string{
 	FieldUpdated,
 	FieldLto,
 	FieldLastVersionBuild,
+	FieldMaxVersionBase,
+	FieldBuildNo,
 	FieldLastVerified,
 	FieldDebugSymbols,
 	FieldMaxRss,
@@ -100,6 +106,8 @@ var (
 	PkgbaseValidator func(string) error
 	// MarchValidator is a validator for the "march" field. It is called by the builders before save.
 	MarchValidator func(string) error
+	// DefaultBuildNo holds the default value on creation for the "build_no" field.
+	DefaultBuildNo int
 )
 
 // Status defines the type for the "status" enum field.
@@ -275,6 +283,16 @@ func ByLto(opts ...sql.OrderTermOption) OrderOption {
 // ByLastVersionBuild orders the results by the last_version_build field.
 func ByLastVersionBuild(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastVersionBuild, opts...).ToFunc()
+}
+
+// ByMaxVersionBase orders the results by the max_version_base field.
+func ByMaxVersionBase(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMaxVersionBase, opts...).ToFunc()
+}
+
+// ByBuildNo orders the results by the build_no field.
+func ByBuildNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBuildNo, opts...).ToFunc()
 }
 
 // ByLastVerified orders the results by the last_verified field.

@@ -512,6 +512,32 @@ func upstreamVersion(repoVer string) string {
 	return repoVer[:dash+1] + pkgrel[:dot]
 }
 
+// pkgRel returns the pkgrel component of a full version. A version carrying no
+// dash yields the whole string, which splitPkgRel reads as having no build
+// number.
+func pkgRel(version string) string {
+	return version[strings.LastIndex(version, "-")+1:]
+}
+
+// splitPkgRel reads the build number off a pkgrel using the same rule as
+// upstreamVersion, the last dot-separated component. Upstream pkgrels carry a
+// dot of their own often enough that the trailing component cannot be assumed to
+// be ours. A pkgrel without one reports 0, below every number increasePkgRel
+// hands out.
+func splitPkgRel(pkgrel string) (base string, buildNo int, err error) {
+	dot := strings.LastIndex(pkgrel, ".")
+	if dot < 0 {
+		return pkgrel, 0, nil
+	}
+
+	buildNo, err = strconv.Atoi(pkgrel[dot+1:])
+	if err != nil {
+		return "", 0, fmt.Errorf("error while reading buildNo from pkgrel %q: %w", pkgrel, err)
+	}
+
+	return pkgrel[:dot], buildNo, nil
+}
+
 func initALPM(root, dbpath string) (*alpm.Handle, error) {
 	h, err := alpm.Initialize(root, dbpath)
 	if err != nil {

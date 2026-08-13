@@ -274,15 +274,14 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
 	}
 
-	buildNo := 1
-	versionSlice := strings.Split(p.DBPackage.LastVersionBuild, ".")
-	if strings.Join(versionSlice[:len(versionSlice)-1], ".") == p.Version {
-		buildNo, err = strconv.Atoi(versionSlice[len(versionSlice)-1])
-		if err != nil {
-			return time.Since(start), fmt.Errorf("error while reading buildNo from pkgrel: %w", err)
-		}
-		buildNo++
+	buildNo, maxVersionBase, err := p.nextBuildNo()
+	if err != nil {
+		return time.Since(start), err
 	}
+	// before the build, not after: a build that fails or gets discarded must
+	// still consume its number, because by the time we know it published
+	// nothing the artifact may already have been moved live
+	p.DBPackage = p.DBPackage.Update().SetBuildNo(buildNo).SetMaxVersionBase(maxVersionBase).SaveX(ctx)
 
 	err = p.increasePkgRel(buildNo)
 	if err != nil {
@@ -531,11 +530,13 @@ func (p *ProtoPackage) recordFailedBuild(ctx context.Context, start time.Time, b
 		return fmt.Errorf("error writing to logdir: %w", err)
 	}
 
+	// LastVersionBuild is not cleared here, unlike the resource stats below: it
+	// records the last version that published, not anything about this build,
+	// and seedBuildNo recovers a purged row from it
 	updatePkg := p.DBPackage.Update().
 		SetStatus(dbpackage.StatusFailed).
 		SetBuildTimeStart(start).
 		ClearMaxRss().
-		ClearLastVersionBuild().
 		ClearIoOut().
 		ClearIoIn().
 		ClearUTime().
@@ -668,6 +669,55 @@ func (p *ProtoPackage) repoVersion() (string, error) {
 	return fNameSplit[len(fNameSplit)-3] + "-" + fNameSplit[len(fNameSplit)-2], nil
 }
 
+// nextBuildNo picks the build number p.Version gets published under, and the
+// high-water version base that follows from it.
+//
+// A published filename must never be reused: mirrors and pacman caches treat it
+// as immutable, so different content under a name someone already fetched fails
+// signature verification for them with nothing to explain why. Two builds of one
+// upstream version are otherwise identical, so the build number is all that
+// keeps the name unique.
+//
+// Restarting at 1 is safe only above everything this row ever built, where no
+// filename can exist yet, and the mark only rises, so a base can trip the reset
+// at most once. Everything else continues a counter that only moves forward,
+// which is what covers upstream walking a version back and then forward again: a
+// drift build from main publishes 1.0-2.1, housekeeping purges it because
+// upstream never released -2, and upstream then releases -2 for real.
+//
+// Bases rather than versions, because increasePkgRel replaces the trailing
+// pkgrel component instead of appending to it, so upstream pkgrel 1 and 1.1 both
+// publish into 1.N. Comparing full versions lets upstream's own fractional bump
+// trip the reset and land the counter back inside numbers 1.N already used.
+//
+// The bump past upstream's own build number keeps a package built from pkgrel
+// 1.4 outranking upstream's 1.4 rather than tying with it.
+//
+// p.Version still carries upstream's pkgrel here, increasePkgRel has not run.
+func (p *ProtoPackage) nextBuildNo() (buildNo int, maxVersionBase string, err error) {
+	maxVersionBase = p.DBPackage.MaxVersionBase
+	buildNo = p.DBPackage.BuildNo + 1
+	if versionBase := upstreamVersion(p.Version); maxVersionBase == "" ||
+		alpm.VerCmp(versionBase, maxVersionBase) > 0 {
+		maxVersionBase = versionBase
+		buildNo = 1
+	}
+
+	_, upstreamBuildNo, err := splitPkgRel(p.Srcinfo.Pkgrel)
+	if err != nil {
+		return 0, "", err
+	}
+	if buildNo <= upstreamBuildNo {
+		buildNo = upstreamBuildNo + 1
+	}
+
+	return buildNo, maxVersionBase, nil
+}
+
+// increasePkgRel rewrites the PKGBUILD's pkgrel, and p.Version with it, so the
+// build publishes under build number buildNo. buildNo is the trailing pkgrel
+// component verbatim, so it has to clear any build number upstream's own pkgrel
+// carries; nextBuildNo is what guarantees that.
 func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 	if p.Srcinfo == nil {
 		err := p.genSrcinfo()
@@ -682,6 +732,15 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 			return err
 		}
 	}
+
+	pkgRelBase, upstreamBuildNo, err := splitPkgRel(p.Srcinfo.Pkgrel)
+	if err != nil {
+		return err
+	}
+	if buildNo <= upstreamBuildNo {
+		return fmt.Errorf("build number %d does not clear upstream pkgrel %q", buildNo, p.Srcinfo.Pkgrel)
+	}
+	newPkgRel := pkgRelBase + "." + strconv.Itoa(buildNo)
 
 	f, err := os.OpenFile(p.Pkgbuild, os.O_RDWR, 0o644)
 	if err != nil {
@@ -700,23 +759,10 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 		return err
 	}
 
-	// increase buildno if already existing
-	var nStr string
-	if strings.Contains(p.Srcinfo.Pkgrel, ".") {
-		pkgRelSplit := strings.Split(p.Srcinfo.Pkgrel, ".")
-		pkgRelBuildNo, err := strconv.Atoi(pkgRelSplit[len(pkgRelSplit)-1])
-		if err != nil {
-			return err
-		}
-
-		nStr = rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+pkgRelSplit[0]+"."+strconv.Itoa(buildNo+pkgRelBuildNo))
-		versionSplit := strings.Split(p.Version, "-")
-		versionSplit[len(versionSplit)-1] = pkgRelSplit[0] + "." + strconv.Itoa(buildNo+pkgRelBuildNo)
-		p.Version = strings.Join(versionSplit, "-")
-	} else {
-		nStr = rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+p.Srcinfo.Pkgrel+"."+strconv.Itoa(buildNo))
-		p.Version += "." + strconv.Itoa(buildNo)
-	}
+	nStr := rePkgRel.ReplaceAllLiteralString(string(fStr), "pkgrel="+newPkgRel)
+	versionSplit := strings.Split(p.Version, "-")
+	versionSplit[len(versionSplit)-1] = newPkgRel
+	p.Version = strings.Join(versionSplit, "-")
 
 	_, err = f.Seek(0, 0)
 	if err != nil {

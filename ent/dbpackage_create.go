@@ -156,6 +156,34 @@ func (_c *DBPackageCreate) SetNillableLastVersionBuild(v *string) *DBPackageCrea
 	return _c
 }
 
+// SetMaxVersionBase sets the "max_version_base" field.
+func (_c *DBPackageCreate) SetMaxVersionBase(v string) *DBPackageCreate {
+	_c.mutation.SetMaxVersionBase(v)
+	return _c
+}
+
+// SetNillableMaxVersionBase sets the "max_version_base" field if the given value is not nil.
+func (_c *DBPackageCreate) SetNillableMaxVersionBase(v *string) *DBPackageCreate {
+	if v != nil {
+		_c.SetMaxVersionBase(*v)
+	}
+	return _c
+}
+
+// SetBuildNo sets the "build_no" field.
+func (_c *DBPackageCreate) SetBuildNo(v int) *DBPackageCreate {
+	_c.mutation.SetBuildNo(v)
+	return _c
+}
+
+// SetNillableBuildNo sets the "build_no" field if the given value is not nil.
+func (_c *DBPackageCreate) SetNillableBuildNo(v *int) *DBPackageCreate {
+	if v != nil {
+		_c.SetBuildNo(*v)
+	}
+	return _c
+}
+
 // SetLastVerified sets the "last_verified" field.
 func (_c *DBPackageCreate) SetLastVerified(v time.Time) *DBPackageCreate {
 	_c.mutation.SetLastVerified(v)
@@ -317,6 +345,10 @@ func (_c *DBPackageCreate) defaults() {
 		v := dbpackage.DefaultLto
 		_c.mutation.SetLto(v)
 	}
+	if _, ok := _c.mutation.BuildNo(); !ok {
+		v := dbpackage.DefaultBuildNo
+		_c.mutation.SetBuildNo(v)
+	}
 	if _, ok := _c.mutation.DebugSymbols(); !ok {
 		v := dbpackage.DefaultDebugSymbols
 		_c.mutation.SetDebugSymbols(v)
@@ -437,6 +469,14 @@ func (_c *DBPackageCreate) createSpec() (*DBPackage, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LastVersionBuild(); ok {
 		_spec.SetField(dbpackage.FieldLastVersionBuild, field.TypeString, value)
 		_node.LastVersionBuild = value
+	}
+	if value, ok := _c.mutation.MaxVersionBase(); ok {
+		_spec.SetField(dbpackage.FieldMaxVersionBase, field.TypeString, value)
+		_node.MaxVersionBase = value
+	}
+	if value, ok := _c.mutation.BuildNo(); ok {
+		_spec.SetField(dbpackage.FieldBuildNo, field.TypeInt, value)
+		_node.BuildNo = value
 	}
 	if value, ok := _c.mutation.LastVerified(); ok {
 		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)

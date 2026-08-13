@@ -222,6 +222,53 @@ func (_u *DBPackageUpdate) ClearLastVersionBuild() *DBPackageUpdate {
 	return _u
 }
 
+// SetMaxVersionBase sets the "max_version_base" field.
+func (_u *DBPackageUpdate) SetMaxVersionBase(v string) *DBPackageUpdate {
+	_u.mutation.SetMaxVersionBase(v)
+	return _u
+}
+
+// SetNillableMaxVersionBase sets the "max_version_base" field if the given value is not nil.
+func (_u *DBPackageUpdate) SetNillableMaxVersionBase(v *string) *DBPackageUpdate {
+	if v != nil {
+		_u.SetMaxVersionBase(*v)
+	}
+	return _u
+}
+
+// ClearMaxVersionBase clears the value of the "max_version_base" field.
+func (_u *DBPackageUpdate) ClearMaxVersionBase() *DBPackageUpdate {
+	_u.mutation.ClearMaxVersionBase()
+	return _u
+}
+
+// SetBuildNo sets the "build_no" field.
+func (_u *DBPackageUpdate) SetBuildNo(v int) *DBPackageUpdate {
+	_u.mutation.ResetBuildNo()
+	_u.mutation.SetBuildNo(v)
+	return _u
+}
+
+// SetNillableBuildNo sets the "build_no" field if the given value is not nil.
+func (_u *DBPackageUpdate) SetNillableBuildNo(v *int) *DBPackageUpdate {
+	if v != nil {
+		_u.SetBuildNo(*v)
+	}
+	return _u
+}
+
+// AddBuildNo adds value to the "build_no" field.
+func (_u *DBPackageUpdate) AddBuildNo(v int) *DBPackageUpdate {
+	_u.mutation.AddBuildNo(v)
+	return _u
+}
+
+// ClearBuildNo clears the value of the "build_no" field.
+func (_u *DBPackageUpdate) ClearBuildNo() *DBPackageUpdate {
+	_u.mutation.ClearBuildNo()
+	return _u
+}
+
 // SetLastVerified sets the "last_verified" field.
 func (_u *DBPackageUpdate) SetLastVerified(v time.Time) *DBPackageUpdate {
 	_u.mutation.SetLastVerified(v)
@@ -572,6 +619,21 @@ func (_u *DBPackageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.LastVersionBuildCleared() {
 		_spec.ClearField(dbpackage.FieldLastVersionBuild, field.TypeString)
 	}
+	if value, ok := _u.mutation.MaxVersionBase(); ok {
+		_spec.SetField(dbpackage.FieldMaxVersionBase, field.TypeString, value)
+	}
+	if _u.mutation.MaxVersionBaseCleared() {
+		_spec.ClearField(dbpackage.FieldMaxVersionBase, field.TypeString)
+	}
+	if value, ok := _u.mutation.BuildNo(); ok {
+		_spec.SetField(dbpackage.FieldBuildNo, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBuildNo(); ok {
+		_spec.AddField(dbpackage.FieldBuildNo, field.TypeInt, value)
+	}
+	if _u.mutation.BuildNoCleared() {
+		_spec.ClearField(dbpackage.FieldBuildNo, field.TypeInt)
+	}
 	if value, ok := _u.mutation.LastVerified(); ok {
 		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)
 	}
@@ -857,6 +919,53 @@ func (_u *DBPackageUpdateOne) SetNillableLastVersionBuild(v *string) *DBPackageU
 // ClearLastVersionBuild clears the value of the "last_version_build" field.
 func (_u *DBPackageUpdateOne) ClearLastVersionBuild() *DBPackageUpdateOne {
 	_u.mutation.ClearLastVersionBuild()
+	return _u
+}
+
+// SetMaxVersionBase sets the "max_version_base" field.
+func (_u *DBPackageUpdateOne) SetMaxVersionBase(v string) *DBPackageUpdateOne {
+	_u.mutation.SetMaxVersionBase(v)
+	return _u
+}
+
+// SetNillableMaxVersionBase sets the "max_version_base" field if the given value is not nil.
+func (_u *DBPackageUpdateOne) SetNillableMaxVersionBase(v *string) *DBPackageUpdateOne {
+	if v != nil {
+		_u.SetMaxVersionBase(*v)
+	}
+	return _u
+}
+
+// ClearMaxVersionBase clears the value of the "max_version_base" field.
+func (_u *DBPackageUpdateOne) ClearMaxVersionBase() *DBPackageUpdateOne {
+	_u.mutation.ClearMaxVersionBase()
+	return _u
+}
+
+// SetBuildNo sets the "build_no" field.
+func (_u *DBPackageUpdateOne) SetBuildNo(v int) *DBPackageUpdateOne {
+	_u.mutation.ResetBuildNo()
+	_u.mutation.SetBuildNo(v)
+	return _u
+}
+
+// SetNillableBuildNo sets the "build_no" field if the given value is not nil.
+func (_u *DBPackageUpdateOne) SetNillableBuildNo(v *int) *DBPackageUpdateOne {
+	if v != nil {
+		_u.SetBuildNo(*v)
+	}
+	return _u
+}
+
+// AddBuildNo adds value to the "build_no" field.
+func (_u *DBPackageUpdateOne) AddBuildNo(v int) *DBPackageUpdateOne {
+	_u.mutation.AddBuildNo(v)
+	return _u
+}
+
+// ClearBuildNo clears the value of the "build_no" field.
+func (_u *DBPackageUpdateOne) ClearBuildNo() *DBPackageUpdateOne {
+	_u.mutation.ClearBuildNo()
 	return _u
 }
 
@@ -1239,6 +1348,21 @@ func (_u *DBPackageUpdateOne) sqlSave(ctx context.Context) (_node *DBPackage, er
 	}
 	if _u.mutation.LastVersionBuildCleared() {
 		_spec.ClearField(dbpackage.FieldLastVersionBuild, field.TypeString)
+	}
+	if value, ok := _u.mutation.MaxVersionBase(); ok {
+		_spec.SetField(dbpackage.FieldMaxVersionBase, field.TypeString, value)
+	}
+	if _u.mutation.MaxVersionBaseCleared() {
+		_spec.ClearField(dbpackage.FieldMaxVersionBase, field.TypeString)
+	}
+	if value, ok := _u.mutation.BuildNo(); ok {
+		_spec.SetField(dbpackage.FieldBuildNo, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBuildNo(); ok {
+		_spec.AddField(dbpackage.FieldBuildNo, field.TypeInt, value)
+	}
+	if _u.mutation.BuildNoCleared() {
+		_spec.ClearField(dbpackage.FieldBuildNo, field.TypeInt)
 	}
 	if value, ok := _u.mutation.LastVerified(); ok {
 		_spec.SetField(dbpackage.FieldLastVerified, field.TypeTime, value)

@@ -42,6 +42,10 @@ type DBPackage struct {
 	Lto dbpackage.Lto `json:"lto,omitempty"`
 	// LastVersionBuild holds the value of the "last_version_build" field.
 	LastVersionBuild string `json:"last_version_build,omitempty"`
+	// MaxVersionBase holds the value of the "max_version_base" field.
+	MaxVersionBase string `json:"max_version_base,omitempty"`
+	// BuildNo holds the value of the "build_no" field.
+	BuildNo int `json:"build_no,omitempty"`
 	// LastVerified holds the value of the "last_verified" field.
 	LastVerified time.Time `json:"last_verified,omitempty"`
 	// DebugSymbols holds the value of the "debug_symbols" field.
@@ -70,9 +74,9 @@ func (*DBPackage) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case dbpackage.FieldPackages, dbpackage.FieldSonames:
 			values[i] = new([]byte)
-		case dbpackage.FieldID, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
+		case dbpackage.FieldID, dbpackage.FieldBuildNo, dbpackage.FieldMaxRss, dbpackage.FieldUTime, dbpackage.FieldSTime, dbpackage.FieldIoIn, dbpackage.FieldIoOut:
 			values[i] = new(sql.NullInt64)
-		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldDebugSymbols, dbpackage.FieldTagRev:
+		case dbpackage.FieldPkgbase, dbpackage.FieldStatus, dbpackage.FieldSkipReason, dbpackage.FieldRepository, dbpackage.FieldMarch, dbpackage.FieldVersion, dbpackage.FieldRepoVersion, dbpackage.FieldLto, dbpackage.FieldLastVersionBuild, dbpackage.FieldMaxVersionBase, dbpackage.FieldDebugSymbols, dbpackage.FieldTagRev:
 			values[i] = new(sql.NullString)
 		case dbpackage.FieldBuildTimeStart, dbpackage.FieldUpdated, dbpackage.FieldLastVerified:
 			values[i] = new(sql.NullTime)
@@ -170,6 +174,18 @@ func (_m *DBPackage) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field last_version_build", values[i])
 			} else if value.Valid {
 				_m.LastVersionBuild = value.String
+			}
+		case dbpackage.FieldMaxVersionBase:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field max_version_base", values[i])
+			} else if value.Valid {
+				_m.MaxVersionBase = value.String
+			}
+		case dbpackage.FieldBuildNo:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field build_no", values[i])
+			} else if value.Valid {
+				_m.BuildNo = int(value.Int64)
 			}
 		case dbpackage.FieldLastVerified:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -304,6 +320,12 @@ func (_m *DBPackage) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("last_version_build=")
 	builder.WriteString(_m.LastVersionBuild)
+	builder.WriteString(", ")
+	builder.WriteString("max_version_base=")
+	builder.WriteString(_m.MaxVersionBase)
+	builder.WriteString(", ")
+	builder.WriteString("build_no=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BuildNo))
 	builder.WriteString(", ")
 	builder.WriteString("last_verified=")
 	builder.WriteString(_m.LastVerified.Format(time.ANSIC))

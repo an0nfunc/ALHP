@@ -46,6 +46,9 @@ type DBPackageMutation struct {
 	updated            *time.Time
 	lto                *dbpackage.Lto
 	last_version_build *string
+	max_version_base   *string
+	build_no           *int
+	addbuild_no        *int
 	last_verified      *time.Time
 	debug_symbols      *dbpackage.DebugSymbols
 	max_rss            *int64
@@ -730,6 +733,125 @@ func (m *DBPackageMutation) ResetLastVersionBuild() {
 	delete(m.clearedFields, dbpackage.FieldLastVersionBuild)
 }
 
+// SetMaxVersionBase sets the "max_version_base" field.
+func (m *DBPackageMutation) SetMaxVersionBase(s string) {
+	m.max_version_base = &s
+}
+
+// MaxVersionBase returns the value of the "max_version_base" field in the mutation.
+func (m *DBPackageMutation) MaxVersionBase() (r string, exists bool) {
+	v := m.max_version_base
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxVersionBase returns the old "max_version_base" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DBPackageMutation) OldMaxVersionBase(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxVersionBase is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxVersionBase requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxVersionBase: %w", err)
+	}
+	return oldValue.MaxVersionBase, nil
+}
+
+// ClearMaxVersionBase clears the value of the "max_version_base" field.
+func (m *DBPackageMutation) ClearMaxVersionBase() {
+	m.max_version_base = nil
+	m.clearedFields[dbpackage.FieldMaxVersionBase] = struct{}{}
+}
+
+// MaxVersionBaseCleared returns if the "max_version_base" field was cleared in this mutation.
+func (m *DBPackageMutation) MaxVersionBaseCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldMaxVersionBase]
+	return ok
+}
+
+// ResetMaxVersionBase resets all changes to the "max_version_base" field.
+func (m *DBPackageMutation) ResetMaxVersionBase() {
+	m.max_version_base = nil
+	delete(m.clearedFields, dbpackage.FieldMaxVersionBase)
+}
+
+// SetBuildNo sets the "build_no" field.
+func (m *DBPackageMutation) SetBuildNo(i int) {
+	m.build_no = &i
+	m.addbuild_no = nil
+}
+
+// BuildNo returns the value of the "build_no" field in the mutation.
+func (m *DBPackageMutation) BuildNo() (r int, exists bool) {
+	v := m.build_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBuildNo returns the old "build_no" field's value of the DBPackage entity.
+// If the DBPackage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DBPackageMutation) OldBuildNo(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBuildNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBuildNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBuildNo: %w", err)
+	}
+	return oldValue.BuildNo, nil
+}
+
+// AddBuildNo adds i to the "build_no" field.
+func (m *DBPackageMutation) AddBuildNo(i int) {
+	if m.addbuild_no != nil {
+		*m.addbuild_no += i
+	} else {
+		m.addbuild_no = &i
+	}
+}
+
+// AddedBuildNo returns the value that was added to the "build_no" field in this mutation.
+func (m *DBPackageMutation) AddedBuildNo() (r int, exists bool) {
+	v := m.addbuild_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBuildNo clears the value of the "build_no" field.
+func (m *DBPackageMutation) ClearBuildNo() {
+	m.build_no = nil
+	m.addbuild_no = nil
+	m.clearedFields[dbpackage.FieldBuildNo] = struct{}{}
+}
+
+// BuildNoCleared returns if the "build_no" field was cleared in this mutation.
+func (m *DBPackageMutation) BuildNoCleared() bool {
+	_, ok := m.clearedFields[dbpackage.FieldBuildNo]
+	return ok
+}
+
+// ResetBuildNo resets all changes to the "build_no" field.
+func (m *DBPackageMutation) ResetBuildNo() {
+	m.build_no = nil
+	m.addbuild_no = nil
+	delete(m.clearedFields, dbpackage.FieldBuildNo)
+}
+
 // SetLastVerified sets the "last_verified" field.
 func (m *DBPackageMutation) SetLastVerified(t time.Time) {
 	m.last_verified = &t
@@ -1326,7 +1448,7 @@ func (m *DBPackageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DBPackageMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 23)
 	if m.pkgbase != nil {
 		fields = append(fields, dbpackage.FieldPkgbase)
 	}
@@ -1362,6 +1484,12 @@ func (m *DBPackageMutation) Fields() []string {
 	}
 	if m.last_version_build != nil {
 		fields = append(fields, dbpackage.FieldLastVersionBuild)
+	}
+	if m.max_version_base != nil {
+		fields = append(fields, dbpackage.FieldMaxVersionBase)
+	}
+	if m.build_no != nil {
+		fields = append(fields, dbpackage.FieldBuildNo)
 	}
 	if m.last_verified != nil {
 		fields = append(fields, dbpackage.FieldLastVerified)
@@ -1422,6 +1550,10 @@ func (m *DBPackageMutation) Field(name string) (ent.Value, bool) {
 		return m.Lto()
 	case dbpackage.FieldLastVersionBuild:
 		return m.LastVersionBuild()
+	case dbpackage.FieldMaxVersionBase:
+		return m.MaxVersionBase()
+	case dbpackage.FieldBuildNo:
+		return m.BuildNo()
 	case dbpackage.FieldLastVerified:
 		return m.LastVerified()
 	case dbpackage.FieldDebugSymbols:
@@ -1473,6 +1605,10 @@ func (m *DBPackageMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldLto(ctx)
 	case dbpackage.FieldLastVersionBuild:
 		return m.OldLastVersionBuild(ctx)
+	case dbpackage.FieldMaxVersionBase:
+		return m.OldMaxVersionBase(ctx)
+	case dbpackage.FieldBuildNo:
+		return m.OldBuildNo(ctx)
 	case dbpackage.FieldLastVerified:
 		return m.OldLastVerified(ctx)
 	case dbpackage.FieldDebugSymbols:
@@ -1584,6 +1720,20 @@ func (m *DBPackageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastVersionBuild(v)
 		return nil
+	case dbpackage.FieldMaxVersionBase:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxVersionBase(v)
+		return nil
+	case dbpackage.FieldBuildNo:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBuildNo(v)
+		return nil
 	case dbpackage.FieldLastVerified:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1655,6 +1805,9 @@ func (m *DBPackageMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *DBPackageMutation) AddedFields() []string {
 	var fields []string
+	if m.addbuild_no != nil {
+		fields = append(fields, dbpackage.FieldBuildNo)
+	}
 	if m.addmax_rss != nil {
 		fields = append(fields, dbpackage.FieldMaxRss)
 	}
@@ -1678,6 +1831,8 @@ func (m *DBPackageMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *DBPackageMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case dbpackage.FieldBuildNo:
+		return m.AddedBuildNo()
 	case dbpackage.FieldMaxRss:
 		return m.AddedMaxRss()
 	case dbpackage.FieldUTime:
@@ -1697,6 +1852,13 @@ func (m *DBPackageMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *DBPackageMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case dbpackage.FieldBuildNo:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBuildNo(v)
+		return nil
 	case dbpackage.FieldMaxRss:
 		v, ok := value.(int64)
 		if !ok {
@@ -1767,6 +1929,12 @@ func (m *DBPackageMutation) ClearedFields() []string {
 	if m.FieldCleared(dbpackage.FieldLastVersionBuild) {
 		fields = append(fields, dbpackage.FieldLastVersionBuild)
 	}
+	if m.FieldCleared(dbpackage.FieldMaxVersionBase) {
+		fields = append(fields, dbpackage.FieldMaxVersionBase)
+	}
+	if m.FieldCleared(dbpackage.FieldBuildNo) {
+		fields = append(fields, dbpackage.FieldBuildNo)
+	}
 	if m.FieldCleared(dbpackage.FieldLastVerified) {
 		fields = append(fields, dbpackage.FieldLastVerified)
 	}
@@ -1834,6 +2002,12 @@ func (m *DBPackageMutation) ClearField(name string) error {
 		return nil
 	case dbpackage.FieldLastVersionBuild:
 		m.ClearLastVersionBuild()
+		return nil
+	case dbpackage.FieldMaxVersionBase:
+		m.ClearMaxVersionBase()
+		return nil
+	case dbpackage.FieldBuildNo:
+		m.ClearBuildNo()
 		return nil
 	case dbpackage.FieldLastVerified:
 		m.ClearLastVerified()
@@ -1905,6 +2079,12 @@ func (m *DBPackageMutation) ResetField(name string) error {
 		return nil
 	case dbpackage.FieldLastVersionBuild:
 		m.ResetLastVersionBuild()
+		return nil
+	case dbpackage.FieldMaxVersionBase:
+		m.ResetMaxVersionBase()
+		return nil
+	case dbpackage.FieldBuildNo:
+		m.ResetBuildNo()
 		return nil
 	case dbpackage.FieldLastVerified:
 		m.ResetLastVerified()

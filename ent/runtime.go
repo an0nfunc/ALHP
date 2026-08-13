@@ -21,4 +21,8 @@ func init() {
 	dbpackageDescMarch := dbpackageFields[5].Descriptor()
 	// dbpackage.MarchValidator is a validator for the "march" field. It is called by the builders before save.
 	dbpackage.MarchValidator = dbpackageDescMarch.Validators[0].(func(string) error)
+	// dbpackageDescBuildNo is the schema descriptor for build_no field.
+	dbpackageDescBuildNo := dbpackageFields[13].Descriptor()
+	// dbpackage.DefaultBuildNo holds the default value on creation for the build_no field.
+	dbpackage.DefaultBuildNo = dbpackageDescBuildNo.Default.(int)
 }

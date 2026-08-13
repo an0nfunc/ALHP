@@ -94,6 +94,16 @@ func LastVersionBuild(v string) predicate.DBPackage {
 	return predicate.DBPackage(sql.FieldEQ(FieldLastVersionBuild, v))
 }
 
+// MaxVersionBase applies equality check predicate on the "max_version_base" field. It's identical to MaxVersionBaseEQ.
+func MaxVersionBase(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldEQ(FieldMaxVersionBase, v))
+}
+
+// BuildNo applies equality check predicate on the "build_no" field. It's identical to BuildNoEQ.
+func BuildNo(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldEQ(FieldBuildNo, v))
+}
+
 // LastVerified applies equality check predicate on the "last_verified" field. It's identical to LastVerifiedEQ.
 func LastVerified(v time.Time) predicate.DBPackage {
 	return predicate.DBPackage(sql.FieldEQ(FieldLastVerified, v))
@@ -747,6 +757,131 @@ func LastVersionBuildEqualFold(v string) predicate.DBPackage {
 // LastVersionBuildContainsFold applies the ContainsFold predicate on the "last_version_build" field.
 func LastVersionBuildContainsFold(v string) predicate.DBPackage {
 	return predicate.DBPackage(sql.FieldContainsFold(FieldLastVersionBuild, v))
+}
+
+// MaxVersionBaseEQ applies the EQ predicate on the "max_version_base" field.
+func MaxVersionBaseEQ(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldEQ(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseNEQ applies the NEQ predicate on the "max_version_base" field.
+func MaxVersionBaseNEQ(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNEQ(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseIn applies the In predicate on the "max_version_base" field.
+func MaxVersionBaseIn(vs ...string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldIn(FieldMaxVersionBase, vs...))
+}
+
+// MaxVersionBaseNotIn applies the NotIn predicate on the "max_version_base" field.
+func MaxVersionBaseNotIn(vs ...string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNotIn(FieldMaxVersionBase, vs...))
+}
+
+// MaxVersionBaseGT applies the GT predicate on the "max_version_base" field.
+func MaxVersionBaseGT(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldGT(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseGTE applies the GTE predicate on the "max_version_base" field.
+func MaxVersionBaseGTE(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldGTE(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseLT applies the LT predicate on the "max_version_base" field.
+func MaxVersionBaseLT(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldLT(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseLTE applies the LTE predicate on the "max_version_base" field.
+func MaxVersionBaseLTE(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldLTE(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseContains applies the Contains predicate on the "max_version_base" field.
+func MaxVersionBaseContains(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldContains(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseHasPrefix applies the HasPrefix predicate on the "max_version_base" field.
+func MaxVersionBaseHasPrefix(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldHasPrefix(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseHasSuffix applies the HasSuffix predicate on the "max_version_base" field.
+func MaxVersionBaseHasSuffix(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldHasSuffix(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseIsNil applies the IsNil predicate on the "max_version_base" field.
+func MaxVersionBaseIsNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldIsNull(FieldMaxVersionBase))
+}
+
+// MaxVersionBaseNotNil applies the NotNil predicate on the "max_version_base" field.
+func MaxVersionBaseNotNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNotNull(FieldMaxVersionBase))
+}
+
+// MaxVersionBaseEqualFold applies the EqualFold predicate on the "max_version_base" field.
+func MaxVersionBaseEqualFold(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldEqualFold(FieldMaxVersionBase, v))
+}
+
+// MaxVersionBaseContainsFold applies the ContainsFold predicate on the "max_version_base" field.
+func MaxVersionBaseContainsFold(v string) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldContainsFold(FieldMaxVersionBase, v))
+}
+
+// BuildNoEQ applies the EQ predicate on the "build_no" field.
+func BuildNoEQ(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldEQ(FieldBuildNo, v))
+}
+
+// BuildNoNEQ applies the NEQ predicate on the "build_no" field.
+func BuildNoNEQ(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNEQ(FieldBuildNo, v))
+}
+
+// BuildNoIn applies the In predicate on the "build_no" field.
+func BuildNoIn(vs ...int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldIn(FieldBuildNo, vs...))
+}
+
+// BuildNoNotIn applies the NotIn predicate on the "build_no" field.
+func BuildNoNotIn(vs ...int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNotIn(FieldBuildNo, vs...))
+}
+
+// BuildNoGT applies the GT predicate on the "build_no" field.
+func BuildNoGT(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldGT(FieldBuildNo, v))
+}
+
+// BuildNoGTE applies the GTE predicate on the "build_no" field.
+func BuildNoGTE(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldGTE(FieldBuildNo, v))
+}
+
+// BuildNoLT applies the LT predicate on the "build_no" field.
+func BuildNoLT(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldLT(FieldBuildNo, v))
+}
+
+// BuildNoLTE applies the LTE predicate on the "build_no" field.
+func BuildNoLTE(v int) predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldLTE(FieldBuildNo, v))
+}
+
+// BuildNoIsNil applies the IsNil predicate on the "build_no" field.
+func BuildNoIsNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldIsNull(FieldBuildNo))
+}
+
+// BuildNoNotNil applies the NotNil predicate on the "build_no" field.
+func BuildNoNotNil() predicate.DBPackage {
+	return predicate.DBPackage(sql.FieldNotNull(FieldBuildNo))
 }
 
 // LastVerifiedEQ applies the EQ predicate on the "last_verified" field.

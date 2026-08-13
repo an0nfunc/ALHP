@@ -187,3 +187,33 @@ func TestSweepTargetsEmpty(t *testing.T) {
 		t.Errorf("sweepTargets(nil) = %q, %q, want empty", copies, locks)
 	}
 }
+
+func TestSplitPkgRel(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		pkgrel      string
+		wantBase    string
+		wantBuildNo int
+		wantErr     bool
+	}{
+		{"plain pkgrel carries no build number", "1", "1", 0, false},
+		{"our own build number", "1.3", "1", 3, false},
+		{"upstream pkgrel with our build number on top", "1.2.5", "1.2", 5, false},
+		{"non-numeric trailing component", "1.beta", "", 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			base, buildNo, err := splitPkgRel(tc.pkgrel)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("splitPkgRel(%q) error = %v, wantErr %t", tc.pkgrel, err, tc.wantErr)
+			}
+			if base != tc.wantBase || buildNo != tc.wantBuildNo {
+				t.Errorf("splitPkgRel(%q) = %q, %d, want %q, %d",
+					tc.pkgrel, base, buildNo, tc.wantBase, tc.wantBuildNo)
+			}
+		})
+	}
+}
