@@ -83,6 +83,10 @@ type Conf struct {
 		// StallTimeout is how long a build may produce neither output nor CPU work
 		// before it is killed. time.ParseDuration string, "0" disables.
 		StallTimeout string `yaml:"stall_timeout"`
+		// SilenceTimeout is how long a build may produce no output at all, however
+		// much CPU it burns, before it is killed. time.ParseDuration string, "0"
+		// disables.
+		SilenceTimeout string `yaml:"silence_timeout"`
 		// Timeout is an absolute wall-clock cap per build, a backstop for hangs that
 		// keep burning CPU. time.ParseDuration string, "0" (the default) disables.
 		Timeout string `yaml:"timeout"`

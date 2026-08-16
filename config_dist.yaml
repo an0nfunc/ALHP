@@ -38,9 +38,9 @@ build:
   # run each build in its own network namespace via the alhp-netns helper.
   # prevents concurrent builds from colliding on ports and stops a package's
   # check() from reaching host loopback services. also the only working kill path
-  # for stall_timeout/timeout when ALHP runs unprivileged, since the build tree is
-  # root-owned. requires the passt package and alhp-netns installed to
-  # /usr/local/bin; see the header of alhp-netns for the sudoers entry.
+  # for stall_timeout/silence_timeout/timeout when ALHP runs unprivileged, since
+  # the build tree is root-owned. requires the passt package and alhp-netns
+  # installed to /usr/local/bin; see the header of alhp-netns for the sudoers entry.
   # builds also get an in-namespace nftables ruleset dropping RFC1918, link-local
   # and ULA destinations, so a package cannot reach the LAN or host services bound
   # to a bridge/second-NIC address. DNS to the host's own resolvers is allowed.
@@ -54,6 +54,12 @@ build:
   # a build that is silent but busy (e.g. a long LTO link) is not affected.
   # accepts any time.ParseDuration string, "0" disables, default: 2h
   stall_timeout: "2h"
+  # kill a build that produces no output at all for this long, no matter how much
+  # CPU it burns. catches what stall_timeout cannot see: a deadlocked test runner
+  # whose threads keep spinning looks like progress to it forever. keep this well
+  # above the longest legitimate silent stretch, a large LTO link at roughly an hour.
+  # accepts any time.ParseDuration string, "0" disables, default: 6h
+  silence_timeout: "6h"
   # absolute wall-clock limit for the makechrootpkg invocation, backstop for hangs
   # that keep burning CPU. does not cover the PKGBUILD checkout before it or the
   # signing after it.

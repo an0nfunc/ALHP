@@ -28,9 +28,9 @@ No part of that last line is cosmetic. Without !logfile and !pam_session every
 build adds auth-log noise and a PAM session setup. Without !use_pty, which sudo
 enables by default since 1.9.14, sudo allocates a pty whenever ALHP is started
 from a terminal rather than by systemd; fd 0 is then the pty slave rather than the
-cancel pipe, closing the pipe produces no EOF, and stall_timeout and build.timeout
-silently stop killing anything. cmd_run asserts fd 0 is a pipe rather than trusting
-that line to have been copied correctly.
+cancel pipe, closing the pipe produces no EOF, and stall_timeout, silence_timeout
+and build.timeout silently stop killing anything. cmd_run asserts fd 0 is a pipe
+rather than trusting that line to have been copied correctly.
 
 This grants no privilege that the existing NOPASSWD entry for makechrootpkg does
 not already grant, since makechrootpkg with an attacker-chosen -r is

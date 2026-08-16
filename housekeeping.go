@@ -722,7 +722,7 @@ func logHK(ctx context.Context) error {
 				dbpackage.StatusEQ(dbpackage.StatusFailed),
 				// a build we killed leaves a log truncated mid-stream, which can match
 				// one of these patterns by accident; requeueing it just rebuilds the hang
-				dbpackage.SkipReasonNotIn(SkipReasonStalled, SkipReasonTimeout),
+				dbpackage.SkipReasonNotIn(killSkipReasons...),
 			).ClearTagRev().SetStatus(dbpackage.StatusQueued).Save(ctx)
 			if err != nil {
 				return err
@@ -737,7 +737,7 @@ func logHK(ctx context.Context) error {
 				dbpackage.March(pkg.March),
 				dbpackage.StatusEQ(dbpackage.StatusFailed),
 				dbpackage.LtoNotIn(dbpackage.LtoAutoDisabled, dbpackage.LtoDisabled),
-				dbpackage.SkipReasonNotIn(SkipReasonStalled, SkipReasonTimeout),
+				dbpackage.SkipReasonNotIn(killSkipReasons...),
 			).ClearTagRev().SetStatus(dbpackage.StatusQueued).SetLto(dbpackage.LtoAutoDisabled).Save(ctx)
 			if err != nil {
 				return err

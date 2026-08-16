@@ -117,7 +117,7 @@ func main() {
 		}
 	} else {
 		log.Warning("build.network_isolation is disabled: builds share the host network namespace, " +
-			"and stall_timeout/timeout cannot kill a build unless ALHP runs as root")
+			"and stall_timeout/silence_timeout/timeout cannot kill a build unless ALHP runs as root")
 	}
 
 	// before setupChroot: orphans from the last run are dead weight the pacman

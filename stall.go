@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -15,15 +16,32 @@ var (
 	// ErrBuildStalled is the cancel cause used when a build produced neither output
 	// nor meaningful CPU work for build.stall_timeout.
 	ErrBuildStalled = errors.New("build stalled")
+	// ErrBuildSilent is the cancel cause used when a build produced no output at all
+	// for build.silence_timeout, however busy it looked.
+	ErrBuildSilent = errors.New("build silent")
 	// ErrBuildTimeout is the cancel cause used when a build exceeded build.timeout.
 	ErrBuildTimeout = errors.New("build timeout")
 )
 
 const (
+	// Both windows below are deliberately generous, because the two ways of being
+	// wrong are not symmetric. A missed hang costs detection latency. A false positive
+	// costs the package: the build is recorded failed, the already published optimized
+	// package is purged from the repo, and isPkgFailed then holds the failure until
+	// upstream ships a new version, so it does not simply come back on the next pass.
+
 	// defaultStallTimeout is how long a build may make no progress before it is killed.
-	// Deliberately generous: legitimate builds can be silent for a long time, and a
-	// false positive costs a rebuild while a missed hang only costs detection latency.
+	// Legitimate builds can be silent for a long time.
 	defaultStallTimeout = 2 * time.Hour
+
+	// defaultSilenceTimeout is how long a build may produce no output whatsoever,
+	// regardless of how much CPU it burns, before it is killed. It covers the hang
+	// stall detection is structurally blind to: a test runner that deadlocks with its
+	// worker threads spinning looks like progress to it forever, so without this
+	// window only build.timeout would ever end that build, and that one is off by
+	// default. Set far above the longest legitimate silent stretch, a large LTO link
+	// at roughly an hour.
+	defaultSilenceTimeout = 6 * time.Hour
 
 	// cpuProgressFloor is the share of a single core the build tree must average over
 	// the current window to count as making progress. A build with makej > 1 sits
@@ -38,9 +56,38 @@ const (
 	buildKillGrace = 30 * time.Second
 )
 
-// buildStallTimeout returns the configured no-progress timeout. Zero disables stall detection.
-func buildStallTimeout() time.Duration {
-	return confDuration(conf.Build.StallTimeout, defaultStallTimeout, "build.stall_timeout")
+// stallLimits are the two no-progress windows applied to a running build. They
+// differ only in what reopens them: stall accepts CPU work as progress, silence
+// accepts nothing but output. A zero window is disabled.
+type stallLimits struct {
+	stall   time.Duration
+	silence time.Duration
+}
+
+// buildStallLimits returns the configured windows. Zero disables that window.
+func buildStallLimits() stallLimits {
+	return stallLimits{
+		stall:   confDuration(conf.Build.StallTimeout, defaultStallTimeout, "build.stall_timeout"),
+		silence: confDuration(conf.Build.SilenceTimeout, defaultSilenceTimeout, "build.silence_timeout"),
+	}
+}
+
+// reason renders a kill for the log, naming the window that tripped and how long
+// it was open. Only the detector's own causes carry a window, so anything else is
+// reported as-is rather than mislabelled as one of them.
+func (l stallLimits) reason(cause error) string {
+	switch {
+	// unreachable, the monitor only calls this for a cause it just produced, but a
+	// panic here would land in the monitor goroutine and take the daemon with it
+	case cause == nil:
+		return "unknown reason"
+	case errors.Is(cause, ErrBuildStalled):
+		return fmt.Sprintf("no progress for %s", l.stall)
+	case errors.Is(cause, ErrBuildSilent):
+		return fmt.Sprintf("no output for %s", l.silence)
+	default:
+		return cause.Error()
+	}
 }
 
 // buildTimeout returns the absolute wall-clock cap per build. Zero (the default) disables it.
@@ -68,10 +115,14 @@ func confDuration(raw string, def time.Duration, name string) time.Duration {
 // the skip reason to persist, with ok false when the build was not killed by one of
 // our own deadlines. Both values are kept out of the error text so that rewording an
 // error cannot silently rename a metric label or a stored skip reason.
+//
+// Every skip reason returned here must also appear in killSkipReasons.
 func killReason(cause error) (metric, skipReason string, ok bool) {
 	switch {
 	case errors.Is(cause, ErrBuildStalled):
 		return "stalled", SkipReasonStalled, true
+	case errors.Is(cause, ErrBuildSilent):
+		return "silent", SkipReasonSilent, true
 	case errors.Is(cause, ErrBuildTimeout):
 		return "timeout", SkipReasonTimeout, true
 	default:
@@ -125,34 +176,54 @@ func (p *progressWriter) lastWrite() time.Time {
 	return p.created.Add(time.Duration(p.last.Load()))
 }
 
-// stallDetector tracks a window during which a build produced no output and no
-// meaningful CPU work. Progress on either signal reopens the window, so a silent
-// but CPU-bound step (a long LTO link) is not mistaken for a hang, and a hung test
-// blocked on a socket is not kept alive by its own idle wakeups.
+// stallDetector tracks two windows over a running build.
+//
+// The stall window is reopened by output or by CPU work, so a silent but CPU-bound
+// step (a long LTO link) is not mistaken for a hang, and a hung test blocked on a
+// socket is not kept alive by its own idle wakeups.
+//
+// The silence window is reopened by output alone. It is the only thing that catches
+// a hang which keeps a core busy, such as a deadlocked test runner whose threads
+// spin: to the stall window that is indistinguishable from a long link, forever.
+// Because it ignores CPU entirely it is the blunter of the two and runs on a much
+// longer timeout.
 type stallDetector struct {
-	timeout     time.Duration
-	windowStart time.Time
-	windowCPU   time.Duration
+	limits stallLimits
+
+	// the windows are reopened by different signals, so their starts drift apart and
+	// each is measured against its own
+	stallStart   time.Time
+	stallCPU     time.Duration
+	silenceStart time.Time
 }
 
-func newStallDetector(timeout time.Duration, now time.Time, cpu time.Duration) *stallDetector {
-	return &stallDetector{timeout: timeout, windowStart: now, windowCPU: cpu}
+func newStallDetector(limits stallLimits, now time.Time, cpu time.Duration) *stallDetector {
+	return &stallDetector{limits: limits, stallStart: now, stallCPU: cpu, silenceStart: now}
 }
 
-// observe feeds one sample to the detector and reports whether the build is stalled.
-// cpu must be monotonic across calls.
-func (s *stallDetector) observe(now time.Time, cpu time.Duration, lastOutput time.Time) bool {
-	elapsed := now.Sub(s.windowStart)
+// observe feeds one sample to the detector and reports the cancel cause the build
+// must be killed with, or nil while it is still making progress. cpu must be
+// monotonic across calls.
+func (s *stallDetector) observe(now time.Time, cpu time.Duration, lastOutput time.Time) error {
+	elapsed := now.Sub(s.stallStart)
+	computed := cpu-s.stallCPU >= time.Duration(float64(elapsed)*cpuProgressFloor)
 
-	wrote := lastOutput.After(s.windowStart)
-	computed := cpu-s.windowCPU >= time.Duration(float64(elapsed)*cpuProgressFloor)
-	if wrote || computed {
-		s.windowStart = now
-		s.windowCPU = cpu
-		return false
+	switch {
+	case lastOutput.After(s.stallStart) || computed:
+		s.stallStart = now
+		s.stallCPU = cpu
+	case s.limits.stall > 0 && elapsed >= s.limits.stall:
+		return ErrBuildStalled
 	}
 
-	return elapsed >= s.timeout
+	switch {
+	case lastOutput.After(s.silenceStart):
+		s.silenceStart = now
+	case s.limits.silence > 0 && now.Sub(s.silenceStart) >= s.limits.silence:
+		return ErrBuildSilent
+	}
+
+	return nil
 }
 
 // buildMonitor samples a running build's process tree in the background, tracking
@@ -162,12 +233,12 @@ type buildMonitor struct {
 	result chan int64
 }
 
-// startBuildMonitor begins sampling the process tree rooted at pid. When stallTimeout
-// is non-zero and the build stops making progress, onStall is called once and is
+// startBuildMonitor begins sampling the process tree rooted at pid. When the build
+// trips one of the enabled windows, onKill is called once with the cause and is
 // expected to kill the build. Every monitor must be stopped.
-func startBuildMonitor(pid int, out *progressWriter, stallTimeout time.Duration, onStall func()) *buildMonitor {
+func startBuildMonitor(pid int, out *progressWriter, limits stallLimits, onKill func(error)) *buildMonitor {
 	m := &buildMonitor{done: make(chan struct{}), result: make(chan int64)}
-	go m.poll(pid, out, stallTimeout, onStall)
+	go m.poll(pid, out, limits, onKill)
 	return m
 }
 
@@ -177,13 +248,13 @@ func (m *buildMonitor) stop() int64 {
 	return <-m.result
 }
 
-func (m *buildMonitor) poll(pid int, out *progressWriter, stallTimeout time.Duration, onStall func()) {
+func (m *buildMonitor) poll(pid int, out *progressWriter, limits stallLimits, onKill func(error)) {
 	var (
 		peakMemory int64
 		maxCPU     time.Duration
 		killed     bool
 	)
-	detector := newStallDetector(stallTimeout, time.Now(), 0)
+	detector := newStallDetector(limits, time.Now(), 0)
 
 	for {
 		select {
@@ -203,9 +274,11 @@ func (m *buildMonitor) poll(pid int, out *progressWriter, stallTimeout time.Dura
 			maxCPU = cpu
 		}
 
-		if stallTimeout > 0 && !killed && detector.observe(time.Now(), maxCPU, out.lastWrite()) {
-			killed = true
-			onStall()
+		if !killed {
+			if cause := detector.observe(time.Now(), maxCPU, out.lastWrite()); cause != nil {
+				killed = true
+				onKill(cause)
+			}
 		}
 
 		time.Sleep(buildPollInterval)

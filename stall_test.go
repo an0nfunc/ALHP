@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -14,13 +16,39 @@ import (
 	"time"
 )
 
+// runDetector drives a detector over run, simulating a build that accumulates
+// cpuShare cores worth of CPU time and writes every outputEvery (0 meaning never).
+// It returns how far into the run the detector fired and the cause it reported.
+func runDetector(limits stallLimits, run time.Duration, cpuShare float64, outputEvery time.Duration) (time.Duration, error) {
+	start := time.Now()
+	detector := newStallDetector(limits, start, 0)
+
+	var (
+		cpu        time.Duration
+		now        = start
+		lastOutput = start
+	)
+
+	for range int(run / buildPollInterval) {
+		now = now.Add(buildPollInterval)
+		cpu += time.Duration(float64(buildPollInterval) * cpuShare)
+		if outputEvery > 0 && now.Sub(lastOutput) >= outputEvery {
+			lastOutput = now
+		}
+
+		if cause := detector.observe(now, cpu, lastOutput); cause != nil {
+			return now.Sub(start), cause
+		}
+	}
+
+	return 0, nil
+}
+
 func TestStallDetector(t *testing.T) {
 	t.Parallel()
 
-	const (
-		timeout = 30 * time.Minute
-		run     = 90 * time.Minute
-	)
+	limits := stallLimits{stall: 30 * time.Minute, silence: 90 * time.Minute}
+	const run = 4 * time.Hour
 
 	tests := []struct {
 		name string
@@ -28,52 +56,83 @@ func TestStallDetector(t *testing.T) {
 		cpuShare float64
 		// outputEvery is how often the build writes something, 0 meaning never
 		outputEvery time.Duration
-		wantStall   bool
+		wantCause   error
+		// wantAfter is the window that must elapse before the kill is allowed
+		wantAfter time.Duration
 	}{
-		{name: "compiling normally", cpuShare: 4, outputEvery: time.Minute, wantStall: false},
-		{name: "silent but cpu bound", cpuShare: 1, outputEvery: 0, wantStall: false},
-		{name: "silent single-core link", cpuShare: 0.5, outputEvery: 0, wantStall: false},
-		{name: "chatty but idle", cpuShare: 0, outputEvery: 10 * time.Minute, wantStall: false},
-		{name: "hung with no cpu at all", cpuShare: 0, outputEvery: 0, wantStall: true},
-		{name: "hung with idle wakeups below floor", cpuShare: 0.001, outputEvery: 0, wantStall: true},
+		{name: "compiling normally", cpuShare: 4, outputEvery: time.Minute},
+		{name: "chatty but idle", cpuShare: 0, outputEvery: 10 * time.Minute},
+		// output keeps the silence window open even when it is barely a trickle
+		{name: "occasional output while busy", cpuShare: 4, outputEvery: 80 * time.Minute},
+		// CPU work holds off the stall window but must not hold off silence: this is
+		// the spinning-test-runner hang
+		{name: "silent but cpu bound", cpuShare: 1, outputEvery: 0, wantCause: ErrBuildSilent, wantAfter: limits.silence},
+		{name: "silent single-core link", cpuShare: 0.5, outputEvery: 0, wantCause: ErrBuildSilent, wantAfter: limits.silence},
+		{name: "hung with no cpu at all", cpuShare: 0, outputEvery: 0, wantCause: ErrBuildStalled, wantAfter: limits.stall},
+		{name: "hung with idle wakeups below floor", cpuShare: 0.001, outputEvery: 0, wantCause: ErrBuildStalled, wantAfter: limits.stall},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			start := time.Now()
-			detector := newStallDetector(timeout, start, 0)
+			firedAt, cause := runDetector(limits, run, tt.cpuShare, tt.outputEvery)
 
-			var (
-				cpu        time.Duration
-				now        = start
-				lastOutput = start
-				stalled    bool
-				stalledAt  time.Duration
-			)
-
-			for range int(run / buildPollInterval) {
-				now = now.Add(buildPollInterval)
-				cpu += time.Duration(float64(buildPollInterval) * tt.cpuShare)
-				if tt.outputEvery > 0 && now.Sub(lastOutput) >= tt.outputEvery {
-					lastOutput = now
-				}
-
-				if detector.observe(now, cpu, lastOutput) {
-					stalled = true
-					stalledAt = now.Sub(start)
-					break
-				}
+			if !errors.Is(cause, tt.wantCause) {
+				t.Fatalf("cause = %v, want %v (fired after %s)", cause, tt.wantCause, firedAt)
 			}
-
-			if stalled != tt.wantStall {
-				t.Fatalf("stalled = %v, want %v (fired after %s)", stalled, tt.wantStall, stalledAt)
+			// a build must never be killed before its window has passed
+			if cause != nil && firedAt < tt.wantAfter {
+				t.Fatalf("killed after %s, want at least %s", firedAt, tt.wantAfter)
 			}
+		})
+	}
+}
 
-			// a stall must never be called before the configured window has passed
-			if stalled && stalledAt < timeout {
-				t.Fatalf("stalled after %s, want at least %s", stalledAt, timeout)
+// TestStallDetectorWindowsAreIndependent guards that either window works on its
+// own, so a deployment that disables one keeps the other.
+func TestStallDetectorWindowsAreIndependent(t *testing.T) {
+	t.Parallel()
+
+	const run = 4 * time.Hour
+
+	tests := []struct {
+		name      string
+		limits    stallLimits
+		cpuShare  float64
+		wantCause error
+	}{
+		{
+			name:      "silence alone still kills a spinning build",
+			limits:    stallLimits{silence: 90 * time.Minute},
+			cpuShare:  1,
+			wantCause: ErrBuildSilent,
+		},
+		{
+			name:      "stall alone still kills an idle build",
+			limits:    stallLimits{stall: 30 * time.Minute},
+			cpuShare:  0,
+			wantCause: ErrBuildStalled,
+		},
+		{
+			name:     "both disabled kills nothing",
+			limits:   stallLimits{},
+			cpuShare: 0,
+		},
+		{
+			name:     "stall alone leaves a spinning build running",
+			limits:   stallLimits{stall: 30 * time.Minute},
+			cpuShare: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			firedAt, cause := runDetector(tt.limits, run, tt.cpuShare, 0)
+			if !errors.Is(cause, tt.wantCause) {
+				t.Fatalf("cause = %v, want %v (fired after %s)", cause, tt.wantCause, firedAt)
 			}
 		})
 	}
@@ -85,17 +144,69 @@ func TestStallDetectorNonMonotonicCPUDoesNotUnderflow(t *testing.T) {
 	// the caller clamps CPU to keep it monotonic, but a regression there must not
 	// turn into a build that can never be killed
 	start := time.Now()
-	detector := newStallDetector(time.Minute, start, 10*time.Hour)
+	detector := newStallDetector(stallLimits{stall: time.Minute, silence: time.Hour}, start, 10*time.Hour)
 
 	now := start
 	for range 120 {
 		now = now.Add(buildPollInterval)
-		if detector.observe(now, 0, start) {
+		if errors.Is(detector.observe(now, 0, start), ErrBuildStalled) {
 			return
 		}
 	}
 
 	t.Fatal("detector never reported a stall for a tree that dropped to zero cpu")
+}
+
+// TestKillReasonCoversEveryCause guards the pairing housekeeping depends on: a
+// cause we kill for must map to a skip reason, and that skip reason must be in the
+// set the requeue path refuses, or the build is rebuilt straight back into the hang.
+func TestKillReasonCoversEveryCause(t *testing.T) {
+	t.Parallel()
+
+	for _, cause := range []error{ErrBuildStalled, ErrBuildSilent, ErrBuildTimeout} {
+		metric, skipReason, ok := killReason(cause)
+		if !ok {
+			t.Errorf("killReason(%v) reported the build was not killed by us", cause)
+			continue
+		}
+		if metric == "" || skipReason == "" {
+			t.Errorf("killReason(%v) = %q, %q, want both non-empty", cause, metric, skipReason)
+		}
+		if !slices.Contains(killSkipReasons, skipReason) {
+			t.Errorf("skip reason %q for %v is missing from killSkipReasons, "+
+				"housekeeping would requeue the build into the same hang", skipReason, cause)
+		}
+	}
+
+	if _, _, ok := killReason(errors.New("some build error")); ok {
+		t.Error("killReason reported an unrelated error as one of our kills")
+	}
+}
+
+// TestStallLimitsReason pins the log text apart from the two windows it names. It
+// is the only signal in the journal saying which window fired, and swapping the two
+// strings would be invisible to every other test here.
+func TestStallLimitsReason(t *testing.T) {
+	t.Parallel()
+
+	limits := stallLimits{stall: 2 * time.Hour, silence: 6 * time.Hour}
+
+	tests := []struct {
+		cause error
+		want  string
+	}{
+		{cause: ErrBuildStalled, want: "no progress for 2h0m0s"},
+		{cause: ErrBuildSilent, want: "no output for 6h0m0s"},
+		{cause: ErrBuildTimeout, want: "build timeout"},
+		{cause: fmt.Errorf("wrapped: %w", ErrBuildSilent), want: "no output for 6h0m0s"},
+		{cause: nil, want: "unknown reason"},
+	}
+
+	for _, tt := range tests {
+		if got := limits.reason(tt.cause); got != tt.want {
+			t.Errorf("reason(%v) = %q, want %q", tt.cause, got, tt.want)
+		}
+	}
 }
 
 func TestProgressWriter(t *testing.T) {
@@ -142,11 +253,12 @@ func TestConfDuration(t *testing.T) {
 	}
 }
 
-// startIdleTree starts a process that burns no CPU and cleans it up on test exit.
-func startIdleTree(t *testing.T) *exec.Cmd {
+// startTree starts a process in its own group, the shape the monitor samples, and
+// kills the whole group on test exit.
+func startTree(t *testing.T, name string, args ...string) *exec.Cmd {
 	t.Helper()
 
-	cmd := exec.Command("sleep", "30")
+	cmd := exec.Command(name, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start: %v", err)
@@ -159,15 +271,29 @@ func startIdleTree(t *testing.T) *exec.Cmd {
 	return cmd
 }
 
+// startIdleTree starts a process that burns no CPU.
+func startIdleTree(t *testing.T) *exec.Cmd {
+	t.Helper()
+
+	return startTree(t, "sleep", "30")
+}
+
+// startBusyTree starts a process that burns CPU continuously and never writes.
+func startBusyTree(t *testing.T) *exec.Cmd {
+	t.Helper()
+
+	return startTree(t, "sh", "-c", "while :; do :; done")
+}
+
 func TestBuildMonitorReportsMemoryWithoutStalling(t *testing.T) {
 	t.Parallel()
 
 	cmd := startIdleTree(t)
-	stalls := make(chan struct{}, 1)
+	kills := make(chan error, 1)
 
-	// a zero stall timeout disables detection, so an idle tree must survive
-	monitor := startBuildMonitor(cmd.Process.Pid, newProgressWriter(io.Discard), 0, func() {
-		stalls <- struct{}{}
+	// zero windows disable detection, so an idle tree must survive
+	monitor := startBuildMonitor(cmd.Process.Pid, newProgressWriter(io.Discard), stallLimits{}, func(cause error) {
+		kills <- cause
 	})
 	time.Sleep(2 * buildPollInterval)
 	peak := monitor.stop()
@@ -176,8 +302,8 @@ func TestBuildMonitorReportsMemoryWithoutStalling(t *testing.T) {
 		t.Errorf("peak memory = %d kB, want > 0", peak)
 	}
 	select {
-	case <-stalls:
-		t.Error("onStall fired while stall detection was disabled")
+	case cause := <-kills:
+		t.Errorf("onKill fired with %v while detection was disabled", cause)
 	default:
 	}
 }
@@ -186,17 +312,51 @@ func TestBuildMonitorKillsIdleTree(t *testing.T) {
 	t.Parallel()
 
 	cmd := startIdleTree(t)
-	stalls := make(chan struct{}, 1)
+	kills := make(chan error, 1)
 
-	monitor := startBuildMonitor(cmd.Process.Pid, newProgressWriter(io.Discard), time.Millisecond, func() {
-		stalls <- struct{}{}
-	})
+	monitor := startBuildMonitor(cmd.Process.Pid, newProgressWriter(io.Discard),
+		stallLimits{stall: time.Millisecond, silence: time.Hour}, func(cause error) {
+			kills <- cause
+		})
 	defer monitor.stop()
 
 	select {
-	case <-stalls:
+	case cause := <-kills:
+		if !errors.Is(cause, ErrBuildStalled) {
+			t.Errorf("cause = %v, want %v", cause, ErrBuildStalled)
+		}
 	case <-time.After(30 * time.Second):
-		t.Fatal("onStall never fired for a process consuming no cpu")
+		t.Fatal("onKill never fired for a process consuming no cpu")
+	}
+}
+
+// TestBuildMonitorKillsSilentTree covers the window a busy build cannot escape,
+// end to end against a real process tree: this is the production hang, a spinning
+// test runner that writes nothing.
+//
+// Both windows are live and the stall window is the shorter of the two, so only the
+// tree's own CPU burn keeps it reopened long enough for silence to be what fires.
+// Point this at an idle tree instead and it fails with ErrBuildStalled, which is the
+// property that makes it worth running.
+func TestBuildMonitorKillsSilentTree(t *testing.T) {
+	t.Parallel()
+
+	cmd := startBusyTree(t)
+	kills := make(chan error, 1)
+
+	monitor := startBuildMonitor(cmd.Process.Pid, newProgressWriter(io.Discard),
+		stallLimits{stall: 3 * buildPollInterval, silence: 5 * buildPollInterval}, func(cause error) {
+			kills <- cause
+		})
+	defer monitor.stop()
+
+	select {
+	case cause := <-kills:
+		if !errors.Is(cause, ErrBuildSilent) {
+			t.Errorf("cause = %v, want %v", cause, ErrBuildSilent)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("onKill never fired for a process that produced no output")
 	}
 }
 

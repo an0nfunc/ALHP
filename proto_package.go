@@ -45,13 +45,20 @@ const (
 	// testing or staging. Publishing it would ship a package Arch has not
 	// released, with dependencies no released package satisfies.
 	SkipReasonUnreleased = "ahead of upstream repo"
-	// SkipReasonStalled and SkipReasonTimeout mark builds ALHP killed itself. These
-	// values are load-bearing: housekeeping keys on them to keep a killed build out
-	// of its requeue path, since a truncated kill log can match a fixable-error
-	// pattern by accident and would otherwise be rebuilt into the same hang forever.
+	// SkipReasonStalled, SkipReasonSilent and SkipReasonTimeout mark builds ALHP
+	// killed itself. These values are load-bearing: housekeeping keys on them via
+	// killSkipReasons to keep a killed build out of its requeue path, since a
+	// truncated kill log can match a fixable-error pattern by accident and would
+	// otherwise be rebuilt into the same hang forever.
 	SkipReasonStalled = "build stalled"
+	SkipReasonSilent  = "build silent"
 	SkipReasonTimeout = "build timeout"
 )
+
+// killSkipReasons is every skip reason killReason can persist. Housekeeping's
+// requeue paths exclude the whole set, so a new kill cause must be added here or
+// the build it kills gets rebuilt into the same hang.
+var killSkipReasons = []string{SkipReasonStalled, SkipReasonSilent, SkipReasonTimeout}
 
 type ProtoPackage struct {
 	Pkgbase   string
@@ -320,10 +327,10 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		return time.Since(start), fmt.Errorf("error starting build: %w", err)
 	}
 
-	stallTimeout := buildStallTimeout()
-	monitor := startBuildMonitor(cmd.Process.Pid, progress, stallTimeout, func() {
-		log.Warningf("[P] no progress from %s->%s->%s for %s, killing build", p.FullRepo, p.Pkgbase, p.Version, stallTimeout)
-		cancelBuild(ErrBuildStalled)
+	limits := buildStallLimits()
+	monitor := startBuildMonitor(cmd.Process.Pid, progress, limits, func(cause error) {
+		log.Warningf("[P] %s->%s->%s: %s, killing build", p.FullRepo, p.Pkgbase, p.Version, limits.reason(cause))
+		cancelBuild(cause)
 	})
 
 	err = cmd.Wait()

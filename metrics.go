@@ -19,7 +19,7 @@ func (b *BuildManager) setupMetrics(port uint32) {
 	// needing someone to read the journal
 	b.metrics.buildsKilled = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "build_killed_total",
-		Help: "Builds killed for making no progress or exceeding the build timeout",
+		Help: "Builds killed for making no progress, going silent, or exceeding the build timeout",
 	}, []string{"repository", "reason"})
 
 	mux := http.NewServeMux()
