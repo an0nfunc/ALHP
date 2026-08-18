@@ -34,6 +34,13 @@ func (b *BuildManager) setupMetrics(port uint32) {
 		Help: "Built packages left in the waiting dir because they could not be published",
 	}, []string{labelRepository, "reason"})
 
+	// pkgbases state.git still carries that no longer resolve upstream, usually
+	// because the pkgname was re-homed under a different pkgbase
+	b.metrics.staleStateFiles = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "stale_state_files",
+		Help: "State files whose pkgbase cannot be resolved in the upstream repositories",
+	}, []string{labelRepository})
+
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())
 	go func() {

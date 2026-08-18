@@ -829,32 +829,43 @@ func (p *ProtoPackage) isAvailable(ctx context.Context, h *alpm.Handle) bool {
 		var res []byte
 		res, err = cmd.Output()
 		if err != nil {
-			log.Warningf("error getting packages from pacsift for %s: %v", p.Pkgbase, err)
-			return false
-		} else if len(res) == 0 {
-			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
+			// pacsift exiting non-zero is a routine answer about one package, but
+			// failing to run at all is a host problem that blocks every package
+			// from ever being queued, and callers act on false destructively
+			var exitErr *exec.ExitError
+			switch {
+			case ctx.Err() != nil:
+				log.Debugf("pacsift canceled for %s: %v", p.Pkgbase, err)
+			case errors.As(err, &exitErr):
+				log.Debugf("pacsift found nothing for %s: %v", p.Pkgbase, err)
+			default:
+				log.Warningf("unable to run pacsift for %s: %v", p.Pkgbase, err)
+			}
 			return false
 		}
 
-		if len(strings.Split(strings.TrimSpace(string(res)), "\n")) > 0 {
-			pacsiftLines := strings.Split(strings.TrimSpace(string(res)), "\n")
-
-			var splitPkgs []string
-			for _, line := range pacsiftLines {
-				splitPkgs = append(splitPkgs, strings.Split(line, "/")[1])
+		var splitPkgs []string
+		for line := range strings.SplitSeq(strings.TrimSpace(string(res)), "\n") {
+			// pacsift prints "<repo>/<pkgname>"; anything else is not a package
+			// and must not reach SetPackages, which would poison the row
+			_, name, ok := strings.Cut(line, "/")
+			if !ok || name == "" {
+				continue
 			}
-
-			if p.DBPackage != nil {
-				p.DBPackage, err = p.DBPackage.Update().SetPackages(splitPkgs).Save(ctx)
-				if err != nil {
-					return false
-				}
-			}
-			pkg, err = dbs.FindSatisfier(splitPkgs[0])
-		} else {
-			log.Warningf("error getting packages from pacsift for %s", p.Pkgbase)
+			splitPkgs = append(splitPkgs, name)
+		}
+		if len(splitPkgs) == 0 {
+			log.Debugf("pacsift found nothing for %s", p.Pkgbase)
 			return false
 		}
+
+		if p.DBPackage != nil {
+			p.DBPackage, err = p.DBPackage.Update().SetPackages(splitPkgs).Save(ctx)
+			if err != nil {
+				return false
+			}
+		}
+		pkg, err = dbs.FindSatisfier(splitPkgs[0])
 	}
 	if err != nil {
 		log.Debugf("error resolving %s: %v", p.Pkgbase, err)

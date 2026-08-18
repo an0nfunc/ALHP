@@ -88,6 +88,7 @@ type BuildManager struct {
 		queueSize        *prometheus.GaugeVec
 		buildsKilled     *prometheus.CounterVec
 		waitingUnmovable *prometheus.GaugeVec
+		staleStateFiles  *prometheus.GaugeVec
 	}
 }
 
@@ -645,6 +646,10 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 	}
 
 	var pkgbuilds []*ProtoPackage
+	// state files whose pkgbase no longer resolves upstream. Reported once per repo
+	// at the end rather than per package per cycle: the condition is real and worth
+	// tracking, but it is permanent until state.git drops the file
+	unresolved := make(map[string]int)
 	for _, stateFile := range stateFiles {
 		stat, err := os.Stat(stateFile)
 		if err != nil || stat.IsDir() || strings.Contains(stateFile, ".git") || strings.Contains(stateFile, "README.md") {
@@ -684,6 +689,13 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 				Arch:     arch,
 			}
 
+			// seed the key so a repo that has no stale state files still reports a
+			// zero below. A gauge child persists once set, so leaving it absent
+			// would pin the last non-zero reading forever once upstream prunes them
+			if _, seen := unresolved[pkg.FullRepo]; !seen {
+				unresolved[pkg.FullRepo] = 0
+			}
+
 			err = pkg.toDBPackage(ctx, false)
 			if err != nil {
 				log.Warningf("[QG] error getting/creating dbpackage %s: %v", state.Pkgbase, err)
@@ -691,6 +703,13 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			}
 
 			if !pkg.isAvailable(ctx, alpmHandle) {
+				// mirrors the condition isAvailable takes its pacsift branch on
+				// (Srcinfo is nil until further down), so this counts stale state
+				// files only. Rows with a known package list also fail here whenever
+				// the mirror lags, and folding those in would ruin the trend
+				if pkg.DBPackage == nil || len(pkg.DBPackage.Packages) == 0 {
+					unresolved[pkg.FullRepo]++
+				}
 				log.Debugf("[QG] %s->%s not available on mirror, skipping build", pkg.FullRepo, pkg.Pkgbase)
 				continue
 			}
@@ -784,6 +803,13 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			}
 			pkgbuilds = append(pkgbuilds, pkg)
 			b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "queued").Inc()
+		}
+	}
+
+	for fullRepo, n := range unresolved {
+		b.metrics.staleStateFiles.WithLabelValues(fullRepo).Set(float64(n))
+		if n > 0 {
+			log.Infof("[QG] %s: %d pkgbases in state.git not resolvable upstream", fullRepo, n)
 		}
 	}
 
