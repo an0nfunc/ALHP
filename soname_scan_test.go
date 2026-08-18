@@ -9,9 +9,16 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-// writeTestPackage builds a .pkg.tar.zst holding the given members, mimicking
-// what makepkg produces: pacman metadata first, then the payload.
-func writeTestPackage(t *testing.T, path string, members map[string][]byte) {
+// tarMember is one archive entry. A slice rather than a map because Pkgbase only
+// looks at the first few members, so where a member lands is part of the fixture.
+type tarMember struct {
+	Name    string
+	Content []byte
+}
+
+// writeTestPackage builds a .pkg.tar.zst whose members appear in the given order,
+// as makepkg produces them: pacman metadata first, then the payload.
+func writeTestPackage(t *testing.T, path string, members []tarMember) {
 	t.Helper()
 
 	f, err := os.Create(path)
@@ -28,16 +35,16 @@ func writeTestPackage(t *testing.T, path string, members map[string][]byte) {
 	}
 	tw := tar.NewWriter(zw)
 
-	for name, content := range members {
+	for _, m := range members {
 		if err := tw.WriteHeader(&tar.Header{
-			Name:     name,
+			Name:     m.Name,
 			Mode:     0o644,
-			Size:     int64(len(content)),
+			Size:     int64(len(m.Content)),
 			Typeflag: tar.TypeReg,
 		}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := tw.Write(content); err != nil {
+		if _, err := tw.Write(m.Content); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -72,12 +79,12 @@ func TestScanPackagesSonames(t *testing.T) {
 	elf := testELF(t)
 	dir := t.TempDir()
 	pkg := filepath.Join(dir, "test-1.0-1-x86_64.pkg.tar.zst")
-	writeTestPackage(t, pkg, map[string][]byte{
-		".PKGINFO":             []byte("pkgname = test\npkgbase = test\n"),
-		".MTREE":               []byte("not an elf"),
-		"usr/bin/test":         elf,
-		"usr/share/doc/notes":  []byte("plain text, skipped"),
-		"usr/lib/libtest.so.1": []byte("too short to be an ELF"),
+	writeTestPackage(t, pkg, []tarMember{
+		{Name: pkginfoName, Content: []byte("pkgname = test\npkgbase = test\n")},
+		{Name: ".MTREE", Content: []byte("not an elf")},
+		{Name: "usr/bin/test", Content: elf},
+		{Name: "usr/share/doc/notes", Content: []byte("plain text, skipped")},
+		{Name: "usr/lib/libtest.so.1", Content: []byte("too short to be an ELF")},
 	})
 
 	scan, err := scanPackagesSonames([]string{pkg})

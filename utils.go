@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"somegit.dev/ALHP/ALHP.GO/ent"
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strconv"
 	"strings"
@@ -107,6 +108,7 @@ type Conf struct {
 	Housekeeping struct {
 		Interval                 string
 		SignatureRecheckInterval string `yaml:"signature_recheck_interval"`
+		StuckBuiltTimeout        string `yaml:"stuck_built_timeout"`
 	}
 	MaxCloneRetries uint64 `yaml:"max_clone_retries"`
 	Metrics         struct {
@@ -338,6 +340,95 @@ func stateFileMeta(stateFile string) (repo string, subRepo *string, arch string,
 	return
 }
 
+// disposition is what to do with an artifact sitting in the waiting dir whose db
+// row could not be resolved.
+type disposition int
+
+const (
+	// dispKeep leaves the artifact in place for the next cycle to retry. The default
+	// for anything unclassified: the waiting dir is re-read every cycle, so keeping
+	// costs a retry while deleting costs a build that already succeeded.
+	dispKeep disposition = iota
+	// dispDebug diverts the artifact to the debug store, which has no db rows.
+	dispDebug
+	// dispResolve re-resolves an ambiguous pkgname via the archive's own pkgbase.
+	dispResolve
+	// dispDelete drops the artifact. Only for a package nothing claims.
+	dispDelete
+	// dispPublish means the row resolved and the artifact can go to the repo.
+	// Only reachable with a nil error, which the sole caller filters out today;
+	// it exists so that lifting the switch out of that guard cannot silently turn
+	// every published package into a kept one.
+	dispPublish
+)
+
+// moveDisposition classifies a failure to resolve an artifact to its db row.
+// Deliberately separate from stateDisposition even though both end in a
+// keep-or-delete: they sort different error families, so a shared classifier would
+// have to test a filesystem predicate against ent errors and the reverse.
+func moveDisposition(err error, isDebug bool) disposition {
+	switch {
+	case err == nil:
+		return dispPublish
+	case isDebug:
+		// debug packages never have a row of their own, and must not be attributed
+		// to one: their .PKGINFO pkgbase points at the base package, so resolving
+		// would publish debug symbols into the repo db
+		return dispDebug
+	case ent.IsNotSingular(err):
+		return dispResolve
+	case ent.IsNotFound(err):
+		return dispDelete
+	default:
+		return dispKeep
+	}
+}
+
+// stateDisposition classifies a failure to read a package's state file. Only a
+// state file that is genuinely gone means the package was dropped upstream; EIO,
+// EACCES and the rest are transient and must not cost us the build.
+//
+// Keep the os.IsNotExist spelling. errors.Is(err, fs.ErrNotExist) unwraps the whole
+// chain, so once this predicate is reachable for a db error it would read a pgx dial
+// failure over a unix socket as "dropped upstream" and delete every waiting artifact.
+func stateDisposition(err error) disposition {
+	if os.IsNotExist(err) {
+		return dispDelete
+	}
+	return dispKeep
+}
+
+// Why an artifact could not be published, as the waitingUnmovable metric's reason
+// label. A pkgname no row can be attributed to and an unreadable state file need
+// different responses, so the gauge has to tell them apart.
+const (
+	keptReasonUnresolved = "unresolved"
+	keptReasonState      = "state"
+)
+
+// discardPackage removes an artifact and its detached signature from the waiting dir.
+func discardPackage(file string) {
+	_ = os.Remove(file)
+	_ = os.Remove(file + ".sig")
+}
+
+// storeDebugPackage copies a debug artifact into the debug store, which is keyed by
+// march alone and holds packages that never get a db row of their own.
+func storeDebugPackage(pkg Package, march string) error {
+	if err := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0o755); err != nil {
+		return fmt.Errorf("unable to create folder for debug-packages: %w", err)
+	}
+
+	forPackage := strings.TrimSuffix(pkg.Name(), debugSuffix)
+	log.Debugf("[MOVE] found debug package for package %s: %s", forPackage, pkg.Name())
+
+	dest := filepath.Join(conf.Basedir.Debug, march, filepath.Base(string(pkg)))
+	if _, err := os.Stat(dest); err == nil {
+		log.Warningf("[MOVE] overwrite existing debug infos for %s: %s", forPackage, dest)
+	}
+	return Copy(string(pkg), dest)
+}
+
 func movePackagesLive(ctx context.Context, fullRepo string) error {
 	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo)); os.IsNotExist(err) {
 		return nil
@@ -346,7 +437,7 @@ func movePackagesLive(ctx context.Context, fullRepo string) error {
 	}
 
 	march := strings.Join(strings.Split(fullRepo, "-")[1:], "-")
-	repo := strings.Split(fullRepo, "-")[0]
+	repo := dbpackage.Repository(strings.Split(fullRepo, "-")[0])
 
 	pkgFiles, err := filepath.Glob(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo, "*.pkg.tar.zst"))
 	if err != nil {
@@ -355,70 +446,101 @@ func movePackagesLive(ctx context.Context, fullRepo string) error {
 
 	toAdd := make([]*ProtoPackage, 0)
 	debugPkgs := 0
+	// kept artifacts by why we could not publish them, so the gauge distinguishes a
+	// pkgname collision from a filesystem problem instead of pointing at the wrong one
+	kept := map[string]int{keptReasonUnresolved: 0, keptReasonState: 0}
+
+	// deferred so the copy errors below cannot skip it: a partial count on an
+	// aborted cycle beats a stale full one, and the point of the gauge is that it
+	// keeps moving. Every reason is written every cycle, zero included, so a
+	// cleared condition reads as cleared rather than staying at its last value
+	defer func() {
+		for reason, n := range kept {
+			buildManager.metrics.waitingUnmovable.WithLabelValues(fullRepo, reason).Set(float64(n))
+		}
+	}()
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
-		dbPkg, err := pkg.DBPackageIsolated(ctx, march, dbpackage.Repository(repo), db)
+		dbPkg, err := pkg.DBPackageIsolated(ctx, march, repo, db)
 		if err != nil {
-			if pkg.IsDebug() {
-				mkErr := os.MkdirAll(filepath.Join(conf.Basedir.Debug, march), 0o755)
-				if mkErr != nil {
-					return fmt.Errorf("unable to create folder for debug-packages: %w", mkErr)
-				}
-				forPackage := strings.TrimSuffix(pkg.Name(), debugSuffix)
-				log.Debugf("[MOVE] found debug package for package %s: %s", forPackage, pkg.Name())
-				debugPkgs++
-
-				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, march, filepath.Base(file))); err == nil {
-					log.Warningf("[MOVE] overwrite existing debug infos for %s: %s", forPackage,
-						filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
-				}
-
-				err = Copy(file, filepath.Join(conf.Basedir.Debug, march, filepath.Base(file)))
-				if err != nil {
+			switch moveDisposition(err, pkg.IsDebug()) {
+			case dispDebug:
+				if err := storeDebugPackage(pkg, march); err != nil {
 					return err
 				}
-				_ = os.Remove(file)
-				_ = os.Remove(file + ".sig")
+				debugPkgs++
+				discardPackage(file)
 				continue
+			case dispResolve:
+				// a stale row still claims this pkgname; ask the archive who owns it
+				dbPkg, err = resolveOwner(ctx, pkg, march, repo, db)
+				if err != nil {
+					log.Warningf("[MOVE] cannot attribute %s, leaving in %s: %v", pkg.Name(), waitingDir, err)
+					kept[keptReasonUnresolved]++
+					continue
+				}
+			case dispDelete:
+				// nothing claims this pkgname: a genuine orphan
+				log.Warningf("[MOVE] deleting orphan package %s: %v", pkg.Name(), err)
+				discardPackage(file)
+				continue
+			case dispKeep:
+				// a db error or anything else we cannot classify
+				log.Warningf("[MOVE] cannot resolve %s, leaving in %s: %v", pkg.Name(), waitingDir, err)
+				kept[keptReasonUnresolved]++
+				continue
+			case dispPublish:
+				// unreachable: this arm only runs when err != nil
 			}
-
-			log.Warningf("[MOVE] deleting package %s: %v", pkg.Name(), err)
-			_ = os.Remove(file)
-			_ = os.Remove(file + ".sig")
-			continue
 		}
 
 		rawState, err := os.ReadFile(filepath.Join(conf.Basedir.Work, stateDir, dbPkg.Repository.String()+"-"+conf.Arch, dbPkg.Pkgbase))
 		if err != nil {
-			log.Warningf("[MOVE] state not found for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
-			_ = os.Remove(file)
-			_ = os.Remove(file + ".sig")
+			if stateDisposition(err) == dispDelete {
+				log.Warningf("[MOVE] state not found for %s->%s, dropping package: %v", fullRepo, dbPkg.Pkgbase, err)
+				discardPackage(file)
+				continue
+			}
+			log.Warningf("[MOVE] state unreadable for %s->%s, leaving in %s: %v",
+				fullRepo, dbPkg.Pkgbase, waitingDir, err)
+			kept[keptReasonState]++
 			continue
 		}
 
 		state, err := parseState(string(rawState))
 		if err != nil {
-			log.Warningf("[MOVE] error parsing state file for %s->%s: %v", fullRepo, dbPkg.Pkgbase, err)
-			_ = os.Remove(file)
-			_ = os.Remove(file + ".sig")
+			// unlike a missing state file, an unparsable one says nothing about
+			// whether the package still exists upstream, so it never deletes
+			log.Warningf("[MOVE] error parsing state file for %s->%s, leaving in %s: %v",
+				fullRepo, dbPkg.Pkgbase, waitingDir, err)
+			kept[keptReasonState]++
 			continue
 		}
 
-		err = Copy(file, filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)))
-		if err != nil {
+		// both files are copied before either is removed: a package published
+		// without its signature fails verification for everyone pulling it, and
+		// leaves a .sig behind that nothing globs
+		dest := filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))
+		if err := Copy(file, dest); err != nil {
 			return err
 		}
-		_ = os.Remove(file)
-		err = Copy(file+".sig", filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file)+".sig"))
-		if err != nil {
+		if err := Copy(file+".sig", dest+".sig"); err != nil {
+			// roll the package back out of the repo dir. repoDBHK re-adds anything
+			// on disk the db does not list, and runs before the signature recheck
+			// that would catch it, so leaving it here publishes it unsigned
+			if rErr := os.Remove(dest); rErr != nil {
+				log.Errorf("[MOVE] unable to roll back unsigned %s, it will be published: %v", dest, rErr)
+			}
+			// a copy that failed mid-write leaves a truncated signature behind
+			_ = os.Remove(dest + ".sig")
 			return err
 		}
-		_ = os.Remove(file + ".sig")
+		discardPackage(file)
 
 		toAdd = append(toAdd, &ProtoPackage{
 			DBPackage: dbPkg,
-			PkgFiles:  []string{filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, filepath.Base(file))},
+			PkgFiles:  []string{dest},
 			Version:   pkg.Version(),
 			March:     march,
 			State:     state,

@@ -96,6 +96,10 @@ func main() {
 		log.Panicf("seeding build numbers failed: %v", err)
 	}
 
+	if err := requeueTransient(ctx); err != nil {
+		log.Panicf("requeueing transient packages failed: %v", err)
+	}
+
 	buildManager = &BuildManager{
 		repoPurge:    make(map[string]chan []*ProtoPackage),
 		repoAdd:      make(map[string]chan []*ProtoPackage),
@@ -225,6 +229,37 @@ func seedBuildNo(ctx context.Context) error {
 
 	if seeded > 0 {
 		log.Infof("[SEED] seeded build numbers for %d packages", seeded)
+	}
+	return nil
+}
+
+// requeueTransient returns rows left mid-flight by the previous run to the queue.
+//
+// Startup only, and it has to stay that way: it rests on the same one-instance-per-
+// workspace assumption sweepBuildDirs documents, which is what makes "status says
+// building" unambiguous here and racy anywhere else.
+//
+// Most interrupted builds recover without this, because genQueue keys its
+// short-circuit on tag_rev rather than status. Two cases do not: a UseLatest drift
+// build bypasses that check and can sit at building with tag_rev already equal to
+// state.git, and the shutdown path in buildQueue is the one build error that neither
+// purges nor rewrites status, so nothing clears tag_rev for it. A plain SIGTERM
+// restart is enough to hit that.
+//
+// Clearing tag_rev is the half that matters; repo_version is deliberately left
+// alone, because a row interrupted mid-rebuild still has its previous version live
+// in the repo and isEligible needs to see it to decide whether to rebuild at all.
+// Signing is included only so the state cannot strand; nothing assigns it today.
+func requeueTransient(ctx context.Context) error {
+	requeued, err := db.DBPackage.Update().Where(
+		dbpackage.StatusIn(dbpackage.StatusBuilding, dbpackage.StatusSigning),
+	).SetStatus(dbpackage.StatusQueued).ClearTagRev().Save(ctx)
+	if err != nil {
+		return err
+	}
+
+	if requeued > 0 {
+		log.Infof("[SEED] requeued %d packages left mid-build by the last run", requeued)
 	}
 	return nil
 }

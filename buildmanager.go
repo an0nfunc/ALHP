@@ -85,8 +85,9 @@ type BuildManager struct {
 	// fresh checkout from gitlab.archlinux.org before failing at the same place.
 	isolationFailures atomic.Int64
 	metrics           struct {
-		queueSize    *prometheus.GaugeVec
-		buildsKilled *prometheus.CounterVec
+		queueSize        *prometheus.GaugeVec
+		buildsKilled     *prometheus.CounterVec
+		waitingUnmovable *prometheus.GaugeVec
 	}
 }
 

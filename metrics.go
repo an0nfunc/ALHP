@@ -9,18 +9,30 @@ import (
 	"net/http"
 )
 
+// labelRepository is the repo-march label every metric here is keyed by.
+const labelRepository = "repository"
+
 func (b *BuildManager) setupMetrics(port uint32) {
 	b.metrics.queueSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "build_queue_size",
 		Help: "Build queue size",
-	}, []string{"repository", "status"})
+	}, []string{labelRepository, "status"})
 
 	// counts builds ALHP terminated itself, so hangs show up as a rate instead of
 	// needing someone to read the journal
 	b.metrics.buildsKilled = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "build_killed_total",
 		Help: "Builds killed for making no progress, going silent, or exceeding the build timeout",
-	}, []string{"repository", "reason"})
+	}, []string{labelRepository, "reason"})
+
+	// built packages we could not publish and therefore kept rather than deleted.
+	// Deleting them used to be silent; keeping them would be too. Labeled by cause,
+	// because a pkgname no row can be attributed to and an unreadable state file
+	// need different responses
+	b.metrics.waitingUnmovable = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "waiting_unmovable_packages",
+		Help: "Built packages left in the waiting dir because they could not be published",
+	}, []string{labelRepository, "reason"})
 
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())

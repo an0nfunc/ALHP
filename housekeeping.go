@@ -23,6 +23,39 @@ func sigRecheckInterval() time.Duration {
 		"housekeeping.signature_recheck_interval")
 }
 
+// defaultStuckBuiltTimeout is how long a row may sit at built with nothing staged
+// before we treat the build as lost. movePackagesLive runs every cycle, so this
+// only has to clear the longest plausible gap between the two.
+const defaultStuckBuiltTimeout = time.Hour
+
+func stuckBuiltTimeout() time.Duration {
+	return confDuration(conf.Housekeeping.StuckBuiltTimeout, defaultStuckBuiltTimeout, "housekeeping.stuck_built_timeout")
+}
+
+// waitingMatches reports whether any staged artifact belongs to one of packages.
+// Signatures are ignored: the caller globs only *.pkg.tar.zst, and a stray .sig
+// alone is not a build we could publish.
+func waitingMatches(files, packages []string) bool {
+	for _, file := range files {
+		if Contains(packages, Package(file).Name()) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasWaitingArtifacts reports whether the waiting dir still holds a build for this
+// row, which means movePackagesLive has yet to publish it and it must be left alone.
+func hasWaitingArtifacts(fullRepo string, dbPkg *ent.DBPackage) bool {
+	files, err := filepath.Glob(filepath.Join(conf.Basedir.Work, waitingDir, fullRepo, "*.pkg.tar.zst"))
+	if err != nil {
+		// an unreadable waiting dir is not evidence the build is gone
+		log.Warningf("[HK] unable to read %s for %s: %v", waitingDir, fullRepo, err)
+		return true
+	}
+	return waitingMatches(files, dbPkg.Packages)
+}
+
 func housekeeping(ctx context.Context, repo, march string, provided providedSonames, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	fullRepo := repo + "-" + march
@@ -42,7 +75,8 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 		mPackage := Package(path)
 
 		dbPkg, err := mPackage.DBPackage(ctx, db)
-		if ent.IsNotFound(err) {
+		switch {
+		case ent.IsNotFound(err):
 			log.Infof("[HK] removing orphan %s->%s", fullRepo, filepath.Base(path))
 			pkg := &ProtoPackage{
 				FullRepo: *mPackage.FullRepo(),
@@ -51,7 +85,18 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 			}
 			buildManager.repoPurge[pkg.FullRepo] <- []*ProtoPackage{pkg}
 			continue
-		} else if err != nil {
+		case ent.IsNotSingular(err):
+			// a stale row still claims this pkgname after an upstream pkgname move.
+			// Skipping would exempt a published package from every check below for as
+			// long as the collision lasts, so attribute it via its own .PKGINFO instead
+			dbPkg, err = resolveOwner(ctx, mPackage, *mPackage.MArch(), mPackage.Repo(), db)
+			if err != nil {
+				// the checks below purge and requeue, so an unattributable artifact
+				// has to be left alone rather than acted on against a guessed row
+				log.Warningf("[HK] cannot attribute %s->%q, skipping: %v", fullRepo, path, err)
+				continue
+			}
+		case err != nil:
 			log.Warningf("[HK] error fetching %s->%q from db: %v", fullRepo, path, err)
 			continue
 		}
@@ -257,6 +302,34 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 		}
 
 		switch {
+		case dbPkg.Status == dbpackage.StatusBuilt &&
+			time.Since(dbPkg.BuildTimeStart) > stuckBuiltTimeout() &&
+			!hasWaitingArtifacts(fullRepo, dbPkg):
+			// built with nothing staged means the artifacts were lost between the
+			// build and movePackagesLive, so the package has to be built again.
+			//
+			// The waiting-dir check is the real guard, not the timeout: a long cycle
+			// legitimately leaves a package at built for hours with its artifacts
+			// staged, and BuildTimeStart is the build's start, so the timeout is
+			// already satisfied for exactly those.
+			//
+			// The status predicate narrows, rather than closes, the window after
+			// movePackagesLive removed the artifacts and before repoWorker sets
+			// latest: repoWorker, unlike builds, runs concurrently with housekeeping.
+			// It covers the gap between the row snapshot above and this update, which
+			// is wide because the loop can spawn a subprocess per row. Losing the race
+			// is harmless anyway, since repoWorker rewrites status, tag_rev and
+			// repo_version afterwards; the cost is one misleading log line.
+			requeued, uErr := db.DBPackage.Update().Where(
+				dbpackage.ID(dbPkg.ID),
+				dbpackage.StatusEQ(dbpackage.StatusBuilt),
+			).SetStatus(dbpackage.StatusQueued).ClearTagRev().Save(ctx)
+			if uErr != nil {
+				return uErr
+			}
+			if requeued > 0 {
+				log.Infof("[HK] requeue stranded built package %s->%s", fullRepo, dbPkg.Pkgbase)
+			}
 		case dbPkg.Status == dbpackage.StatusLatest && dbPkg.RepoVersion != "":
 			// check lastVersionBuild
 			if dbPkg.LastVersionBuild != dbPkg.RepoVersion {

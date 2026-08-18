@@ -74,5 +74,10 @@ housekeeping:
   # accepts any time.ParseDuration string (e.g. "24h", "12h", "30m"), default: 24h
   signature_recheck_interval: "24h"
 
+  # how long a package may sit built-but-unpublished, with no artifacts staged for it,
+  # before it is queued for a rebuild. only reached when the built artifacts were lost
+  # accepts any time.ParseDuration string (e.g. "1h", "30m"), default: 1h
+  stuck_built_timeout: "1h"
+
 metrics:
   port: 9568
