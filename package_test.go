@@ -67,8 +67,9 @@ func TestPackagePkgbase(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// makepkg always writes .PKGINFO first, so anything that buries it is
-			// not one of ours and must not cost a full archive walk to reject
+			// makepkg writes .PKGINFO third, after .BUILDINFO and .MTREE, so
+			// anything that buries it deeper is not one of ours and must not cost
+			// a full archive walk to reject
 			name:    "beyond the member bound",
 			members: buriedPkginfo(),
 			wantErr: true,

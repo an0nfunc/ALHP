@@ -94,9 +94,9 @@ func (pkg Package) HasValidSignature() (bool, error) {
 const pkginfoName = ".PKGINFO"
 
 // maxPkginfoMembers caps how far into an archive we look for .PKGINFO. makepkg
-// writes it first, so anything beyond the first handful of members means the
-// archive is not one of ours and we would otherwise walk a whole package to
-// find that out.
+// writes it third, after .BUILDINFO and .MTREE, so anything beyond the first
+// handful of members means the archive is not one of ours and we would otherwise
+// walk a whole package to find that out.
 const maxPkginfoMembers = 8
 
 // errNoPkgbase reports an archive that carries no usable pkgbase. makepkg emits
@@ -104,15 +104,23 @@ const maxPkginfoMembers = 8
 // corrupt or foreign archive rather than a package we could guess a base for.
 var errNoPkgbase = errors.New("no pkgbase in " + pkginfoName)
 
-// Pkgbase reads pkgbase out of the package's .PKGINFO. Unlike Name(), which is
-// derived from the filename, this is authoritative: it is what lets a pkgname
-// claimed by more than one db row be attributed to the row that actually owns
-// it after an upstream pkgname move.
-func (pkg Package) Pkgbase() (string, error) {
+// errNoPkginfo reports an archive with no .PKGINFO among its leading members,
+// which means a corrupt or foreign archive rather than a package of ours.
+var errNoPkginfo = errors.New("no " + pkginfoName + " in archive")
+
+// pkginfoValues reads the values of the named .PKGINFO keys, each in file order.
+// A key with no entries is absent from the result, which callers distinguish from
+// an unreadable archive by the error. Several keys per call because the archive is
+// decompressed to read them and doing that once per key is the whole cost.
+//
+// The bounded walk is the point: an archive whose .PKGINFO is not in the first
+// few members is not one of ours, and scanning on would decompress a whole
+// package to learn that.
+func (pkg Package) pkginfoValues(keys ...string) (map[string][]string, error) {
 	path := string(pkg)
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer func() {
 		_ = f.Close()
@@ -120,7 +128,7 @@ func (pkg Package) Pkgbase() (string, error) {
 
 	zr, err := zstd.NewReader(f)
 	if err != nil {
-		return "", fmt.Errorf("error opening %s: %w", path, err)
+		return nil, fmt.Errorf("error opening %s: %w", path, err)
 	}
 	defer zr.Close()
 
@@ -131,7 +139,7 @@ func (pkg Package) Pkgbase() (string, error) {
 			break
 		}
 		if err != nil {
-			return "", fmt.Errorf("error reading %s: %w", path, err)
+			return nil, fmt.Errorf("error reading %s: %w", path, err)
 		}
 		if hdr.Name != pkginfoName {
 			continue
@@ -139,23 +147,44 @@ func (pkg Package) Pkgbase() (string, error) {
 
 		// .PKGINFO is a handful of "key = value" lines; bufio.Scanner's default
 		// 64KB line cap is well above anything makepkg writes.
+		values := make(map[string][]string, len(keys))
 		scanner := bufio.NewScanner(tr)
 		for scanner.Scan() {
-			base, ok := strings.CutPrefix(scanner.Text(), "pkgbase = ")
-			if !ok {
-				continue
-			}
-			if base = strings.TrimSpace(base); base != "" {
-				return base, nil
+			line := scanner.Text()
+			for _, key := range keys {
+				value, ok := strings.CutPrefix(line, key+" = ")
+				if !ok {
+					continue
+				}
+				if value = strings.TrimSpace(value); value != "" {
+					values[key] = append(values[key], value)
+				}
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			return "", fmt.Errorf("error reading %s from %s: %w", pkginfoName, path, err)
+			return nil, fmt.Errorf("error reading %s from %s: %w", pkginfoName, path, err)
 		}
-		break
+		return values, nil
 	}
 
-	return "", fmt.Errorf("%s: %w", path, errNoPkgbase)
+	return nil, fmt.Errorf("%s: %w", path, errNoPkginfo)
+}
+
+// Pkgbase reads pkgbase out of the package's .PKGINFO. Unlike Name(), which is
+// derived from the filename, this is authoritative: it is what lets a pkgname
+// claimed by more than one db row be attributed to the row that actually owns
+// it after an upstream pkgname move.
+func (pkg Package) Pkgbase() (string, error) {
+	values, err := pkg.pkginfoValues("pkgbase")
+	if err != nil {
+		return "", err
+	}
+	base := values["pkgbase"]
+	if len(base) == 0 {
+		return "", fmt.Errorf("%s: %w", string(pkg), errNoPkgbase)
+	}
+
+	return base[0], nil
 }
 
 // DBPackage returns ent.DBPackage for package
