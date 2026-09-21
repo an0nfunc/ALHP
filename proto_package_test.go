@@ -152,7 +152,7 @@ func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
 		Pkgbuild: pkgbuild.Name(),
 	}
 
-	err = buildPkg.increasePkgRel(1)
+	err = buildPkg.increasePkgRel(t.Context(), 1)
 	if err != nil {
 		t.Logf("increasePkgRel: %v", err)
 		t.Fail()
@@ -165,7 +165,7 @@ func TestIncreasePkgRel(t *testing.T) { //nolint:paralleltest
 	}
 
 	buildPkg.Srcinfo = nil
-	err = buildPkg.genSrcinfo()
+	err = buildPkg.genSrcinfo(t.Context())
 	if err != nil {
 		t.Logf("increasePkgRel: %v", err)
 		t.Fail()
@@ -199,13 +199,13 @@ func TestIncreasePkgRelWithPkgSub(t *testing.T) { //nolint:paralleltest
 
 	// upstream already owns 1.1, so the build number has to clear it; passing
 	// one that does not is a caller bug and must not silently republish 1.1
-	if err := buildPkg.increasePkgRel(1); err == nil {
+	if err := buildPkg.increasePkgRel(t.Context(), 1); err == nil {
 		t.Logf("increasePkgRel: expected build number 1 to be rejected against upstream pkgrel 1.1, got %s",
 			buildPkg.Version)
 		t.Fail()
 	}
 
-	err = buildPkg.increasePkgRel(2)
+	err = buildPkg.increasePkgRel(t.Context(), 2)
 	if err != nil {
 		t.Logf("increasePkgRel: %v", err)
 		t.Fail()
@@ -218,7 +218,7 @@ func TestIncreasePkgRelWithPkgSub(t *testing.T) { //nolint:paralleltest
 	}
 
 	buildPkg.Srcinfo = nil
-	err = buildPkg.genSrcinfo()
+	err = buildPkg.genSrcinfo(t.Context())
 	if err != nil {
 		t.Logf("increasePkgRel: %v", err)
 		t.Fail()
@@ -400,7 +400,7 @@ func TestNextBuildNoNeverReusesAFilename(t *testing.T) {
 				}
 				dbPkg.BuildNo, dbPkg.MaxVersionBase = buildNo, maxVersionBase
 
-				if err := p.increasePkgRel(buildNo); err != nil {
+				if err := p.increasePkgRel(t.Context(), buildNo); err != nil {
 					t.Fatalf("build %d of %s: increasePkgRel: %v", i, version, err)
 				}
 				if published[p.Version] {

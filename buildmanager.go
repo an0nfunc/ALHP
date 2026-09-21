@@ -94,6 +94,7 @@ type BuildManager struct {
 		waitingUnmovable      *prometheus.GaugeVec
 		staleStateFiles       *prometheus.GaugeVec
 		defeatedBoundPackages *prometheus.GaugeVec
+		boundRewritesRefused  *prometheus.CounterVec
 		defeatedBoundEntries  *prometheus.CounterVec
 	}
 }

@@ -48,6 +48,14 @@ func (b *BuildManager) setupMetrics(port uint32) {
 		Help: "Published packages whose version is above an upstream conflicts/replaces bound written against them",
 	}, []string{labelRepository})
 
+	// builds where the bound rewrite could not be applied or proven, so the build
+	// went ahead carrying the bug. Counts build attempts, not bound entries, so it
+	// stays separate from defeatedBoundEntries below
+	b.metrics.boundRewritesRefused = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "bound_rewrites_refused_total",
+		Help: "Build attempts where the conflicts/replaces bound rewrite could not be applied or verified",
+	}, []string{labelRepository})
+
 	// conflicts/replaces bound entries observed that our build numbers defeat,
 	// labeled by where we saw it. "artifact" is a built package that still carries
 	// one; "purged" is the merge moment itself, caught as the package leaves the

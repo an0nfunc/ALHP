@@ -178,8 +178,16 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		}
 	}()
 
-	err = p.genSrcinfo()
+	err = p.genSrcinfo(ctx)
 	if err != nil {
+		// A deadline or a shutdown says the host ran out of time, not that the
+		// package is broken, and the plain error below reaches the purge. Without
+		// this a slow PKGBUILD deletes its own published build, which is the one
+		// thing the timeout must not be able to cause.
+		if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) {
+			return time.Since(start), fmt.Errorf("%w: error generating srcinfo: %w", ErrorNotEligible, err)
+		}
+
 		return time.Since(start), fmt.Errorf("error generating srcinfo: %w", err)
 	}
 	p.Version = constructVersion(p.Srcinfo.Pkgver, p.Srcinfo.Pkgrel, p.Srcinfo.Epoch)
@@ -276,9 +284,36 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	priorSkipReason := p.DBPackage.SkipReason
 	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
 
-	err = p.importKeys()
+	err = p.importKeys(ctx)
 	if err != nil {
 		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
+	}
+
+	// before nextBuildNo: a rewrite we cannot prove is abandoned, and abandoning
+	// it must not consume a build number. Also before increasePkgRel, so the bound
+	// edit is the only change in flight and p.Srcinfo is still upstream's
+	if err := p.prepareBoundRewrite(ctx); err != nil {
+		// a shutdown killing makepkg mid-reparse is not the package's fault, and
+		// counting it would both dirty the metric and consume a build number for
+		// every package in flight at the time
+		if ctx.Err() != nil {
+			return time.Since(start), ctx.Err()
+		}
+		// counted before the branch below, so the attempt that most conclusively
+		// could not be verified is not the one the counter misses
+		buildManager.metrics.boundRewritesRefused.WithLabelValues(p.FullRepo).Inc()
+		if errors.Is(err, errPkgbuildDirty) {
+			// Neither the original nor a proven rewrite, so building it would
+			// publish something nothing has vetted. Wrapped in ErrorNotEligible so
+			// the published version survives: the only way to get here is a failed
+			// write, which is a host fault (ENOSPC, EIO, a read-only mount) that
+			// says nothing about the package and would otherwise walk the repo
+			// deleting every build in turn.
+			return time.Since(start), fmt.Errorf("%w: %w", ErrorNotEligible, err)
+		}
+		// otherwise today's behavior, minus the fix: the package still carries the
+		// bug and checkArtifactBounds reports it, which beats not publishing it
+		log.Warningf("[P] %s->%s building without bound rewrite: %v", p.FullRepo, p.Pkgbase, err)
 	}
 
 	buildNo, maxVersionBase, err := p.nextBuildNo()
@@ -290,7 +325,7 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	// nothing the artifact may already have been moved live
 	p.DBPackage = p.DBPackage.Update().SetBuildNo(buildNo).SetMaxVersionBase(maxVersionBase).SaveX(ctx)
 
-	err = p.increasePkgRel(buildNo)
+	err = p.increasePkgRel(ctx, buildNo)
 	if err != nil {
 		return time.Since(start), fmt.Errorf("error while increasing pkgrel: %w", err)
 	}
@@ -502,6 +537,14 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 		default:
 			sonames = scan.trackable(provided)
 		}
+	}
+
+	// after the soname gate, so a discarded artifact is not inspected, and before
+	// the row is marked built. Reports without discarding: a surviving bound means
+	// the artifact is what ALHP ships today, so withholding it would cost users a
+	// package to fix nothing
+	if n := p.checkArtifactBounds(); n > 0 {
+		buildManager.metrics.defeatedBoundEntries.WithLabelValues(p.FullRepo, "artifact").Add(float64(n))
 	}
 
 	updatePkg := p.DBPackage.Update().
@@ -725,9 +768,9 @@ func (p *ProtoPackage) nextBuildNo() (buildNo int, maxVersionBase string, err er
 // build publishes under build number buildNo. buildNo is the trailing pkgrel
 // component verbatim, so it has to clear any build number upstream's own pkgrel
 // carries; nextBuildNo is what guarantees that.
-func (p *ProtoPackage) increasePkgRel(buildNo int) error {
+func (p *ProtoPackage) increasePkgRel(ctx context.Context, buildNo int) error {
 	if p.Srcinfo == nil {
-		err := p.genSrcinfo()
+		err := p.genSrcinfo(ctx)
 		if err != nil {
 			return fmt.Errorf("error generating srcinfo: %w", err)
 		}
@@ -788,9 +831,9 @@ func (p *ProtoPackage) increasePkgRel(buildNo int) error {
 	return nil
 }
 
-func (p *ProtoPackage) importKeys() error {
+func (p *ProtoPackage) importKeys(ctx context.Context) error {
 	if p.Srcinfo == nil {
-		err := p.genSrcinfo()
+		err := p.genSrcinfo(ctx)
 		if err != nil {
 			return fmt.Errorf("error generating srcinfo: %w", err)
 		}
@@ -979,19 +1022,58 @@ func (p *ProtoPackage) isPkgFailed() bool {
 	return p.DBPackage.Status == dbpackage.StatusFailed
 }
 
-func (p *ProtoPackage) genSrcinfo() error {
+// printSrcinfoTimeout bounds a --printsrcinfo run. makepkg sources the PKGBUILD
+// to produce it, so upstream top-level code runs here, and a package that blocks
+// there would hold its build slot forever: the stall and silence windows watch
+// the build command, not this.
+//
+// Generous because real packages are slower than they look: most print in a
+// couple of seconds, but mesa and linux-firmware take about 15s and
+// gst-plugins-rs, which carries bounds this feature exists to rewrite, has been
+// measured between 52s and 93s on an idle host. A build machine runs several
+// builds at once, so the ceiling has to clear that by a wide margin or the
+// rewrite lands or not depending on load. This still bounds the hang, two orders
+// of magnitude under a build timeout.
+const printSrcinfoTimeout = 5 * time.Minute
+
+// printSrcinfo returns the srcinfo makepkg resolves from pkgbuild, under a
+// deadline because producing it executes upstream bash.
+func printSrcinfo(ctx context.Context, pkgbuild string) (*srcinfo.Srcinfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, printSrcinfoTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "makepkg", "--printsrcinfo", "-p", filepath.Base(pkgbuild)) //nolint:gosec
+	cmd.Dir = filepath.Dir(pkgbuild)
+	// the whole group, since the PKGBUILD's own top-level code may have forked:
+	// killing the direct child alone leaves those behind on every deadline, one
+	// leak per attempt for a package that is retried every cycle
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = killProcessGroup(cmd)
+	// a child still holding the pipe must not outlive the deadline, since
+	// CombinedOutput waits on the pipe rather than on the process
+	cmd.WaitDelay = time.Second
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		// the exit status of a killed makepkg is "signal: killed", which says
+		// nothing about the package. Surface the context error instead, so callers
+		// can tell a host that ran out of time from a PKGBUILD that cannot parse
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("makepkg --printsrcinfo did not finish (PKGBUILD: %s): %w", pkgbuild, ctxErr)
+		}
+
+		return nil, fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %w (%s)", pkgbuild, err, string(res))
+	}
+
+	return srcinfo.Parse(string(res))
+}
+
+func (p *ProtoPackage) genSrcinfo(ctx context.Context) error {
 	if p.Srcinfo != nil {
 		return nil
 	}
 
-	cmd := exec.Command("makepkg", "--printsrcinfo", "-p", filepath.Base(p.Pkgbuild)) //nolint:gosec
-	cmd.Dir = filepath.Dir(p.Pkgbuild)
-	res, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("makepkg exit non-zero (PKGBUILD: %s): %w (%s)", p.Pkgbuild, err, string(res))
-	}
-
-	info, err := srcinfo.Parse(string(res))
+	info, err := printSrcinfo(ctx, p.Pkgbuild)
 	if err != nil {
 		return err
 	}
