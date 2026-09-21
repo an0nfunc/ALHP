@@ -7,6 +7,9 @@ linters:
     - err113
     - errname
     - exhaustruct
+    # renamed in golangci-lint 2.13, both names kept so the disable
+    # survives the rename. Needs >= 2.13, which Go 1.27 requires anyway
+    - exhaustruct_v5
     - forcetypeassert
     - funcorder
     - funlen
