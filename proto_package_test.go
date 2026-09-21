@@ -3,11 +3,16 @@ package main
 import (
 	"github.com/Morganamilo/go-srcinfo"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"somegit.dev/ALHP/ALHP.GO/ent"
 	"strings"
 	"testing"
 )
+
+// mozillaPrimary is the shape validpgpkeys takes: a primary fingerprint, with
+// the signing subkey it carries named nowhere.
+const mozillaPrimary = "14F26682D0916CDD81E37B6D61B7B526D98F0353"
 
 const PkgbuildTest = `# Maintainer: Jan Alexander Steffens (heftig) <heftig@archlinux.org>
 
@@ -479,5 +484,139 @@ func TestRaiseBuildNo(t *testing.T) {
 					base, buildNo, tc.wantMaxVersion, tc.wantBuildNo)
 			}
 		})
+	}
+}
+
+// gpgStub puts a gpg on PATH that records every --recv-keys invocation and
+// answers --list-keys as asked, so importKeys can be exercised without a keyring
+// or a network. --recv-keys exits zero without importing, which is what a
+// keyserver holding a key with no user IDs produces. Returns the path the calls
+// are recorded to, which does not exist until one is made.
+func gpgStub(t *testing.T, keysResolve bool) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	calls := filepath.Join(dir, "calls")
+
+	listExit := "1"
+	if keysResolve {
+		listExit = "0"
+	}
+
+	stub := "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n" +
+		"    --recv-keys) echo \"$@\" >> '" + calls + "'; exit 0 ;;\n" +
+		"    --list-keys) exit " + listExit + " ;;\n  esac\ndone\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "gpg"), []byte(stub), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	return calls
+}
+
+// TestAbsentKeysReportsUnknown covers the check importKeys reports on. GNUPGHOME
+// is redirected because gpg creates a keybox and a trustdb on first use, and the
+// suite must not write into the keyring of whoever runs it.
+func TestAbsentKeysReportsUnknown(t *testing.T) {
+	if _, err := exec.LookPath("gpg"); err != nil {
+		t.Skip("gpg not available")
+	}
+	t.Setenv("GNUPGHOME", t.TempDir())
+
+	// a syntactically valid long key id that no keyring can resolve
+	const unknown = "0000000000000000"
+
+	absent := absentKeys(t.Context(), []string{unknown})
+	if len(absent) != 1 || absent[0] != unknown {
+		t.Errorf("absentKeys(%q) = %v, want [%q]", unknown, absent, unknown)
+	}
+
+	if absent := absentKeys(t.Context(), nil); absent != nil {
+		t.Errorf("absentKeys(nil) = %v, want nil", absent)
+	}
+
+	// validpgpkeys is upstream text, and gpg has no positional boundary: read as
+	// an option this one exits zero and lists the whole keyring, which without the
+	// end-of-options guard reads as a key that is present
+	const optionShaped = "--with-colons"
+
+	absent = absentKeys(t.Context(), []string{optionShaped})
+	if len(absent) != 1 || absent[0] != optionShaped {
+		t.Errorf("absentKeys(%q) = %v, want [%q]", optionShaped, absent, optionShaped)
+	}
+}
+
+// TestImportKeysWithoutValidPGPKeys guards the common case: most packages declare
+// none, and those must not reach a keyserver at all.
+func TestImportKeysWithoutValidPGPKeys(t *testing.T) { //nolint:paralleltest
+	calls := gpgStub(t, true)
+
+	p := &ProtoPackage{Srcinfo: &srcinfo.Srcinfo{}}
+	if err := p.importKeys(t.Context()); err != nil {
+		t.Fatalf("importKeys() with no validpgpkeys = %v, want nil", err)
+	}
+
+	if recorded, err := os.ReadFile(calls); err == nil {
+		t.Errorf("a package declaring no keys still queried a keyserver: %s", recorded)
+	}
+}
+
+// TestImportKeysFetchesEvenWhenKeysResolve pins the property that makes a key
+// rotation recoverable. validpgpkeys names primary fingerprints, so a primary
+// imported by an earlier build resolves even when the signing subkey upstream
+// moved to is absent. Fetching only the keys that fail to resolve therefore
+// fetches nothing in exactly the case that needs it.
+func TestImportKeysFetchesEvenWhenKeysResolve(t *testing.T) { //nolint:paralleltest
+	calls := gpgStub(t, true)
+
+	p := &ProtoPackage{Srcinfo: &srcinfo.Srcinfo{
+		PackageBase: srcinfo.PackageBase{ValidPGPKeys: []string{mozillaPrimary}},
+	}}
+	if err := p.importKeys(t.Context()); err != nil {
+		t.Fatalf("importKeys() = %v, want nil", err)
+	}
+
+	recorded, err := os.ReadFile(calls)
+	if err != nil {
+		t.Fatalf("no --recv-keys was attempted, so a rotated subkey would never arrive: %v", err)
+	}
+	if !strings.Contains(string(recorded), mozillaPrimary) {
+		t.Errorf("--recv-keys did not ask for the declared key: %s", recorded)
+	}
+
+	// the fetch takes the same upstream text the probe does, so it needs the same
+	// end-of-options guard: an option-shaped entry is otherwise read as an option,
+	// and one gpg accepts makes the round exit zero having fetched nothing
+	if !strings.Contains(string(recorded), "--recv-keys -- ") {
+		t.Errorf("--recv-keys was not given an end-of-options marker: %s", recorded)
+	}
+}
+
+// TestImportKeysTriesEveryKeyserver guards the other half of the same property.
+// A zero exit does not mean the key arrived: a server holding it without user IDs
+// skips the import and still exits zero. Stopping at the first such server leaves
+// the key absent when a later one would have supplied it.
+func TestImportKeysTriesEveryKeyserver(t *testing.T) { //nolint:paralleltest
+	calls := gpgStub(t, false)
+
+	p := &ProtoPackage{Srcinfo: &srcinfo.Srcinfo{
+		PackageBase: srcinfo.PackageBase{ValidPGPKeys: []string{mozillaPrimary}},
+	}}
+	err := p.importKeys(t.Context())
+	if err == nil {
+		t.Fatal("importKeys() = nil, want an error naming the key still absent")
+	}
+	if !strings.Contains(err.Error(), mozillaPrimary) {
+		t.Errorf("error does not name the absent key: %v", err)
+	}
+
+	recorded, readErr := os.ReadFile(calls)
+	if readErr != nil {
+		t.Fatalf("no keyserver was queried: %v", readErr)
+	}
+	for _, keyserver := range keyservers {
+		if !strings.Contains(string(recorded), keyserver) {
+			t.Errorf("keyserver %q was never queried although the key stayed absent:\n%s", keyserver, recorded)
+		}
 	}
 }

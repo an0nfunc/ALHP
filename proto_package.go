@@ -284,9 +284,12 @@ func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
 	priorSkipReason := p.DBPackage.SkipReason
 	p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusBuilding).ClearSkipReason().SaveX(ctx)
 
-	err = p.importKeys(ctx)
-	if err != nil {
-		log.Warningf("[P] failed to import pgp keys for %s->%s->%s: %v", p.FullRepo, p.Pkgbase, p.Version, err)
+	// not fatal: makepkg verifies the sources itself and fails the build with its
+	// own message, which names the key but not why it is absent. This line carries
+	// what it cannot, the declared keys no keyserver supplied and whatever any
+	// server that failed reported.
+	if err := p.importKeys(ctx); err != nil {
+		log.Warningf("[P] %s->%s->%s source verification will fail: %v", p.FullRepo, p.Pkgbase, p.Version, err)
 	}
 
 	// before nextBuildNo: a rewrite we cannot prove is abandoned, and abandoning
@@ -831,24 +834,122 @@ func (p *ProtoPackage) increasePkgRel(ctx context.Context, buildNo int) error {
 	return nil
 }
 
+// keyservers are all queried, in order, rather than stopping at the first that
+// succeeds. A zero exit says nothing about whether a key arrived: gpg exits zero
+// for one it fetched but skipped, which is what a server holding a key without
+// user IDs returns, and a server can also answer with a copy predating a signing
+// subkey rotation. In both cases the next server may hold what the previous one
+// did not, and neither is visible from the exit status.
+//
+// hkps rather than a bare host, which gpg reads as hkp on port 11371 in the
+// clear. The fingerprint binding means an on-path answer cannot substitute a
+// key, but it can withhold one or serve a copy predating a rotation.
+var keyservers = []string{"hkps://keys.openpgp.org", "hkps://keyserver.ubuntu.com"}
+
+// importKeys fetches the PGP keys makepkg will verify the sources against, and
+// reports the ones no keyserver could supply.
+//
+// The fetch is unconditional. validpgpkeys names primary fingerprints, and a
+// primary already in the keyring resolves whether or not the signing subkey
+// upstream has rotated to is under it, so fetching only the keys that fail to
+// resolve would never pick a rotation up. What the resolve check decides is
+// whether to report: a keyserver being unreachable does not matter for a package
+// whose keys are all present, and saying so every time buries the case where one
+// is not.
+//
+// A subkey absent from every keyserver's copy stays invisible here, because
+// nothing names it. makepkg's own verification is what catches that.
 func (p *ProtoPackage) importKeys(ctx context.Context) error {
 	if p.Srcinfo == nil {
-		err := p.genSrcinfo(ctx)
-		if err != nil {
+		if err := p.genSrcinfo(ctx); err != nil {
 			return fmt.Errorf("error generating srcinfo: %w", err)
 		}
 	}
 
-	if p.Srcinfo.ValidPGPKeys != nil {
-		args := make([]string, 0, 3+len(p.Srcinfo.ValidPGPKeys))
-		args = append(args, "--keyserver", "keyserver.ubuntu.com", "--recv-keys")
-		args = append(args, p.Srcinfo.ValidPGPKeys...)
-		cmd := exec.Command("gpg", args...)
-		_, err := cmd.CombinedOutput()
-
-		return err
+	if len(p.Srcinfo.ValidPGPKeys) == 0 {
+		return nil
 	}
+
+	var errs []error
+	for _, keyserver := range keyservers {
+		if err := recvKeys(ctx, keyserver, p.Srcinfo.ValidPGPKeys); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", keyserver, err))
+		}
+	}
+
+	// a shutdown fails every probe below, which would report each declared key as
+	// absent for whatever was in flight at the time
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	absent := absentKeys(ctx, p.Srcinfo.ValidPGPKeys)
+	if len(absent) == 0 {
+		return nil
+	}
+
+	// gpg exits zero for a key it fetched but did not import, such as one a
+	// keyserver serves without a user ID, so errs can be empty while keys are
+	// still absent
+	return errors.Join(
+		fmt.Errorf("keys %v absent after trying every keyserver", absent),
+		errors.Join(errs...),
+	)
+}
+
+// recvKeysTimeout bounds one keyserver round. dirmngr does not fall back to
+// another address when a keyserver resolves to one the host cannot reach, so
+// without a deadline an unreachable server holds the build slot.
+const recvKeysTimeout = 2 * time.Minute
+
+// recvKeys pulls keys from one keyserver under a deadline.
+func recvKeys(ctx context.Context, keyserver string, keys []string) error {
+	ctx, cancel := context.WithTimeout(ctx, recvKeysTimeout)
+	defer cancel()
+
+	// -- for the same reason absentKeys uses it: these are upstream text, and gpg
+	// has no positional boundary, so an option-shaped entry is read as an option.
+	// One gpg accepts makes the round exit zero having fetched nothing, and one
+	// taking an argument swallows the next declared key
+	args := make([]string, 0, 4+len(keys))
+	args = append(args, "--keyserver", keyserver, "--recv-keys", "--")
+	args = append(args, keys...)
+
+	cmd := exec.CommandContext(ctx, "gpg", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = killProcessGroup(cmd)
+	cmd.WaitDelay = time.Second
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+
+		return fmt.Errorf("%w (%s)", err, strings.TrimSpace(string(res)))
+	}
+
 	return nil
+}
+
+// absentKeys returns the subset of keys the local keyring cannot resolve. An id
+// naming a subkey resolves through the primary it hangs off, so resolving says
+// only that the keyring holds that key material: an entry naming a primary
+// resolves while a signing subkey added to it upstream is still absent, and
+// makepkg cannot verify a source signed by a subkey the keyring lacks. A revoked
+// or an expired key resolves too, and makepkg accepts only the expired one.
+func absentKeys(ctx context.Context, keys []string) []string {
+	var absent []string
+	for _, key := range keys {
+		// -- because the key is upstream text: without it an option-shaped entry
+		// is read as a gpg option, and one gpg accepts exits zero and reads as a
+		// key that is present
+		if err := exec.CommandContext(ctx, "gpg", "--batch", "--list-keys", "--", key).Run(); err != nil {
+			absent = append(absent, key)
+		}
+	}
+
+	return absent
 }
 
 func (p *ProtoPackage) isAvailable(ctx context.Context, h *alpm.Handle) bool {
