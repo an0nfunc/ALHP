@@ -69,6 +69,9 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 		log.Warningf("[HK/%s] repo-db check failed: %v", fullRepo, err)
 	}
 
+	// one snapshot for the whole pass, matching provided
+	bounds := buildManager.bounds()
+
 	log.Debugf("[HK/%s] removing orphans, signature check", fullRepo)
 	backfilled := 0
 	for _, path := range packages {
@@ -141,6 +144,14 @@ func housekeeping(ctx context.Context, repo, march string, provided providedSona
 					mPackage.Name(), pkgResolved.Name(), mPackage.Name())
 			case MatchGlobList(pkg.Pkgbase, conf.Blacklist.Packages):
 				log.Infof("[HK] %s->%s not included in repo (blacklisted pkgbase %s)", pkg.FullRepo, mPackage.Name(), pkg.Pkgbase)
+			}
+
+			// last point the version we published for this pkgname still exists
+			// anywhere. A package leaving the repos is what a merge upstream looks
+			// like from here, and the row is deleted a few lines down, so a bound
+			// defeated by our build number has to be reported now or not at all
+			if n := reportDefeatedBounds(bounds, pkg.FullRepo, mPackage.Name(), mPackage.Version()); n > 0 {
+				buildManager.metrics.defeatedBoundEntries.WithLabelValues(pkg.FullRepo, "purged").Add(float64(n))
 			}
 
 			// package not found on mirror/db -> not part of any repo anymore.

@@ -142,9 +142,9 @@ func main() {
 	if err != nil {
 		log.Panicf("error while ALPM-init: %v", err)
 	}
-	// so the first housekeeping pass after a restart checks sonames too
+	// so the first housekeeping pass after a restart has both sync DB indexes
 	buildManager.alpmMutex.Lock()
-	buildManager.refreshProvided()
+	buildManager.refreshSyncIndexes()
 	buildManager.alpmMutex.Unlock()
 
 	go func() {

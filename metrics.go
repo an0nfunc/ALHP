@@ -41,6 +41,23 @@ func (b *BuildManager) setupMetrics(port uint32) {
 		Help: "State files whose pkgbase cannot be resolved in the upstream repositories",
 	}, []string{labelRepository})
 
+	// packages we publish at a version above a conflicts/replaces bound upstream
+	// wrote against them, which is an upgrade pacman silently declines to resolve
+	b.metrics.defeatedBoundPackages = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "defeated_bound_packages",
+		Help: "Published packages whose version is above an upstream conflicts/replaces bound written against them",
+	}, []string{labelRepository})
+
+	// conflicts/replaces bound entries observed that our build numbers defeat,
+	// labeled by where we saw it. "artifact" is a built package that still carries
+	// one; "purged" is the merge moment itself, caught as the package leaves the
+	// Arch repos, which the gauge above cannot see because the row is deleted
+	// in the same pass
+	b.metrics.defeatedBoundEntries = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "defeated_bound_entries_total",
+		Help: "Conflicts/replaces bound entries defeated by our build numbers, by where they were seen",
+	}, []string{labelRepository, "source"})
+
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())
 	go func() {

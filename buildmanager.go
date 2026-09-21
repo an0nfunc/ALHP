@@ -65,9 +65,13 @@ type BuildManager struct {
 	// sonameIndex holds the sonames the sync DBs currently carry. Rebuilt
 	// together with alpmHandle, since it describes exactly that snapshot, and
 	// read by every builder and housekeeping goroutine. Guarded by alpmMutex.
-	sonameIndex  providedSonames
-	building     []*ProtoPackage
-	buildingLock *sync.RWMutex
+	sonameIndex providedSonames
+	// versionBounds holds the upper-bounded conflicts/replaces entries the sync
+	// DBs declare. Rebuilt with sonameIndex and for the same reason: it
+	// describes one snapshot. Guarded by alpmMutex.
+	versionBounds boundIndex
+	building      []*ProtoPackage
+	buildingLock  *sync.RWMutex
 	// stopped closes admission once shutdown starts. Guarded by buildingLock,
 	// which is what orders it against buildWG.Add; see waitForBuilds.
 	stopped     bool
@@ -85,10 +89,12 @@ type BuildManager struct {
 	// fresh checkout from gitlab.archlinux.org before failing at the same place.
 	isolationFailures atomic.Int64
 	metrics           struct {
-		queueSize        *prometheus.GaugeVec
-		buildsKilled     *prometheus.CounterVec
-		waitingUnmovable *prometheus.GaugeVec
-		staleStateFiles  *prometheus.GaugeVec
+		queueSize             *prometheus.GaugeVec
+		buildsKilled          *prometheus.CounterVec
+		waitingUnmovable      *prometheus.GaugeVec
+		staleStateFiles       *prometheus.GaugeVec
+		defeatedBoundPackages *prometheus.GaugeVec
+		defeatedBoundEntries  *prometheus.CounterVec
 	}
 }
 
@@ -354,15 +360,25 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 	return nil
 }
 
-// refreshProvided rebuilds the soname index for the current alpmHandle.
-// Callers must hold alpmMutex for writing.
-func (b *BuildManager) refreshProvided() {
+// refreshSyncIndexes rebuilds every index derived from the sync DBs for the
+// current alpmHandle. Callers must hold alpmMutex for writing.
+//
+// One function rather than one per index so a newly added index cannot be left
+// describing the previous snapshot by missing a call site.
+func (b *BuildManager) refreshSyncIndexes() {
 	provided, err := collectProvidedSonames(alpmHandle)
 	if err != nil {
 		log.Warningf("error collecting provided sonames: %v", err)
 		provided = nil
 	}
 	b.sonameIndex = provided
+
+	bounds, err := collectVersionBounds(alpmHandle)
+	if err != nil {
+		log.Warningf("error collecting version bounds: %v", err)
+		bounds = nil
+	}
+	b.versionBounds = bounds
 }
 
 // provided returns the soname index for the sync DB snapshot in use.
@@ -370,6 +386,13 @@ func (b *BuildManager) provided() providedSonames {
 	b.alpmMutex.RLock()
 	defer b.alpmMutex.RUnlock()
 	return b.sonameIndex
+}
+
+// bounds returns the version-bound index for the sync DB snapshot in use.
+func (b *BuildManager) bounds() boundIndex {
+	b.alpmMutex.RLock()
+	defer b.alpmMutex.RUnlock()
+	return b.versionBounds
 }
 
 func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
@@ -582,6 +605,9 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Warningf("log-housekeeping failed: %v", err)
 		}
+		if err := boundHK(ctx); err != nil {
+			log.Warningf("version-bound housekeeping failed: %v", err)
+		}
 		debugHK()
 		sweepNetns(ctx)
 
@@ -607,7 +633,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		if err != nil {
 			log.Warningf("error while alpm-init: %v", err)
 		}
-		b.refreshProvided()
+		b.refreshSyncIndexes()
 		b.alpmMutex.Unlock()
 
 		queue, err := b.genQueue(ctx)
