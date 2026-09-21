@@ -4,7 +4,10 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 // Versions are named after the case that produced this pair of helpers: upstream
@@ -213,6 +216,67 @@ func TestSplitPkgRel(t *testing.T) {
 			if base != tc.wantBase || buildNo != tc.wantBuildNo {
 				t.Errorf("splitPkgRel(%q) = %q, %d, want %q, %d",
 					tc.pkgrel, base, buildNo, tc.wantBase, tc.wantBuildNo)
+			}
+		})
+	}
+}
+
+// TestPclmulOnlyFromV3Up guards what each feature level is allowed to assume.
+// PCLMULQDQ is part of no x86-64 level, and x86-64-v2's baseline is Nehalem,
+// which predates the instruction, so a v2 build carrying -mpclmul ships packages
+// that SIGILL on CPUs the dynamic linker reports as supported: liblzma put
+// pclmulqdq straight into lzma_crc32 and took pacman down with it. Every CPU
+// meeting x86-64-v3 has the instruction, so it stays enabled from v3 up.
+// https://somegit.dev/ALHP/ALHP.GO/issues/302
+func TestPclmulOnlyFromV3Up(t *testing.T) { //nolint:paralleltest
+	withConf(t, nil)
+
+	raw, err := os.ReadFile(flagConfig)
+	if err != nil {
+		t.Fatalf("read %s: %v", flagConfig, err)
+	}
+	var flagCfg map[string]any
+	if err := yaml.Unmarshal(raw, &flagCfg); err != nil {
+		t.Fatalf("parse %s: %v", flagConfig, err)
+	}
+
+	// Only the cflags subsection is exercised: the others key off makepkg.conf
+	// variables this stub deliberately does not carry.
+	cflagsOf := func(section any) any {
+		s, ok := section.(map[any]any)
+		if !ok {
+			return nil
+		}
+		cflags, ok := s["cflags"]
+		if !ok {
+			return nil
+		}
+		return map[any]any{"cflags": cflags}
+	}
+
+	for _, tc := range []struct { //nolint:paralleltest
+		march string
+		want  bool
+	}{
+		{"x86-64-v2", false},
+		{"x86-64-v3", true},
+		{"x86-64-v4", true},
+	} {
+		t.Run(tc.march, func(t *testing.T) {
+			got, err := parseFlagSection(cflagsOf(flagCfg["common"]), `CFLAGS="-march=x86-64 -mtune=generic -O2"`, tc.march)
+			if err != nil {
+				t.Fatalf("common section: %v", err)
+			}
+			got, err = parseFlagSection(cflagsOf(flagCfg[tc.march]), got, tc.march)
+			if err != nil {
+				t.Fatalf("%s section: %v", tc.march, err)
+			}
+
+			if has := strings.Contains(got, "-mpclmul"); has != tc.want {
+				t.Errorf("-mpclmul present = %t, want %t, in: %s", has, tc.want, got)
+			}
+			if !strings.Contains(got, "-march="+tc.march) {
+				t.Errorf("missing -march=%s in: %s", tc.march, got)
 			}
 		})
 	}

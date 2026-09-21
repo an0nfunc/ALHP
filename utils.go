@@ -954,6 +954,15 @@ func setupMakepkg(march string, flags map[string]any) error {
 		return err
 	}
 
+	// per-march section, applied on top of common so it lands in both the lto and
+	// the non-lto conf. Carries flags that are only valid from a given feature
+	// level up, which is why they cannot live in common. A march with no section
+	// of its own is a no-op.
+	makepkgStr, err = parseFlagSection(flags[march], makepkgStr, march)
+	if err != nil {
+		return err
+	}
+
 	// write non-lto makepkg
 	err = os.WriteFile(lMakepkgLTO, []byte(makepkgStr), 0o644) //nolint:gosec
 	if err != nil {

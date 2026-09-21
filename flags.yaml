@@ -7,7 +7,6 @@ common:
   cflags:
     - "-mtune=generic": ~
     - "-O2": "-O3"
-    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
     - "-march=x86-64": "-march=$march$"
 
   options:
@@ -42,3 +41,19 @@ lto:
     - "!lto": "lto"
 
   cargo_profile_release_lto: "fat"
+
+# per-march sections get applied on top of common, landing in both the lto and
+# the non-lto makepkg.conf. keyed by the full march.
+#
+# PCLMULQDQ is part of no x86-64 feature level, and x86-64-v2's baseline is
+# Nehalem, which predates the instruction. enabling it for v2 ships packages that
+# SIGILL on CPUs the dynamic linker reports as supported. every CPU meeting
+# x86-64-v3 has it, so it stays on from v3 up.
+# https://somegit.dev/ALHP/ALHP.GO/issues/302
+x86-64-v3:
+  cflags:
+    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
+
+x86-64-v4:
+  cflags:
+    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
