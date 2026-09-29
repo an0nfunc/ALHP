@@ -429,8 +429,9 @@ func (b *BuildManager) repoWorker(ctx context.Context, repo string) {
 					SetRepoVersion(pkg.Version).
 					SetTagRev(pkg.State.TagRev)
 
+				// makepkg names the debug package after the pkgbase, not a pkgname
 				if _, err := os.Stat(filepath.Join(conf.Basedir.Debug, pkg.March,
-					pkg.DBPackage.Packages[0]+"-debug-"+pkg.Version+"-"+conf.Arch+".pkg.tar.zst")); err == nil {
+					pkg.DBPackage.Pkgbase+"-debug-"+pkg.Version+"-"+conf.Arch+".pkg.tar.zst")); err == nil {
 					pkgUpd = pkgUpd.SetDebugSymbols(dbpackage.DebugSymbolsAvailable)
 				} else {
 					pkgUpd = pkgUpd.SetDebugSymbols(dbpackage.DebugSymbolsNotAvailable)
