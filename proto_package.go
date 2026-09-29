@@ -633,7 +633,9 @@ func (p *ProtoPackage) srcinfoDepends() []string {
 func (p *ProtoPackage) runtimePkgFiles() []string {
 	files := make([]string, 0, len(p.PkgFiles))
 	for _, file := range p.PkgFiles {
-		if Package(file).IsDebug() {
+		// an unreadable archive stays in, so the scan reports it instead of
+		// this loop hiding it
+		if isDebug, err := Package(file).IsDebug(); err == nil && isDebug {
 			continue
 		}
 		files = append(files, file)

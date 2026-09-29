@@ -29,8 +29,27 @@ func (pkg Package) Name() string {
 
 // IsDebug returns whether pkg carries debug symbols rather than the package
 // itself. Debug packages are tracked separately and never enter a repo db.
-func (pkg Package) IsDebug() bool {
-	return strings.HasSuffix(pkg.Name(), debugSuffix)
+//
+// The -debug suffix alone does not settle it, since it is also an ordinary
+// pkgname ending: ruby's debug package is named like the ruby-debug gem. makepkg
+// records the type in .PKGINFO, so only suffixed names pay for reading it. An
+// archive without that record predates it, and the suffix is all there is.
+func (pkg Package) IsDebug() (bool, error) {
+	if !strings.HasSuffix(pkg.Name(), debugSuffix) {
+		return false, nil
+	}
+
+	values, err := pkg.pkginfoValues("xdata")
+	if err != nil {
+		return false, err
+	}
+	for _, xdata := range values["xdata"] {
+		if pkgtype, ok := strings.CutPrefix(xdata, "pkgtype="); ok {
+			return pkgtype == "debug", nil
+		}
+	}
+
+	return true, nil
 }
 
 // MArch returns package's march

@@ -506,8 +506,8 @@ func backfillSonames(ctx context.Context, pkg *ProtoPackage, syncPkg alpm.IPacka
 	// local slice: pkg.PkgFiles is what the caller's purge acts on, and it has
 	// to keep covering every version on disk.
 	published := make([]string, 0, len(pkg.PkgFiles))
-	for _, file := range pkg.PkgFiles {
-		if Package(file).Version() == pkg.DBPackage.RepoVersion && !Package(file).IsDebug() {
+	for _, file := range pkg.runtimePkgFiles() {
+		if Package(file).Version() == pkg.DBPackage.RepoVersion {
 			published = append(published, file)
 		}
 	}

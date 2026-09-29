@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"syscall"
 	"testing"
@@ -131,6 +132,120 @@ func TestPackagePkgbaseMissingFile(t *testing.T) {
 	}
 }
 
+// TestPackageIsDebug covers a pkgname that merely ends in -debug. ruby's debug
+// package is named like the ruby-debug gem, and the name alone published one over
+// the other: https://somegit.dev/ALHP/ALHP.GO/issues/282
+func TestPackageIsDebug(t *testing.T) {
+	t.Parallel()
+
+	withXdata := func(pkgname, pkgbase, xdata string) []tarMember {
+		body := append(pkginfo(pkgname, pkgbase), xdata...)
+		return []tarMember{{Name: pkginfoName, Content: body}}
+	}
+
+	tests := []struct {
+		name     string
+		filename string
+		members  []tarMember
+		want     bool
+	}{
+		{
+			name:     "debug package",
+			filename: "ruby-debug-3.4.3-2.1-x86_64.pkg.tar.zst",
+			members:  withXdata("ruby-debug", "ruby", "xdata = pkgtype=debug\n"),
+			want:     true,
+		},
+		{
+			name:     "package named like a debug package",
+			filename: "ruby-debug-1.11.1-1.1-x86_64.pkg.tar.zst",
+			members:  withXdata("ruby-debug", "ruby-debug", "xdata = pkgtype=pkg\n"),
+			want:     false,
+		},
+		{
+			name:     "split package named like a debug package",
+			filename: "foo-debug-1.0-1-x86_64.pkg.tar.zst",
+			members:  withXdata("foo-debug", "foo", "xdata = pkgtype=split\n"),
+			want:     false,
+		},
+		{
+			name:     "no pkgtype falls back to the name",
+			filename: "foo-debug-1.0-1-x86_64.pkg.tar.zst",
+			members:  withXdata("foo-debug", "foo", ""),
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), tt.filename)
+			writeTestPackage(t, path, tt.members)
+
+			got, err := Package(path).IsDebug()
+			if err != nil {
+				t.Fatalf("IsDebug: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("got %t, want %t", got, tt.want)
+			}
+		})
+	}
+}
+
+// A name without the suffix is settled without opening the archive, which is
+// what keeps IsDebug cheap on every artifact it is asked about.
+func TestPackageIsDebugPlainNameNotRead(t *testing.T) {
+	t.Parallel()
+
+	got, err := Package(filepath.Join(t.TempDir(), "absent-1.0-1-x86_64.pkg.tar.zst")).IsDebug()
+	if err != nil || got {
+		t.Errorf("got %t, %v, want false, nil", got, err)
+	}
+}
+
+func TestPackageIsDebugCorruptArchive(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "foo-debug-1.0-1-x86_64.pkg.tar.zst")
+	if err := os.WriteFile(path, []byte("not a zstd stream"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Package(path).IsDebug(); err == nil {
+		t.Error("expected an error for a corrupt archive")
+	}
+}
+
+// TestRuntimePkgFiles pins which artifacts the soname and version-bound scans
+// see: debug packages drop out, a package merely named *-debug stays in, and so
+// does an archive that cannot be read, so the scan reports it instead of this
+// filter hiding it.
+func TestRuntimePkgFiles(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	write := func(name, pkgname, pkgbase, xdata string) string {
+		path := filepath.Join(dir, name)
+		body := append(pkginfo(pkgname, pkgbase), xdata...)
+		writeTestPackage(t, path, []tarMember{{Name: pkginfoName, Content: body}})
+		return path
+	}
+
+	plain := write("ruby-3.4.3-2.1-x86_64.pkg.tar.zst", "ruby", "ruby", "xdata = pkgtype=pkg\n")
+	debug := write("ruby-debug-3.4.3-2.1-x86_64.pkg.tar.zst", "ruby-debug", "ruby", "xdata = pkgtype=debug\n")
+	gem := write("ruby-debug-1.11.1-1.1-x86_64.pkg.tar.zst", "ruby-debug", "ruby-debug", "xdata = pkgtype=pkg\n")
+	corrupt := filepath.Join(dir, "foo-debug-1.0-1-x86_64.pkg.tar.zst")
+	if err := os.WriteFile(corrupt, []byte("not a zstd stream"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &ProtoPackage{PkgFiles: []string{plain, debug, gem, corrupt}}
+	if got, want := p.runtimePkgFiles(), []string{plain, gem, corrupt}; !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 func TestResolveByPkgbase(t *testing.T) {
 	t.Parallel()
 
@@ -213,25 +328,21 @@ func TestMoveDisposition(t *testing.T) {
 	// stateDisposition, and asserting it here would pin the conflation the two
 	// classifiers exist to keep apart
 	tests := []struct {
-		name    string
-		err     error
-		isDebug bool
-		want    disposition
+		name string
+		err  error
+		want disposition
 	}{
 		{name: "no error", err: nil, want: dispPublish},
 		{name: "not found", err: &ent.NotFoundError{}, want: dispDelete},
 		{name: "not singular", err: &ent.NotSingularError{}, want: dispResolve},
 		{name: "unclassified", err: errors.New("connection refused"), want: dispKeep},
-		{name: "debug wins over not found", err: &ent.NotFoundError{}, isDebug: true, want: dispDebug},
-		{name: "debug wins over not singular", err: &ent.NotSingularError{}, isDebug: true, want: dispDebug},
-		{name: "debug wins over unclassified", err: errors.New("boom"), isDebug: true, want: dispDebug},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := moveDisposition(tt.err, tt.isDebug); got != tt.want {
+			if got := moveDisposition(tt.err); got != tt.want {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})

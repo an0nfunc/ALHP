@@ -349,8 +349,6 @@ const (
 	// for anything unclassified: the waiting dir is re-read every cycle, so keeping
 	// costs a retry while deleting costs a build that already succeeded.
 	dispKeep disposition = iota
-	// dispDebug diverts the artifact to the debug store, which has no db rows.
-	dispDebug
 	// dispResolve re-resolves an ambiguous pkgname via the archive's own pkgbase.
 	dispResolve
 	// dispDelete drops the artifact. Only for a package nothing claims.
@@ -366,15 +364,10 @@ const (
 // Deliberately separate from stateDisposition even though both end in a
 // keep-or-delete: they sort different error families, so a shared classifier would
 // have to test a filesystem predicate against ent errors and the reverse.
-func moveDisposition(err error, isDebug bool) disposition {
+func moveDisposition(err error) disposition {
 	switch {
 	case err == nil:
 		return dispPublish
-	case isDebug:
-		// debug packages never have a row of their own, and must not be attributed
-		// to one: their .PKGINFO pkgbase points at the base package, so resolving
-		// would publish debug symbols into the repo db
-		return dispDebug
 	case ent.IsNotSingular(err):
 		return dispResolve
 	case ent.IsNotFound(err):
@@ -462,16 +455,29 @@ func movePackagesLive(ctx context.Context, fullRepo string) error {
 
 	for _, file := range pkgFiles {
 		pkg := Package(file)
+
+		// before resolving, not on failing to: debug packages never have a row of
+		// their own, and one named like another pkgbase's package (ruby's
+		// ruby-debug next to the ruby-debug gem) resolves cleanly to that row and
+		// would be published as it
+		isDebug, err := pkg.IsDebug()
+		if err != nil {
+			log.Warningf("[MOVE] cannot read %s, leaving in %s: %v", pkg.Name(), waitingDir, err)
+			kept[keptReasonUnresolved]++
+			continue
+		}
+		if isDebug {
+			if err := storeDebugPackage(pkg, march); err != nil {
+				return err
+			}
+			debugPkgs++
+			discardPackage(file)
+			continue
+		}
+
 		dbPkg, err := pkg.DBPackageIsolated(ctx, march, repo, db)
 		if err != nil {
-			switch moveDisposition(err, pkg.IsDebug()) {
-			case dispDebug:
-				if err := storeDebugPackage(pkg, march); err != nil {
-					return err
-				}
-				debugPkgs++
-				discardPackage(file)
-				continue
+			switch moveDisposition(err) {
 			case dispResolve:
 				// a stale row still claims this pkgname; ask the archive who owns it
 				dbPkg, err = resolveOwner(ctx, pkg, march, repo, db)
