@@ -30,7 +30,7 @@ import (
 const (
 	pacmanConf     = "/usr/share/devtools/pacman.conf.d/multilib.conf"
 	makepkgConf    = "/usr/share/devtools/makepkg.conf.d/x86_64.conf"
-	makepkgConfExt = "/etc/makepkg.conf.d"
+	makepkgConfExt = "/usr/share/devtools/makepkg.conf.d/x86_64.conf.d"
 	logDir         = "logs"
 	pristineChroot = "root"
 	buildDir       = "build"
@@ -829,17 +829,26 @@ func replaceStringsFromMap(str string, replace map[string]string) string {
 	return str
 }
 
-func parseFlagSubSection(list any, res []string, replaceMap map[string]string) []string {
+// parseFlagSubSection applies one flag list to the flags parsed from makepkg.conf.
+// A flag to remove or replace that is not there is an error rather than a no-op:
+// devtools rewording a default would otherwise drop a replacement like -march
+// without a trace, and every build after it would ship without its level.
+func parseFlagSubSection(list any, res []string, replaceMap map[string]string) ([]string, error) {
 	for _, cEntry := range list.([]any) {
 		switch ce := cEntry.(type) {
 		case map[any]any:
 			for k, v := range ce {
+				flag := k.(string)
+				i := Find(res, flag)
+				if i == -1 {
+					return nil, fmt.Errorf("flag %q not found in %v", flag, res)
+				}
 				if v == nil {
-					res = append(res[:Find(res, k.(string))], res[Find(res, k.(string))+1:]...)
+					res = append(res[:i], res[i+1:]...)
 				} else if s, ok := v.(string); ok {
-					Replace(res, k.(string), replaceStringsFromMap(s, replaceMap))
+					Replace(res, flag, replaceStringsFromMap(s, replaceMap))
 				} else {
-					log.Warningf("malformated flag-config: unable to handle %v:%v", replaceStringsFromMap(k.(string), replaceMap), v)
+					log.Warningf("malformated flag-config: unable to handle %v:%v", replaceStringsFromMap(flag, replaceMap), v)
 				}
 			}
 		case string:
@@ -849,7 +858,7 @@ func parseFlagSubSection(list any, res []string, replaceMap map[string]string) [
 		}
 	}
 
-	return res
+	return res, nil
 }
 
 func parseFlagSection(section any, makepkgConf, march string) (string, error) {
@@ -901,7 +910,10 @@ func parseFlagSection(section any, makepkgConf, march string) (string, error) {
 			}
 
 			log.Debugf("original %s: %v (%d)", subSec, flags, len(flags))
-			flags = parseFlagSubSection(subMap, flags, replaceMap)
+			flags, err := parseFlagSubSection(subMap, flags, replaceMap)
+			if err != nil {
+				return "", fmt.Errorf("%s: %w", subSec, err)
+			}
 			log.Debugf("new %s: %v (%d)", subSec, flags, len(flags))
 
 			if subSec.(string) == "ldflags" {
@@ -933,7 +945,8 @@ func setupMakepkg(march string, flags map[string]any) error {
 	makepkgStrBuilder := new(strings.Builder)
 	makepkgStrBuilder.Write(t)
 
-	// read makepkg conf.d
+	// read makepkg conf.d: the drop-ins devtools pairs with makepkgConf, not the
+	// host's pacman-owned /etc/makepkg.conf.d, which can differ (e.g. rust.conf)
 	makepkgConfExt, err := Glob(filepath.Join(makepkgConfExt, "*.conf"))
 	if err != nil {
 		return err

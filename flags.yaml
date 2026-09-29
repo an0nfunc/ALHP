@@ -30,8 +30,9 @@ common:
   kcppflags: " -march=$march$ -O3"
   fcflags: "$FFLAGS"
   fflags:
+    - "-mtune=generic": ~
     - "-O2": "-O3"
-    - "-march=$march$"
+    - "-march=x86-64": "-march=$march$"
 
 lto:
   rustflags:
@@ -53,7 +54,11 @@ lto:
 x86-64-v3:
   cflags:
     - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
+  fflags:
+    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/288
 
 x86-64-v4:
   cflags:
     - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/92
+  fflags:
+    - "-mpclmul" # https://somegit.dev/ALHP/ALHP.GO/issues/288

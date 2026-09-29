@@ -226,8 +226,10 @@ func TestSplitPkgRel(t *testing.T) {
 // which predates the instruction, so a v2 build carrying -mpclmul ships packages
 // that SIGILL on CPUs the dynamic linker reports as supported: liblzma put
 // pclmulqdq straight into lzma_crc32 and took pacman down with it. Every CPU
-// meeting x86-64-v3 has the instruction, so it stays enabled from v3 up.
+// meeting x86-64-v3 has the instruction, so it stays enabled from v3 up, for
+// Fortran as much as for C.
 // https://somegit.dev/ALHP/ALHP.GO/issues/302
+// https://somegit.dev/ALHP/ALHP.GO/issues/288
 func TestPclmulOnlyFromV3Up(t *testing.T) { //nolint:paralleltest
 	withConf(t, nil)
 
@@ -240,18 +242,23 @@ func TestPclmulOnlyFromV3Up(t *testing.T) { //nolint:paralleltest
 		t.Fatalf("parse %s: %v", flagConfig, err)
 	}
 
-	// Only the cflags subsection is exercised: the others key off makepkg.conf
-	// variables this stub deliberately does not carry.
-	cflagsOf := func(section any) any {
+	// Each subsection runs against a stub carrying only its own variable: the
+	// others key off makepkg.conf variables the stub deliberately does not carry.
+	subsectionOf := func(section any, key string) any {
 		s, ok := section.(map[any]any)
 		if !ok {
 			return nil
 		}
-		cflags, ok := s["cflags"]
+		flags, ok := s[key]
 		if !ok {
 			return nil
 		}
-		return map[any]any{"cflags": cflags}
+		return map[any]any{key: flags}
+	}
+	stubs := map[string]string{
+		"cflags": `CFLAGS="-march=x86-64 -mtune=generic -O2"`,
+		// devtools' fortran.conf spreads FFLAGS over several lines
+		"fflags": "FFLAGS=\"-march=x86-64 -mtune=generic -O2 -pipe -fno-plt \\\n        -fno-omit-frame-pointer\"",
 	}
 
 	for _, tc := range []struct { //nolint:paralleltest
@@ -262,21 +269,49 @@ func TestPclmulOnlyFromV3Up(t *testing.T) { //nolint:paralleltest
 		{"x86-64-v3", true},
 		{"x86-64-v4", true},
 	} {
-		t.Run(tc.march, func(t *testing.T) {
-			got, err := parseFlagSection(cflagsOf(flagCfg["common"]), `CFLAGS="-march=x86-64 -mtune=generic -O2"`, tc.march)
-			if err != nil {
-				t.Fatalf("common section: %v", err)
-			}
-			got, err = parseFlagSection(cflagsOf(flagCfg[tc.march]), got, tc.march)
-			if err != nil {
-				t.Fatalf("%s section: %v", tc.march, err)
-			}
+		for key, stub := range stubs {
+			t.Run(tc.march+"/"+key, func(t *testing.T) {
+				got, err := parseFlagSection(subsectionOf(flagCfg["common"], key), stub, tc.march)
+				if err != nil {
+					t.Fatalf("common section: %v", err)
+				}
+				got, err = parseFlagSection(subsectionOf(flagCfg[tc.march], key), got, tc.march)
+				if err != nil {
+					t.Fatalf("%s section: %v", tc.march, err)
+				}
 
-			if has := strings.Contains(got, "-mpclmul"); has != tc.want {
-				t.Errorf("-mpclmul present = %t, want %t, in: %s", has, tc.want, got)
-			}
-			if !strings.Contains(got, "-march="+tc.march) {
-				t.Errorf("missing -march=%s in: %s", tc.march, got)
+				if has := strings.Contains(got, "-mpclmul"); has != tc.want {
+					t.Errorf("-mpclmul present = %t, want %t, in: %s", has, tc.want, got)
+				}
+				// replaced rather than appended, so the baseline -march is gone
+				if n := strings.Count(got, "-march="); n != 1 || !strings.Contains(got, "-march="+tc.march) {
+					t.Errorf("want exactly -march=%s, in: %s", tc.march, got)
+				}
+				if strings.Contains(got, "-mtune=generic") {
+					t.Errorf("-mtune=generic not removed, in: %s", got)
+				}
+			})
+		}
+	}
+}
+
+// TestFlagSectionMissingTarget covers devtools rewording a default the flag config
+// rewrites. Removing a flag that is not there used to panic, and replacing one
+// that is not there silently dropped the replacement, -march included.
+func TestFlagSectionMissingTarget(t *testing.T) { //nolint:paralleltest
+	withConf(t, nil)
+
+	for _, tc := range []struct { //nolint:paralleltest
+		name  string
+		entry map[any]any
+	}{
+		{"remove", map[any]any{"-mtune=generic": nil}},
+		{"replace", map[any]any{"-march=x86-64": "-march=$march$"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			section := map[any]any{"cflags": []any{tc.entry}}
+			if _, err := parseFlagSection(section, `CFLAGS="-march=x86-64-v2 -O2"`, "x86-64-v3"); err == nil {
+				t.Errorf("want an error for a flag missing from the conf")
 			}
 		})
 	}
