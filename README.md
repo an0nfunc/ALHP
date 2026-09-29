@@ -3,7 +3,7 @@
 [![](https://img.shields.io/badge/package-status-informational?style=flat-square)](https://status.alhp.dev)
 [![](https://goreportcard.com/badge/somegit.dev/ALHP/ALHP.GO?style=flat-square)](https://goreportcard.com/report/somegit.dev/ALHP/ALHP.GO)
 [![](https://pkg.go.dev/badge/somegit.dev/ALHP/ALHP.GO)](https://pkg.go.dev/somegit.dev/ALHP/ALHP.GO)
-[![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/anonfunc/ALHP.GO/src/branch/master/LICENSE)
+[![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/ALHP/ALHP.GO/src/branch/main/LICENSE)
 [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
 
 Buildbot for Archlinux based repos with different
@@ -11,8 +11,8 @@ Buildbot for Archlinux based repos with different
 [LTO](https://en.wikipedia.org/wiki/Interprocedural_optimization).
 
 > [!WARNING]
-> NVIDIA graphics users using the **proprietary driver** are strongly encouraged to read the
-> [FAQ about Linux kernel modules](#directly-linked-kernel-modules) before enabling any repos.
+> Users of prebuilt kernel module packages, such as `nvidia-open` (not `nvidia-open-dkms`), are strongly encouraged to
+> read the [FAQ about directly linked kernel modules](#directly-linked-kernel-modules) before enabling any repos.
 
 ---
 <!-- TOC -->
@@ -80,17 +80,31 @@ By default, a CDN mirror provided by ALHP is selected.
 Add the ALHP repos to your `/etc/pacman.conf`. Make sure the appropriate ALHP repository is **above** the Archlinux
 repo.
 
-Example for `x86-64-v3`:
+Example for `x86-64-v3`, with the optional tips explained below marked `# tip`:
 
 ```editorconfig
 [core-x86-64-v3]
 Include = /etc/pacman.d/alhp-mirrorlist
+# tip: hide duplicate search results
+Usage = Sync Install Upgrade
+
+# tip: fall back to a lower level
+[core-x86-64-v2]
+Include = /etc/pacman.d/alhp-mirrorlist
+Usage = Sync Install Upgrade
 
 [core]
 Include = /etc/pacman.d/mirrorlist
 
 [extra-x86-64-v3]
 Include = /etc/pacman.d/alhp-mirrorlist
+# tip: hide duplicate search results
+Usage = Sync Install Upgrade
+
+# tip: fall back to a lower level
+[extra-x86-64-v2]
+Include = /etc/pacman.d/alhp-mirrorlist
+Usage = Sync Install Upgrade
 
 [extra]
 Include = /etc/pacman.d/mirrorlist
@@ -98,6 +112,13 @@ Include = /etc/pacman.d/mirrorlist
 # if you need [multilib] support
 [multilib-x86-64-v3]
 Include = /etc/pacman.d/alhp-mirrorlist
+# tip: hide duplicate search results
+Usage = Sync Install Upgrade
+
+# tip: fall back to a lower level
+[multilib-x86-64-v2]
+Include = /etc/pacman.d/alhp-mirrorlist
+Usage = Sync Install Upgrade
 
 [multilib]
 Include = /etc/pacman.d/mirrorlist
@@ -106,10 +127,13 @@ Include = /etc/pacman.d/mirrorlist
 Replace `x86-64-v3` with the x86-64 feature level you want to enable.
 
 > [!TIP]
-> Multiple layers can be stacked as described in https://somegit.dev/ALHP/ALHP.GO/issues/255#issuecomment-3335.
+> **Hide duplicate search results:** `Usage = Sync Install Upgrade` leaves out `Search`, so `pacman -Ss` lists each
+> package once, from the Arch repos, while installs and upgrades still come from ALHP.
 
 > [!TIP]
-> `Usage = Sync Install Upgrade` can be added to the ALHP repo sections to avoid seeing duplicate package search results.
+> **Fall back to a lower level:** ALHP repos of a lower level can be stacked below yours. A package missing from your
+> level, e.g. because it failed to build there, then comes from the lower level instead of Arch. Once your level has it,
+> pacman only switches on the package's next version. Leave these sections out on `x86-64-v2`.
 
 ### 5. Update package database and upgrade
 
@@ -131,8 +155,8 @@ pacman -Suuy
 
 ### LTO
 
-Enabled for all packages built after 04 Nov 2021 12:07:00
-UTC. [More details.](https://somegit.dev/ALHP/ALHP.GO/issues/52)
+Packages are built with LTO, unless it is known to break them or their LTO link fails, in which case they are built
+without it. [More details.](https://somegit.dev/ALHP/ALHP.GO/issues/52)
 LTO status is visible per package on the package status page.
 
 ### Linux Kernel packages
@@ -141,9 +165,11 @@ LTO status is visible per package on the package status page.
 
 ### Directly linked kernel modules
 
-Due to our increase in pkgrel, building the kernel packages **will break any directly linked modules** such as `nvidia`
-(not `nvidia-dkms`) or `virtualbox-host-modules-arch` (not `virtualbox-host-dkms`). **Their respective `dkms`-variant is
-not affected**. This issue is being tracked in #68, a solution is being worked on.
+ALHP's kernel packages carry our increased pkgrel in their kernel release (e.g. `-arch1-1.1` instead of `-arch1-1`),
+while prebuilt module packages such as `nvidia-open`, `nvidia-open-lts`, `acpi_call`, `vhba-module` or `r8168-lts` are
+built for Arch's kernel. **Their modules will not load with an ALHP kernel.** Use the `dkms` variant where one exists
+(e.g. `nvidia-open-dkms`, `acpi_call-dkms`, `vhba-module-dkms`), which builds the module for the running kernel.
+This is tracked in [#68](https://somegit.dev/ALHP/ALHP.GO/issues/68).
 
 ### Mirrors
 
@@ -152,9 +178,11 @@ so, [see alhp-mirrorlist for how to become one](https://somegit.dev/ALHP/alhp-mi
 
 ### What packages are built
 
-Packages [excluded](https://www.reddit.com/r/archlinux/comments/oflged/alhp_archlinux_recompiled_for_x8664v3_experimental/h4fkinu?utm_source=share&utm_medium=web2x&context=3)
-from building (besides all `any` architecture packages) are being listed in issue #16.
-See also [package status page](https://status.alhp.dev) (search for `blacklisted`).
+Everything in `core`, `extra` and `multilib`, except `any` architecture packages, Haskell packages (GHC ignores our
+flags) and a list of excluded packages, which is tracked with the reasons in
+[#16](https://somegit.dev/ALHP/ALHP.GO/issues/16). The
+[package status page](https://status.alhp.dev) shows every package's state, including why a package was skipped
+(e.g. `blacklisted`).
 
 ### Why is package X not up-to-date
 
@@ -165,9 +193,10 @@ This will cause packages to be delayed if the current batch contains many packag
 build (e.g. `chromium`).
 
 You can always check on the progress of the current build cycle on the [package status page](https://status.alhp.dev).
-Please refrain from opening issues caused by packages currently in queue/not yet build/not yet moved to the repo.
+Please refrain from opening issues caused by packages currently in queue/not yet built/not yet moved to the repo.
 Please keep in mind that large rebuilds such as `openssl` or `python` can take days to complete on our current build
-hardware.
+hardware. Upgrading while such a rebuild is in progress can leave ALHP and Arch packages at mismatched versions, which
+is tracked in [#281](https://somegit.dev/ALHP/ALHP.GO/issues/281).
 
 ### Debug symbols
 
@@ -206,4 +235,4 @@ work ALHP would not be possible.
 ## License and Legal
 
 This project and all of its source code is released under the terms of the GNU General Public License, version 2
-or any later version. See [LICENSE](https://somegit.dev/ALHP/ALHP.GO/src/branch/master/LICENSE) for details.
+or any later version. See [LICENSE](https://somegit.dev/ALHP/ALHP.GO/src/branch/main/LICENSE) for details.
