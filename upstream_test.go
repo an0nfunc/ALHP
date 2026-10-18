@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -33,14 +36,18 @@ func testUpstream(t *testing.T, baseURL string, clone func(ctx context.Context, 
 	t.Helper()
 
 	return &upstream{
-		baseURL:    baseURL,
-		client:     &http.Client{Timeout: srcinfoTimeout},
-		clone:      clone,
-		cacheDir:   t.TempDir(),
-		maxRetries: 3,
-		baseDelay:  time.Millisecond,
-		srcinfos:   make(map[string]*onceResult),
-		trees:      make(map[string]*onceResult),
+		baseURL:        baseURL,
+		client:         newSrcinfoClient(),
+		clone:          clone,
+		cacheDir:       t.TempDir(),
+		maxRetries:     3,
+		attemptTimeout: time.Second,
+		maxDuration:    time.Minute,
+		maxDelay:       time.Millisecond,
+		baseDelay:      time.Millisecond,
+		cloneSlots:     make(chan struct{}, maxConcurrentClones),
+		srcinfos:       make(map[string]*onceResult),
+		trees:          make(map[string]*onceResult),
 	}
 }
 
@@ -57,13 +64,13 @@ func fakeClone(calls *atomic.Int64) func(ctx context.Context, url, ref, dir stri
 }
 
 // TestGitCommandIdentifiesALHP pins what every git call to gitlab.archlinux.org
-// carries: the User-Agent, no credential prompt to hang on, and a cancel that
-// reaches git-remote-https rather than only git itself.
+// carries: the User-Agent, no credential prompt to hang on, the locale the
+// markers match, and a cancel that reaches git-remote-https rather than only git.
 func TestGitCommandIdentifiesALHP(t *testing.T) {
 	t.Parallel()
 
 	cmd := gitCommand(t.Context(), "/nonexistent", "status")
-	for _, want := range []string{"GIT_HTTP_USER_AGENT=" + upstreamUserAgent, "GIT_TERMINAL_PROMPT=0"} {
+	for _, want := range []string{"GIT_HTTP_USER_AGENT=" + upstreamUserAgent, "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "LC_ALL=C"} {
 		if !slices.Contains(cmd.Env, want) {
 			t.Errorf("git environment lacks %q", want)
 		}
@@ -131,7 +138,7 @@ func TestFetchSrcinfoRejectsOversizedBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := testUpstream(t, srv.URL, nil).fetchSrcinfo(t.Context(), "pkg", testRef); err == nil {
+	if _, err := testUpstream(t, srv.URL, nil).fetchSrcinfo(t.Context(), testPkgbase, testRef); err == nil {
 		t.Fatal("fetchSrcinfo accepted a body over maxSrcinfoSize")
 	}
 }
@@ -167,7 +174,7 @@ func TestTreeClonesOncePerKey(t *testing.T) {
 	dirs := make([]string, 8)
 	for i := range dirs {
 		wg.Go(func() {
-			dir, err := u.tree(t.Context(), "pkg", testRef)
+			dir, err := u.tree(t.Context(), testPkgbase, testRef)
 			if err != nil {
 				t.Errorf("tree: %v", err)
 			}
@@ -179,11 +186,11 @@ func TestTreeClonesOncePerKey(t *testing.T) {
 	if n := calls.Load(); n != 1 {
 		t.Errorf("%d concurrent callers on one key cloned %d times, want 1", len(dirs), n)
 	}
-	if want := filepath.Join(u.cacheDir, "pkg", testRef); slices.ContainsFunc(dirs, func(d string) bool { return d != want }) {
+	if want := filepath.Join(u.cacheDir, testPkgbase, testRef); slices.ContainsFunc(dirs, func(d string) bool { return d != want }) {
 		t.Errorf("tree dirs = %q, want all %q", dirs, want)
 	}
 
-	if _, err := u.tree(t.Context(), "pkg", "main"); err != nil {
+	if _, err := u.tree(t.Context(), testPkgbase, "main"); err != nil {
 		t.Fatalf("tree at another ref: %v", err)
 	}
 	if n := calls.Load(); n != 2 {
@@ -195,14 +202,11 @@ func TestTreeCachesFailure(t *testing.T) {
 	t.Parallel()
 
 	var calls atomic.Int64
-	u := testUpstream(t, "https://example.invalid", func(context.Context, string, string, string) error {
-		calls.Add(1)
-		return errors.New("fatal: unable to access")
-	})
+	u := testUpstream(t, "https://example.invalid", transientClone(&calls))
 	u.maxRetries = 0
 
 	for range 3 {
-		if _, err := u.tree(t.Context(), "pkg", testRef); err == nil {
+		if _, err := u.tree(t.Context(), testPkgbase, testRef); err == nil {
 			t.Fatal("tree succeeded on a failing clone")
 		}
 	}
@@ -217,7 +221,7 @@ func TestTreeRefusesInvalidMeta(t *testing.T) {
 	var calls atomic.Int64
 	u := testUpstream(t, "https://example.invalid", fakeClone(&calls))
 
-	for _, tc := range []struct{ pkgbase, ref string }{{"..", testRef}, {"pkg", "../../x"}, {"pkg", ""}} {
+	for _, tc := range []struct{ pkgbase, ref string }{{"..", testRef}, {testPkgbase, "../../x"}, {testPkgbase, ""}} {
 		_, err := u.tree(t.Context(), tc.pkgbase, tc.ref)
 		if !errors.Is(err, ErrInvalidMeta) {
 			t.Errorf("tree(%q, %q) = %v, want ErrInvalidMeta", tc.pkgbase, tc.ref, err)
@@ -241,7 +245,7 @@ func TestSetupBuildDirCopiesCachedTree(t *testing.T) { //nolint:paralleltest
 
 	setup := func(march string) string {
 		t.Helper()
-		p := &ProtoPackage{Pkgbase: "pkg", Version: testRef, March: march, State: &StateInfo{TagVer: testRef}}
+		p := &ProtoPackage{Pkgbase: testPkgbase, Version: testRef, March: march, State: &StateInfo{TagVer: testRef}}
 		dir, err := p.setupBuildDir(t.Context(), u)
 		if err != nil {
 			t.Fatalf("setupBuildDir(%s): %v", march, err)
@@ -253,15 +257,15 @@ func TestSetupBuildDirCopiesCachedTree(t *testing.T) { //nolint:paralleltest
 		return dir
 	}
 
-	v3 := setup("x86-64-v3")
-	if want := filepath.Join(conf.Basedir.Work, buildDir, "x86-64-v3", "pkg-"+testRef); v3 != want {
+	v3 := setup(testMarchV3)
+	if want := filepath.Join(conf.Basedir.Work, buildDir, testMarchV3, testPkgbase+"-"+testRef); v3 != want {
 		t.Errorf("build dir = %q, want %q", v3, want)
 	}
 	if err := os.Truncate(filepath.Join(v3, "PKGBUILD"), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	cached, err := os.ReadFile(filepath.Join(u.cacheDir, "pkg", testRef, "PKGBUILD"))
+	cached, err := os.ReadFile(filepath.Join(u.cacheDir, testPkgbase, testRef, "PKGBUILD"))
 	if err != nil || len(cached) == 0 {
 		t.Fatalf("editing a march's PKGBUILD reached the cached checkout (%q, %v)", cached, err)
 	}
@@ -280,7 +284,7 @@ func TestNewUpstreamStartsEmpty(t *testing.T) { //nolint:paralleltest
 	withConf(t, nil)
 
 	dir := filepath.Join(t.TempDir(), sourceCacheDir)
-	stale := filepath.Join(dir, "pkg", testRef)
+	stale := filepath.Join(dir, testPkgbase, testRef)
 	if err := os.MkdirAll(stale, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -300,4 +304,597 @@ func TestNewUpstreamStartsEmpty(t *testing.T) { //nolint:paralleltest
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("close left the cache dir behind: %v", err)
 	}
+}
+
+// statusServer answers every request with the status in status and counts them.
+func statusServer(t *testing.T, status, requests *atomic.Int64) *httptest.Server {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(int(status.Load()))
+	}))
+	t.Cleanup(srv.Close)
+
+	return srv
+}
+
+// TestFetchSrcinfoNotFoundIsAnAnswer guards the breaker against packages
+// upstream has dropped: a 404 is gitlab answering, so it resets the count
+// instead of adding to it.
+func TestFetchSrcinfoNotFoundIsAnAnswer(t *testing.T) {
+	t.Parallel()
+
+	var status atomic.Int64
+	u := testUpstream(t, statusServer(t, &status, new(atomic.Int64)).URL, nil)
+	fetch := func(ref int) error {
+		_, err := u.fetchSrcinfo(t.Context(), testPkgbase, strconv.Itoa(ref))
+		return err
+	}
+
+	status.Store(http.StatusServiceUnavailable)
+	for i := range maxUpstreamFailures - 1 {
+		_ = fetch(i)
+	}
+	status.Store(http.StatusNotFound)
+	if err := fetch(100); !errors.Is(err, errSourceUnavailable) {
+		t.Errorf("404 = %v, want errSourceUnavailable", err)
+	}
+	status.Store(http.StatusServiceUnavailable)
+	for i := range maxUpstreamFailures - 1 {
+		_ = fetch(200 + i)
+	}
+
+	if u.open.Load() {
+		t.Error("a 404 between failures did not reset the breaker")
+	}
+}
+
+func TestFetchSrcinfoBreakerOpens(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		closed bool
+	}{
+		{"service unavailable", false},
+		{"connection refused", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var status, requests atomic.Int64
+			status.Store(http.StatusServiceUnavailable)
+			srv := statusServer(t, &status, &requests)
+			if tc.closed {
+				srv.Close()
+			}
+			u := testUpstream(t, srv.URL, nil)
+
+			for i := range maxUpstreamFailures {
+				if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, strconv.Itoa(i)); errors.Is(err, ErrUpstreamUnavailable) {
+					t.Fatalf("breaker open after %d failures, want %d", i, maxUpstreamFailures)
+				}
+			}
+			sent := requests.Load()
+
+			_, err := u.fetchSrcinfo(t.Context(), testPkgbase, "next")
+			if !errors.Is(err, ErrUpstreamUnavailable) || !errors.Is(err, errSourceUnavailable) {
+				t.Errorf("fetch after %d failures = %v, want ErrUpstreamUnavailable", maxUpstreamFailures, err)
+			}
+			if requests.Load() != sent {
+				t.Error("an open breaker still sent a request")
+			}
+		})
+	}
+}
+
+// failClone stands in for a git that fails every clone with msg.
+func failClone(calls *atomic.Int64, msg string) func(ctx context.Context, url, ref, dir string) error {
+	return func(context.Context, string, string, string) error {
+		calls.Add(1)
+		return errors.New(msg)
+	}
+}
+
+// transientClone fails the way a network outage does.
+func transientClone(calls *atomic.Int64) func(ctx context.Context, url, ref, dir string) error {
+	return failClone(calls, "fatal: unable to access 'https://gitlab.archlinux.org/': Could not resolve host: gitlab.archlinux.org")
+}
+
+var (
+	answeredMessages = []string{
+		"fatal: Remote branch 1-1 not found in upstream origin",
+		"fatal: repository 'https://gitlab.archlinux.org/archlinux/packaging/packages/gone.git/' not found",
+		"fatal: could not read Username for 'https://gitlab.archlinux.org': No such device or address",
+		"fatal: could not read Password: terminal prompts disabled",
+		"fatal: unable to access 'https://gitlab.archlinux.org/': The requested URL returned error: 401",
+		"fatal: unable to access 'https://gitlab.archlinux.org/': The requested URL returned error: 404",
+	}
+	refusedMessages = []string{
+		"fatal: unable to access 'https://gitlab.archlinux.org/': The requested URL returned error: 403",
+		"fatal: unable to access 'https://gitlab.archlinux.org/': The requested URL returned error: 429",
+	}
+)
+
+// TestGitlabMarkersDisjoint keeps an answer from also reading as a refusal, and
+// the reverse: one resets the breaker and the other opens it.
+func TestGitlabMarkersDisjoint(t *testing.T) {
+	t.Parallel()
+
+	for _, msg := range answeredMessages {
+		if !reGitlabAnswered.MatchString(msg) || reGitlabRefused.MatchString(msg) {
+			t.Errorf("%q must be an answer and only an answer", msg)
+		}
+	}
+	for _, msg := range refusedMessages {
+		if !reGitlabRefused.MatchString(msg) || reGitlabAnswered.MatchString(msg) {
+			t.Errorf("%q must be a refusal and only a refusal", msg)
+		}
+	}
+}
+
+// TestTreeAnsweredIsNotRetried covers each reGitlabAnswered marker: neither
+// retried, since gitlab will say the same again, nor counted toward the breaker,
+// which it resets.
+func TestTreeAnsweredIsNotRetried(t *testing.T) {
+	t.Parallel()
+
+	for _, msg := range answeredMessages {
+		t.Run(msg, func(t *testing.T) {
+			t.Parallel()
+
+			var calls atomic.Int64
+			u := testUpstream(t, "https://example.invalid", failClone(&calls, msg))
+			u.failures.Store(maxUpstreamFailures - 1)
+
+			if _, err := u.tree(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
+				t.Errorf("tree = %v, want errSourceUnavailable", err)
+			}
+			if n := calls.Load(); n != 1 {
+				t.Errorf("cloned %d times, want 1", n)
+			}
+			if n := u.failures.Load(); n != 0 || u.open.Load() {
+				t.Errorf("failures = %d, open = %v; want 0, false", n, u.open.Load())
+			}
+		})
+	}
+}
+
+func TestTreeRetriesTransientFailure(t *testing.T) {
+	t.Parallel()
+
+	var calls, failed atomic.Int64
+	fail, succeed := transientClone(&failed), fakeClone(&calls)
+	u := testUpstream(t, "https://example.invalid", func(ctx context.Context, url, ref, dir string) error {
+		if failed.Load() < 2 {
+			return fail(ctx, url, ref, dir)
+		}
+		return succeed(ctx, url, ref, dir)
+	})
+
+	if _, err := u.tree(t.Context(), testPkgbase, testRef); err != nil {
+		t.Fatalf("tree after two transient failures: %v", err)
+	}
+	if calls.Load() != 1 || failed.Load() != 2 {
+		t.Errorf("attempts: %d failed, %d succeeded; want 2, 1", failed.Load(), calls.Load())
+	}
+	if n := u.failures.Load(); n != 0 {
+		t.Errorf("failures = %d after a success, want 0", n)
+	}
+}
+
+// TestTreeBreakerStopsRetries pins the bound on outbound load during an outage:
+// maxUpstreamFailures attempts in all, across retries, keys and .SRCINFO fetches.
+func TestTreeBreakerStopsRetries(t *testing.T) {
+	t.Parallel()
+
+	var status, requests, calls atomic.Int64
+	status.Store(http.StatusOK)
+	u := testUpstream(t, statusServer(t, &status, &requests).URL, transientClone(&calls))
+	u.maxRetries = 100
+
+	if _, err := u.tree(t.Context(), testPkgbase, testRef); !errors.Is(err, ErrUpstreamUnavailable) {
+		t.Errorf("tree = %v, want ErrUpstreamUnavailable", err)
+	}
+	if n := calls.Load(); n != maxUpstreamFailures {
+		t.Errorf("cloned %d times, want %d", n, maxUpstreamFailures)
+	}
+
+	if _, err := u.tree(t.Context(), "other", testRef); !errors.Is(err, ErrUpstreamUnavailable) {
+		t.Errorf("tree of another package = %v, want ErrUpstreamUnavailable", err)
+	}
+	if _, err := u.fetchSrcinfo(t.Context(), "other", testRef); !errors.Is(err, ErrUpstreamUnavailable) {
+		t.Errorf("fetchSrcinfo = %v, want ErrUpstreamUnavailable", err)
+	}
+	if calls.Load() != maxUpstreamFailures || requests.Load() != 0 {
+		t.Errorf("an open breaker still reached gitlab: %d clones, %d requests", calls.Load(), requests.Load())
+	}
+}
+
+// TestTreeErrorContract pins what keeps an outage from purging published builds:
+// every way tree gives up is errSourceUnavailable, which build() turns into a
+// delay. An invalid name is the exception, since it is about the package.
+func TestTreeErrorContract(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		pkgbase string
+		setup   func(u *upstream)
+		want    []error
+		notWant error
+	}{
+		// these two must give up before the breaker would, so it cannot mask them
+		{"retries exhausted", testPkgbase, func(u *upstream) {
+			u.maxRetries = 1
+		}, []error{errSourceUnavailable}, ErrUpstreamUnavailable},
+		{"max duration", testPkgbase, func(u *upstream) {
+			u.maxRetries = 100
+			u.maxDuration = time.Millisecond
+			transient := u.clone
+			u.clone = func(ctx context.Context, url, ref, dir string) error {
+				time.Sleep(5 * time.Millisecond)
+				return transient(ctx, url, ref, dir)
+			}
+		}, []error{errSourceUnavailable}, ErrUpstreamUnavailable},
+		{"attempt timeout", testPkgbase, func(u *upstream) {
+			u.maxRetries = 0
+			u.attemptTimeout = 10 * time.Millisecond
+			u.clone = func(ctx context.Context, _, _, _ string) error {
+				<-ctx.Done()
+				return ctx.Err()
+			}
+		}, []error{errSourceUnavailable, context.DeadlineExceeded}, nil},
+		{"breaker open", testPkgbase, func(u *upstream) {
+			u.open.Store(true)
+		}, []error{errSourceUnavailable, ErrUpstreamUnavailable}, nil},
+		{"answered", testPkgbase, func(u *upstream) {
+			u.clone = failClone(new(atomic.Int64), "fatal: Remote branch 1-1 not found in upstream origin")
+		}, []error{errSourceUnavailable}, nil},
+		{"invalid meta", "a/b", func(*upstream) {}, []error{ErrInvalidMeta}, errSourceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			u := testUpstream(t, "https://example.invalid", transientClone(new(atomic.Int64)))
+			tc.setup(u)
+
+			_, err := u.tree(t.Context(), tc.pkgbase, testRef)
+			for _, want := range tc.want {
+				if !errors.Is(err, want) {
+					t.Errorf("tree = %v, want it to wrap %v", err, want)
+				}
+			}
+			if tc.notWant != nil && errors.Is(err, tc.notWant) {
+				t.Errorf("tree = %v, must not wrap %v", err, tc.notWant)
+			}
+		})
+	}
+}
+
+// TestRefusalOpensBreaker covers a blocklist or rate limiter answering: one 403
+// or 429 stops all gitlab traffic, with no retry, on either path.
+func TestRefusalOpensBreaker(t *testing.T) {
+	t.Parallel()
+
+	for i, status := range []int{http.StatusForbidden, http.StatusTooManyRequests} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			var code, requests atomic.Int64
+			code.Store(int64(status))
+			u := testUpstream(t, statusServer(t, &code, &requests).URL, nil)
+
+			if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
+				t.Errorf("fetchSrcinfo = %v, want errSourceUnavailable", err)
+			}
+			if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, "next"); !errors.Is(err, ErrUpstreamUnavailable) {
+				t.Errorf("fetchSrcinfo after a refusal = %v, want ErrUpstreamUnavailable", err)
+			}
+			if n := requests.Load(); n != 1 {
+				t.Errorf("sent %d requests, want 1", n)
+			}
+		})
+		t.Run("clone "+http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			var calls atomic.Int64
+			u := testUpstream(t, "https://example.invalid", failClone(&calls, refusedMessages[i]))
+
+			if _, err := u.tree(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
+				t.Errorf("tree = %v, want errSourceUnavailable", err)
+			}
+			if _, err := u.tree(t.Context(), "other", testRef); !errors.Is(err, ErrUpstreamUnavailable) {
+				t.Errorf("tree after a refusal = %v, want ErrUpstreamUnavailable", err)
+			}
+			if n := calls.Load(); n != 1 {
+				t.Errorf("cloned %d times, want 1", n)
+			}
+		})
+	}
+}
+
+// TestFetchSrcinfoDoesNotFollowRedirect covers how gitlab answers a raw URL for
+// a missing project: a redirect to its sign-in page, which is an answer.
+func TestFetchSrcinfoDoesNotFollowRedirect(t *testing.T) {
+	t.Parallel()
+
+	var followed atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/users/sign_in" {
+			followed.Add(1)
+			_, _ = w.Write([]byte("<html></html>"))
+			return
+		}
+		http.Redirect(w, r, "/users/sign_in", http.StatusFound)
+	}))
+	defer srv.Close()
+
+	u := testUpstream(t, srv.URL, nil)
+	u.failures.Store(maxUpstreamFailures - 1)
+
+	if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
+		t.Errorf("fetchSrcinfo = %v, want errSourceUnavailable", err)
+	}
+	if n := followed.Load(); n != 0 {
+		t.Errorf("the redirect was followed %d times", n)
+	}
+	if n := u.failures.Load(); n != 0 || u.open.Load() {
+		t.Errorf("failures = %d, open = %v after a redirect; want 0, false", n, u.open.Load())
+	}
+}
+
+// TestCloneSlotsCapConcurrency covers the bound on simultaneous clones, which
+// buildQueue's admission does not provide.
+func TestCloneSlotsCapConcurrency(t *testing.T) {
+	t.Parallel()
+
+	const slots = 2
+	var inFlight, peak, calls atomic.Int64
+	write := fakeClone(&calls)
+	u := testUpstream(t, "https://example.invalid", func(ctx context.Context, url, ref, dir string) error {
+		n := inFlight.Add(1)
+		defer inFlight.Add(-1)
+		for {
+			if p := peak.Load(); n <= p || peak.CompareAndSwap(p, n) {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+
+		return write(ctx, url, ref, dir)
+	})
+	u.cloneSlots = make(chan struct{}, slots)
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Go(func() {
+			if _, err := u.tree(t.Context(), testPkgbase, strconv.Itoa(i)); err != nil {
+				t.Errorf("tree: %v", err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if n := peak.Load(); n != slots {
+		t.Errorf("peak concurrent clones = %d, want %d", n, slots)
+	}
+}
+
+// TestCloneSlotRechecksBreaker covers an attempt that waited for a slot while
+// the breaker opened: it must not clone once it gets one.
+func TestCloneSlotRechecksBreaker(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int64
+	u := testUpstream(t, "https://example.invalid", fakeClone(&calls))
+	u.cloneSlots = make(chan struct{}, 1)
+	u.cloneSlots <- struct{}{}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := u.tree(t.Context(), testPkgbase, testRef)
+		done <- err
+	}()
+	// long enough for tree to pass its first breaker check and park on the slot
+	time.Sleep(50 * time.Millisecond)
+	u.open.Store(true)
+	<-u.cloneSlots
+
+	if err := <-done; !errors.Is(err, ErrUpstreamUnavailable) {
+		t.Errorf("tree = %v, want ErrUpstreamUnavailable", err)
+	}
+	if n := calls.Load(); n != 0 {
+		t.Errorf("cloned %d times after the breaker opened, want 0", n)
+	}
+}
+
+// TestSetupBuildDirHostFault covers the local steps after the fetch: a host that
+// cannot create the build dir says nothing about the package, so it must neither
+// purge nor read as an outage.
+// not parallel: withConf mutates the package-level conf
+func TestSetupBuildDirHostFault(t *testing.T) { //nolint:paralleltest
+	withConf(t, nil)
+	conf.Basedir.Work = t.TempDir()
+	if err := os.WriteFile(filepath.Join(conf.Basedir.Work, buildDir), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	u := testUpstream(t, "https://example.invalid", fakeClone(new(atomic.Int64)))
+	p := &ProtoPackage{Pkgbase: testPkgbase, Version: testRef, March: testMarchV3, State: &StateInfo{TagVer: testRef}}
+	_, err := p.setupBuildDir(t.Context(), u)
+
+	if !errors.Is(err, ErrorNotEligible) || errors.Is(err, errSourceUnavailable) {
+		t.Errorf("setupBuildDir = %v, want ErrorNotEligible and not errSourceUnavailable", err)
+	}
+	if got := classifySetupErr(t.Context(), err); got != setupNotEligible {
+		t.Errorf("classifySetupErr(%v) = %d, want setupNotEligible", err, got)
+	}
+}
+
+// not parallel: withConf mutates the package-level conf
+func TestSetupBuildDirLeavesNothingOnFetchFailure(t *testing.T) { //nolint:paralleltest
+	withConf(t, nil)
+	conf.Basedir.Work = t.TempDir()
+
+	u := testUpstream(t, "https://example.invalid", transientClone(new(atomic.Int64)))
+	u.maxRetries = 0
+
+	p := &ProtoPackage{Pkgbase: testPkgbase, Version: testRef, March: testMarchV3, State: &StateInfo{TagVer: testRef}}
+	_, err := p.setupBuildDir(t.Context(), u)
+	if got := classifySetupErr(t.Context(), err); got != setupSourceDelayed {
+		t.Errorf("classifySetupErr(%v) = %d, want setupSourceDelayed", err, got)
+	}
+	if _, err := os.Stat(filepath.Join(conf.Basedir.Work, buildDir, testMarchV3)); !os.IsNotExist(err) {
+		t.Errorf("a failed fetch left a build dir behind: %v", err)
+	}
+}
+
+// isolateGit keeps the host's git config and proxy settings out of tests that
+// run the real git.
+func isolateGit(t *testing.T) {
+	t.Helper()
+
+	for key, value := range map[string]string{
+		"GIT_CONFIG_GLOBAL": os.DevNull, "GIT_CONFIG_NOSYSTEM": "1",
+		"http_proxy": "", "https_proxy": "", "all_proxy": "", "ALL_PROXY": "",
+	} {
+		t.Setenv(key, value)
+	}
+}
+
+// not parallel: isolateGit sets the environment
+func TestTreeClonesTagWithGit(t *testing.T) { //nolint:paralleltest
+	isolateGit(t)
+
+	base := t.TempDir()
+	repo := filepath.Join(base, gitlabProject(testPkgbase)+".git")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) {
+		t.Helper()
+		args = append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %q: %v: %s", args, err, out)
+		}
+	}
+	write := func(content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(repo, "PKGBUILD"), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	write("pkgver=1\n")
+	git("add", "PKGBUILD")
+	git("commit", "-q", "-m", "1")
+	git("tag", testRef)
+	write("pkgver=2\n")
+	git("commit", "-q", "-am", "2")
+
+	u := testUpstream(t, "file://"+base, gitClone)
+
+	dir, err := u.tree(t.Context(), testPkgbase, testRef)
+	if err != nil {
+		t.Fatalf("tree: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dir, "PKGBUILD")); err != nil || string(got) != "pkgver=1\n" {
+		t.Errorf("PKGBUILD at %s = %q, %v; want the tagged one", testRef, got, err)
+	}
+
+	// git's own wording for a missing tag, which reGitlabAnswered has to match
+	if _, err := u.tree(t.Context(), testPkgbase, "9-9"); !errors.Is(err, errSourceUnavailable) {
+		t.Errorf("tree at a missing tag = %v, want errSourceUnavailable", err)
+	}
+	if n := u.failures.Load(); n != 0 {
+		t.Errorf("a missing tag counted as %d failures, want 0", n)
+	}
+}
+
+// TestTreeHungServerTimesOut runs git against a server that accepts and never
+// answers, which is what a dropped route or a silent ban looks like. The attempt
+// deadline has to end it, git-remote-http included (see gitCommand).
+// not parallel: isolateGit sets the environment
+func TestTreeHungServerTimesOut(t *testing.T) { //nolint:paralleltest
+	isolateGit(t)
+
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		mu    sync.Mutex
+		conns []net.Conn
+	)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			conns = append(conns, conn)
+			mu.Unlock()
+		}
+	}()
+	t.Cleanup(func() {
+		_ = ln.Close()
+		mu.Lock()
+		defer mu.Unlock()
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
+	})
+
+	u := testUpstream(t, "http://"+ln.Addr().String(), gitClone)
+	u.maxRetries = 0
+	u.attemptTimeout = 200 * time.Millisecond
+
+	start := time.Now()
+	_, err = u.tree(t.Context(), testPkgbase, testRef)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, errSourceUnavailable) || !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("tree against a hung server = %v, want errSourceUnavailable from the attempt deadline", err)
+	}
+	// WaitDelay is the second, the rest is slack for a loaded machine
+	if limit := u.attemptTimeout + time.Second + 3*time.Second; elapsed > limit {
+		t.Errorf("tree took %s against a hung server, want under %s", elapsed, limit)
+	}
+	if n := u.failures.Load(); n != 1 {
+		t.Errorf("a timed out attempt counted as %d failures, want 1", n)
+	}
+
+	// git-remote-http is the one holding the connection, and killing only git
+	// would leave it behind
+	addr := ln.Addr().String()
+	deadline := time.Now().Add(2 * time.Second)
+	for left := processesMentioning(t, addr); len(left) > 0; left = processesMentioning(t, addr) {
+		if time.Now().After(deadline) {
+			t.Fatalf("processes still talking to %s after tree returned: %q", addr, left)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// processesMentioning returns the command lines in /proc that contain s.
+func processesMentioning(t *testing.T, s string) []string {
+	t.Helper()
+
+	cmdlines, err := filepath.Glob("/proc/[0-9]*/cmdline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for _, path := range cmdlines {
+		// a process that exits between the glob and the read is gone, which is fine
+		if raw, err := os.ReadFile(path); err == nil && bytes.Contains(raw, []byte(s)) {
+			found = append(found, string(bytes.ReplaceAll(raw, []byte{0}, []byte{' '})))
+		}
+	}
+
+	return found
 }

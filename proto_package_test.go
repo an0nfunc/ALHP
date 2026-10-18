@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"github.com/Morganamilo/go-srcinfo"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"somegit.dev/ALHP/ALHP.GO/ent"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -618,5 +622,39 @@ func TestImportKeysTriesEveryKeyserver(t *testing.T) { //nolint:paralleltest
 		if !strings.Contains(string(recorded), keyserver) {
 			t.Errorf("keyserver %q was never queried although the key stayed absent:\n%s", keyserver, recorded)
 		}
+	}
+}
+
+// TestClassifySetupErr pins which setupBuildDir failures may reach buildQueue's
+// purge: only an error nothing anticipates. A gitlab outage is a delay, and a
+// host fault or a shutdown leaves the published build alone.
+func TestClassifySetupErr(t *testing.T) {
+	t.Parallel()
+
+	unavailable := fmt.Errorf("%w: cloning pkg at 1-1: %w", errSourceUnavailable, ErrUpstreamUnavailable)
+	for _, tc := range []struct {
+		name     string
+		canceled bool
+		err      error
+		want     setupOutcome
+	}{
+		{"invalid meta", false, checkMetaName("pkgbase", "a/b"), setupInvalidMeta},
+		{"source unavailable", false, unavailable, setupSourceDelayed},
+		{"host fault", false, fmt.Errorf("%w: copying: %w", ErrorNotEligible, syscall.ENOSPC), setupNotEligible},
+		{"source unavailable at shutdown", true, unavailable, setupNotEligible},
+		{"unknown", false, errors.New("something new"), setupFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.canceled {
+				cancel()
+			}
+			if got := classifySetupErr(ctx, tc.err); got != tc.want {
+				t.Errorf("classifySetupErr(%v) = %d, want %d", tc.err, got, tc.want)
+			}
+		})
 	}
 }

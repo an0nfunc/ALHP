@@ -52,6 +52,9 @@ const (
 	SkipReasonStalled = "build stalled"
 	SkipReasonSilent  = "build silent"
 	SkipReasonTimeout = "build timeout"
+	// SkipReasonSourceUnavailable marks a package delayed because gitlab did not
+	// hand over its sources.
+	SkipReasonSourceUnavailable = "unable to fetch sources"
 )
 
 // killSkipReasons is every skip reason killReason can persist. Housekeeping's
@@ -157,7 +160,8 @@ func (p *ProtoPackage) build(ctx context.Context, up *upstream) (time.Duration, 
 
 	buildFolder, err := p.setupBuildDir(ctx, up)
 	if err != nil {
-		if errors.Is(err, ErrInvalidMeta) {
+		switch classifySetupErr(ctx, err) {
+		case setupInvalidMeta:
 			// reachable before build()'s own check below, because genQueue assigns
 			// Version from an HTTP-fetched .SRCINFO for UseLatest packages
 			log.Warningf("[P] skipping %s->%s: %v", p.FullRepo, p.Pkgbase, err)
@@ -165,6 +169,17 @@ func (p *ProtoPackage) build(ctx context.Context, up *upstream) (time.Duration, 
 				SetSkipReason("invalid version").SetTagRev(p.State.TagRev).SaveX(ctx)
 
 			return time.Since(start), ErrorNotEligible
+		case setupSourceDelayed:
+			// TagRev left alone like the other delays, so the next cycle queues the
+			// package again
+			log.Infof("[P] delayed %s->%s: %v", p.FullRepo, p.Pkgbase, err)
+			p.DBPackage = p.DBPackage.Update().SetStatus(dbpackage.StatusDelayed).
+				SetSkipReason(SkipReasonSourceUnavailable).SaveX(ctx)
+
+			return time.Since(start), ErrorNotEligible
+		case setupNotEligible:
+			return time.Since(start), fmt.Errorf("%w: error setting up build folder: %w", ErrorNotEligible, err)
+		case setupFailed:
 		}
 
 		return time.Since(start), fmt.Errorf("error setting up build folder: %w", err)
@@ -656,6 +671,35 @@ func (p *ProtoPackage) discardArtifacts() error {
 	}
 	p.PkgFiles = nil
 	return nil
+}
+
+type setupOutcome int
+
+const (
+	// setupFailed is left for an error nothing below anticipates, so a new
+	// failure mode surfaces as a failed build rather than as a quiet delay
+	setupFailed setupOutcome = iota
+	setupInvalidMeta
+	setupSourceDelayed
+	// setupNotEligible is a host fault or a shutdown, neither of which says
+	// anything about the package
+	setupNotEligible
+)
+
+// classifySetupErr decides what a setupBuildDir error means for the package.
+// Only setupFailed reaches buildQueue's purge. A delay is recorded only while ctx
+// is live, since build() records it with SaveX on that same ctx.
+func classifySetupErr(ctx context.Context, err error) setupOutcome {
+	switch {
+	case errors.Is(err, ErrInvalidMeta):
+		return setupInvalidMeta
+	case errors.Is(err, errSourceUnavailable) && ctx.Err() == nil:
+		return setupSourceDelayed
+	case errors.Is(err, errSourceUnavailable), errors.Is(err, ErrorNotEligible):
+		return setupNotEligible
+	default:
+		return setupFailed
+	}
 }
 
 func (p *ProtoPackage) setupBuildDir(ctx context.Context, up *upstream) (string, error) {
