@@ -14,7 +14,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +33,7 @@ const (
 	logDir         = "logs"
 	pristineChroot = "root"
 	buildDir       = "build"
+	sourceCacheDir = "srccache"
 	lastUpdate     = "lastupdate"
 	repoLock       = "repo.lck"
 	stateDir       = "state"
@@ -1182,42 +1182,6 @@ func Copy(srcPath, dstPath string) (err error) {
 
 	_, err = io.Copy(w, r)
 	return err
-}
-
-func downloadSRCINFO(ctx context.Context, pkg, tag string) (*srcinfo.Srcinfo, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(
-		"https://gitlab.archlinux.org/archlinux/packaging/packages/%s/-/raw/%s/.SRCINFO", pkg, tag),
-		http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", upstreamUserAgent)
-
-	resp, err := srcinfoClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(resp.Status)
-	}
-
-	// one byte over the cap, so an oversized body is an error rather than a
-	// truncated .SRCINFO that happens to parse
-	bResp, err := io.ReadAll(io.LimitReader(resp.Body, maxSrcinfoSize+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(bResp) > maxSrcinfoSize {
-		return nil, fmt.Errorf(".SRCINFO exceeds %d bytes", maxSrcinfoSize)
-	}
-
-	nSrcInfo, err := srcinfo.Parse(string(bResp))
-	if err != nil {
-		return nil, err
-	}
-	return nSrcInfo, nil
 }
 
 func getDescendantPIDs(rootPID int) ([]int, error) {

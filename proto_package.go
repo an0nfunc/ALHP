@@ -10,7 +10,6 @@ import (
 	"github.com/c2h5oh/datasize"
 	"github.com/google/uuid"
 	"github.com/otiai10/copy"
-	"github.com/sethvargo/go-retry"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -149,14 +148,14 @@ func (p *ProtoPackage) isEligible(ctx context.Context) bool {
 	return true
 }
 
-func (p *ProtoPackage) build(ctx context.Context) (time.Duration, error) {
+func (p *ProtoPackage) build(ctx context.Context, up *upstream) (time.Duration, error) {
 	start := time.Now().UTC()
 	// one id per build, rendered as the chroot copy name and the network namespace
 	// name; neither is derived from the other
 	buildID := uuid.New().String()
 	chroot := chrootName(buildID)
 
-	buildFolder, err := p.setupBuildDir(ctx)
+	buildFolder, err := p.setupBuildDir(ctx, up)
 	if err != nil {
 		if errors.Is(err, ErrInvalidMeta) {
 			// reachable before build()'s own check below, because genQueue assigns
@@ -659,7 +658,7 @@ func (p *ProtoPackage) discardArtifacts() error {
 	return nil
 }
 
-func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
+func (p *ProtoPackage) setupBuildDir(ctx context.Context, up *upstream) (string, error) {
 	// Guarded at the sink, not only where Version is assigned: there are three
 	// assignment sites and genQueue's runs before build()'s check, so a UseLatest
 	// package reaches here with a version straight from an HTTP-fetched .SRCINFO.
@@ -671,40 +670,30 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 		return "", err
 	}
 
+	// fetched before anything local is touched, so a failure leaves no empty
+	// tree behind
+	src, err := up.tree(ctx, p.Pkgbase, p.cloneBranch())
+	if err != nil {
+		return "", err
+	}
+
 	// treeDir, not buildDir: a local of that name shadows the const this Join
 	// needs, and the two read identically at every use below
 	treeDir := filepath.Join(conf.Basedir.Work, buildDir, p.March, p.Pkgbase+"-"+p.Version)
 
-	err := cleanBuildDir(treeDir, "")
-	if err != nil {
-		return "", fmt.Errorf("removing old builddir failed: %w", err)
+	// The steps below fail only on a host fault (ENOSPC, EIO, a broken sudoers
+	// rule), which says nothing about the package, hence ErrorNotEligible: as a
+	// plain error it would purge the published build. A copy rather than links,
+	// because increasePkgRel and the bound rewrite edit the PKGBUILD in place and
+	// every march shares the cached checkout.
+	if err := cleanBuildDir(treeDir, ""); err != nil {
+		return "", fmt.Errorf("%w: removing old builddir failed: %w", ErrorNotEligible, err)
 	}
-
-	err = os.MkdirAll(treeDir, 0o755)
-	if err != nil {
-		return "", err
+	if err := os.MkdirAll(treeDir, 0o755); err != nil {
+		return "", fmt.Errorf("%w: %w", ErrorNotEligible, err)
 	}
-
-	gitlabPath := reReplaceSinglePlus.ReplaceAllString(p.Pkgbase, "$1-$2")
-	gitlabPath = reReplaceRemainingPlus.ReplaceAllString(gitlabPath, "plus")
-	gitlabPath = reReplaceSpecialChars.ReplaceAllString(gitlabPath, "-")
-	gitlabPath = reReplaceUnderscore.ReplaceAllString(gitlabPath, "-")
-	gitlabPath = reReplaceTree.ReplaceAllString(gitlabPath, "unix-tree")
-
-	gr := retry.NewFibonacci(10 * time.Second)
-	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
-
-	if err := retry.Do(ctx, gr, func(ctx context.Context) error {
-		cmd := gitCommand(ctx, "", "clone", "--depth", "1", "--branch", p.cloneBranch(),
-			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), treeDir)
-		res, err := cmd.CombinedOutput()
-		log.Debug(string(res))
-		if err != nil {
-			return retry.RetryableError(err)
-		}
-		return nil
-	}); err != nil {
-		return "", err
+	if err := copy.Copy(src, treeDir); err != nil {
+		return "", fmt.Errorf("%w: copying %s: %w", ErrorNotEligible, src, err)
 	}
 	p.Pkgbuild = filepath.Join(treeDir, "PKGBUILD")
 

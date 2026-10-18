@@ -162,7 +162,7 @@ func buildingBlocks(building []*ProtoPackage, pkg *ProtoPackage) bool {
 	return false
 }
 
-func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) error {
+func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage, upstr *upstream) error {
 	var (
 		doneQ         []*ProtoPackage
 		doneQLock     = new(sync.RWMutex)
@@ -301,7 +301,7 @@ func (b *BuildManager) buildQueue(ctx context.Context, queue []*ProtoPackage) er
 
 				go func(pkg *ProtoPackage) {
 					defer b.buildWG.Done()
-					dur, err := pkg.build(ctx)
+					dur, err := pkg.build(ctx, upstr)
 					b.metrics.queueSize.WithLabelValues(pkg.FullRepo, "building").Dec()
 					switch {
 					case err == nil:
@@ -643,15 +643,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		b.refreshSyncIndexes()
 		b.alpmMutex.Unlock()
 
-		queue, err := b.genQueue(ctx)
-		if err != nil {
-			log.Errorf("error building queue: %v", err)
-			return err
-		}
-
-		log.Debugf("build-queue with %d items", len(queue))
-		err = b.buildQueue(ctx, queue)
-		if err != nil {
+		if err := b.runQueue(ctx); err != nil {
 			return err
 		}
 
@@ -672,7 +664,29 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 	}
 }
 
-func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
+// runQueue builds one cycle's queue against a fresh upstream, so nothing fetched
+// from gitlab outlives the cycle it was fetched for.
+func (b *BuildManager) runQueue(ctx context.Context) error {
+	up, err := newUpstream(filepath.Join(conf.Basedir.Work, sourceCacheDir))
+	if err != nil {
+		// fatal like the work dir in syncWorker: main discards syncWorker's error, so
+		// returning it would stop building without a trace
+		log.Fatalf("error setting up source cache: %v", err)
+	}
+	defer up.close()
+
+	queue, err := b.genQueue(ctx, up)
+	if err != nil {
+		log.Errorf("error building queue: %v", err)
+		return err
+	}
+
+	log.Debugf("build-queue with %d items", len(queue))
+
+	return b.buildQueue(ctx, queue, up)
+}
+
+func (b *BuildManager) genQueue(ctx context.Context, up *upstream) ([]*ProtoPackage, error) {
 	stateFiles, err := Glob(filepath.Join(conf.Basedir.Work, stateDir, "**/*"))
 	if err != nil {
 		return nil, fmt.Errorf("error scanning for state-files: %w", err)
@@ -818,7 +832,7 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			if pkg.UseLatest {
 				srcRef = upstreamDefaultGitBranch
 			}
-			srcInfo, err := downloadSRCINFO(ctx, pkg.DBPackage.Pkgbase, srcRef)
+			srcInfo, err := up.fetchSrcinfo(ctx, pkg.DBPackage.Pkgbase, srcRef)
 			if err == nil {
 				pkg.Srcinfo = srcInfo
 				if pkg.UseLatest {
