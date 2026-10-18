@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 )
 
 // labelRepository is the repo-march label every metric here is keyed by.
@@ -74,8 +75,16 @@ func (b *BuildManager) setupMetrics(port uint32) {
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())
 	mux.Handle("/cycle", b.cycle)
+	srv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       time.Minute,
+	}
 	go func() {
-		err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux) //nolint:gosec
+		err := srv.ListenAndServe()
 		if err != nil {
 			log.Errorf("failed to start metrics server: %v", err)
 		}
