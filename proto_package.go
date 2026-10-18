@@ -695,7 +695,7 @@ func (p *ProtoPackage) setupBuildDir(ctx context.Context) (string, error) {
 	gr = retry.WithMaxRetries(conf.MaxCloneRetries, gr)
 
 	if err := retry.Do(ctx, gr, func(ctx context.Context) error {
-		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", p.cloneBranch(), //nolint:gosec
+		cmd := gitCommand(ctx, "", "clone", "--depth", "1", "--branch", p.cloneBranch(),
 			fmt.Sprintf("https://gitlab.archlinux.org/archlinux/packaging/packages/%s.git", gitlabPath), treeDir)
 		res, err := cmd.CombinedOutput()
 		log.Debug(string(res))

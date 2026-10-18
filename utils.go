@@ -1184,22 +1184,33 @@ func Copy(srcPath, dstPath string) (err error) {
 	return err
 }
 
-func downloadSRCINFO(pkg, tag string) (*srcinfo.Srcinfo, error) {
-	resp, err := http.Get(fmt.Sprintf(
+func downloadSRCINFO(ctx context.Context, pkg, tag string) (*srcinfo.Srcinfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf(
 		"https://gitlab.archlinux.org/archlinux/packaging/packages/%s/-/raw/%s/.SRCINFO", pkg, tag),
-	)
+		http.NoBody)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", upstreamUserAgent)
+
+	resp, err := srcinfoClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New(resp.Status)
 	}
 
-	bResp, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	// one byte over the cap, so an oversized body is an error rather than a
+	// truncated .SRCINFO that happens to parse
+	bResp, err := io.ReadAll(io.LimitReader(resp.Body, maxSrcinfoSize+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(bResp) > maxSrcinfoSize {
+		return nil, fmt.Errorf(".SRCINFO exceeds %d bytes", maxSrcinfoSize)
 	}
 
 	nSrcInfo, err := srcinfo.Parse(string(bResp))

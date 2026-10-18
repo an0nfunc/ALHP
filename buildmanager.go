@@ -35,6 +35,11 @@ const maxIsolationFailures = 5
 // seconds of work, so this is a backstop against a wedged rm, not a budget.
 const buildShutdownTimeout = 60 * time.Second
 
+// stateRepoPullTimeout bounds the per-cycle state repo update, which only warns
+// on failure, so a hung pull would stall the cycle for nothing. The startup clone
+// stays unbounded, since a deadline there would turn a hang into a Fatalf.
+const stateRepoPullTimeout = 5 * time.Minute
+
 // repoDBPath is the pacman db of a repo-march.
 func repoDBPath(fullRepo string) string {
 	return filepath.Join(conf.Basedir.Repo, fullRepo, "os", conf.Arch, fullRepo) + ".db.tar.xz"
@@ -565,24 +570,24 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 	gitPath := filepath.Join(conf.Basedir.Work, stateDir)
 	for {
 		if _, err := os.Stat(gitPath); os.IsNotExist(err) {
-			cmd := exec.CommandContext(ctx, "git", "clone", "--depth=1", conf.StateRepo, gitPath) //nolint:gosec
+			cmd := gitCommand(ctx, "", "clone", "--depth=1", conf.StateRepo, gitPath)
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
 				log.Fatalf("error cloning state repo: %v", err)
 			}
 		} else if err == nil {
-			cmd := exec.CommandContext(ctx, "git", "reset", "--hard")
-			cmd.Dir = gitPath
+			cmd := gitCommand(ctx, gitPath, "reset", "--hard")
 			res, err := cmd.CombinedOutput()
 			log.Debug(string(res))
 			if err != nil {
 				log.Fatalf("error reseting state repo: %v", err)
 			}
 
-			cmd = exec.CommandContext(ctx, "git", "pull")
-			cmd.Dir = gitPath
+			pullCtx, cancel := context.WithTimeout(ctx, stateRepoPullTimeout)
+			cmd = gitCommand(pullCtx, gitPath, "pull")
 			res, err = cmd.CombinedOutput()
+			cancel()
 			log.Debug(string(res))
 			if err != nil {
 				log.Warningf("failed to update state repo: %v", err)
@@ -813,7 +818,7 @@ func (b *BuildManager) genQueue(ctx context.Context) ([]*ProtoPackage, error) {
 			if pkg.UseLatest {
 				srcRef = upstreamDefaultGitBranch
 			}
-			srcInfo, err := downloadSRCINFO(pkg.DBPackage.Pkgbase, srcRef)
+			srcInfo, err := downloadSRCINFO(ctx, pkg.DBPackage.Pkgbase, srcRef)
 			if err == nil {
 				pkg.Srcinfo = srcInfo
 				if pkg.UseLatest {
