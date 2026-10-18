@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"somegit.dev/ALHP/ALHP.GO/ent/dbpackage"
 	"strings"
 	"sync"
@@ -93,6 +94,7 @@ type BuildManager struct {
 	// sudoers edit) puts every eligible package back every cycle, each doing a
 	// fresh checkout from gitlab.archlinux.org before failing at the same place.
 	isolationFailures atomic.Int64
+	cycle             *cycleTracker
 	metrics           struct {
 		queueSize             *prometheus.GaugeVec
 		buildsKilled          *prometheus.CounterVec
@@ -569,6 +571,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 
 	gitPath := filepath.Join(conf.Basedir.Work, stateDir)
 	for {
+		b.cycle.enter(phaseHousekeeping)
 		if _, err := os.Stat(gitPath); os.IsNotExist(err) {
 			cmd := gitCommand(ctx, "", "clone", "--depth=1", conf.StateRepo, gitPath)
 			res, err := cmd.CombinedOutput()
@@ -619,6 +622,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		sweepNetns(ctx)
 
 		// fetch updates between sync runs
+		b.cycle.enter(phaseUpdatingChroot)
 		b.alpmMutex.Lock()
 		err = alpmHandle.Release()
 		if err != nil {
@@ -648,6 +652,7 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 		}
 
 		if ctx.Err() == nil {
+			b.cycle.enter(phasePublishing)
 			for _, repo := range repos {
 				err = movePackagesLive(ctx, repo)
 				if err != nil {
@@ -660,13 +665,16 @@ func (b *BuildManager) syncWorker(ctx context.Context) error {
 
 		b.metrics.queueSize.Reset()
 		log.Debugf("build-cycle finished")
-		time.Sleep(time.Duration(*checkInterval) * time.Minute)
+		interval := time.Duration(*checkInterval) * time.Minute
+		b.cycle.waitUntil(time.Now().Add(interval))
+		time.Sleep(interval)
 	}
 }
 
 // runQueue builds one cycle's queue against a fresh upstream, so nothing fetched
 // from gitlab outlives the cycle it was fetched for.
 func (b *BuildManager) runQueue(ctx context.Context) error {
+	b.cycle.enter(phaseGeneratingQueue)
 	up, err := newUpstream(filepath.Join(conf.Basedir.Work, sourceCacheDir))
 	if err != nil {
 		// fatal like the work dir in syncWorker: main discards syncWorker's error, so
@@ -683,11 +691,25 @@ func (b *BuildManager) runQueue(ctx context.Context) error {
 
 	log.Debugf("build-queue with %d items", len(queue))
 
+	b.cycle.enter(phaseBuilding)
 	return b.buildQueue(ctx, queue, up)
 }
 
+// stateFilesIn lists the state files under dir, without directories and the
+// repo's own files, so queue progress counts only what genQueue works through.
+func stateFilesIn(dir string) ([]string, error) {
+	paths, err := Glob(filepath.Join(dir, "**/*"))
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(paths, func(path string) bool {
+		stat, err := os.Stat(path)
+		return err != nil || stat.IsDir() || strings.Contains(path, ".git") || strings.Contains(path, "README.md")
+	}), nil
+}
+
 func (b *BuildManager) genQueue(ctx context.Context, up *upstream) ([]*ProtoPackage, error) {
-	stateFiles, err := Glob(filepath.Join(conf.Basedir.Work, stateDir, "**/*"))
+	stateFiles, err := stateFilesIn(filepath.Join(conf.Basedir.Work, stateDir))
 	if err != nil {
 		return nil, fmt.Errorf("error scanning for state-files: %w", err)
 	}
@@ -697,11 +719,8 @@ func (b *BuildManager) genQueue(ctx context.Context, up *upstream) ([]*ProtoPack
 	// at the end rather than per package per cycle: the condition is real and worth
 	// tracking, but it is permanent until state.git drops the file
 	unresolved := make(map[string]int)
-	for _, stateFile := range stateFiles {
-		stat, err := os.Stat(stateFile)
-		if err != nil || stat.IsDir() || strings.Contains(stateFile, ".git") || strings.Contains(stateFile, "README.md") {
-			continue
-		}
+	for i, stateFile := range stateFiles {
+		b.cycle.progress(i+1, len(stateFiles))
 
 		repo, subRepo, arch, err := stateFileMeta(stateFile)
 		if err != nil {

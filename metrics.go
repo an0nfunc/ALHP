@@ -66,8 +66,14 @@ func (b *BuildManager) setupMetrics(port uint32) {
 		Help: "Conflicts/replaces bound entries defeated by our build numbers, by where they were seen",
 	}, []string{labelRepository, "source"})
 
+	b.cycle = newCycleTracker(promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "build_cycle_phase",
+		Help: "Build cycle phase, 1 for the current phase and 0 for the others",
+	}, []string{"phase"}))
+
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())
+	mux.Handle("/cycle", b.cycle)
 	go func() {
 		err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux) //nolint:gosec
 		if err != nil {
