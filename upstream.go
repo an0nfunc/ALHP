@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,6 +34,16 @@ const (
 	srcinfoTimeout = 30 * time.Second
 	// maxSrcinfoSize caps what a .SRCINFO read may buffer. Real ones are a few KiB.
 	maxSrcinfoSize = 1 << 20
+	// srcinfoInterval spaces .SRCINFO requests. Raw files count against gitlab's
+	// unauthenticated web limit of 600 requests per 10 minutes per address, which
+	// one cycle's genQueue can need more than; git traffic does not count.
+	srcinfoInterval = 1100 * time.Millisecond
+	// maxRateLimitWait is the longest Retry-After a 429 may hold requests for.
+	// gitlab's window is 10 minutes, so a longer one is a refusal.
+	maxRateLimitWait = 15 * time.Minute
+	// maxRateLimited 429s in a row for one .SRCINFO open the breaker: a budget
+	// spent again as soon as it resets is not one waiting will get back.
+	maxRateLimited = 3
 	// A clone is bounded per attempt and in total, so an outage costs a build
 	// slot minutes. Unbounded, a retry could hold both unknown-memory slots for
 	// hours and keep the cycle, and with it publishing, from ending.
@@ -57,6 +68,7 @@ var (
 	errSourceUnavailable = errors.New("source unavailable")
 	// ErrUpstreamUnavailable is what every request gets once the breaker is open.
 	ErrUpstreamUnavailable = errors.New("gitlab stopped answering, not asking again this cycle")
+	errRateLimited         = errors.New("rate limited")
 	// reGitlabAnswered matches clone failures that are gitlab's answer about the
 	// package rather than a failure to get one: a missing tag or branch, or a
 	// missing project, which gitlab answers with a 401 and git turns into a
@@ -93,6 +105,8 @@ type upstream struct {
 	open     atomic.Bool
 	// cloneSlots holds one token per clone in flight
 	cloneSlots chan struct{}
+	// pace spaces .SRCINFO requests and holds them while gitlab's limit is spent
+	pace pacer
 
 	mu sync.Mutex
 	// srcinfos holds the raw text rather than the parsed struct: build() goes on
@@ -150,9 +164,49 @@ func newUpstream(dir string) (*upstream, error) {
 		maxDelay:       cloneMaxDelay,
 		baseDelay:      cloneBaseDelay,
 		cloneSlots:     make(chan struct{}, maxConcurrentClones),
+		pace:           pacer{interval: srcinfoInterval},
 		srcinfos:       make(map[string]*onceResult),
 		trees:          make(map[string]*onceResult),
 	}, nil
+}
+
+// pacer hands out request slots interval apart.
+type pacer struct {
+	interval time.Duration
+
+	mu   sync.Mutex
+	next time.Time
+}
+
+// wait blocks until the next slot and takes it. A hold placed while it sleeps
+// still applies, as it rechecks on waking.
+func (p *pacer) wait(ctx context.Context) error {
+	for {
+		p.mu.Lock()
+		now := time.Now()
+		if !now.Before(p.next) {
+			p.next = now.Add(p.interval)
+			p.mu.Unlock()
+			return nil
+		}
+		d := p.next.Sub(now)
+		p.mu.Unlock()
+
+		select {
+		case <-time.After(d):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+// holdUntil gives out no slot before t.
+func (p *pacer) holdUntil(t time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if t.After(p.next) {
+		p.next = t
+	}
 }
 
 // record feeds one gitlab request into the breaker. answered is any response
@@ -230,32 +284,60 @@ func (u *upstream) fetchSrcinfo(ctx context.Context, pkgbase, ref string) (*srci
 }
 
 func (u *upstream) getSrcinfo(ctx context.Context, pkgbase, ref string) (string, error) {
+	url := fmt.Sprintf("%s/%s/-/raw/%s/.SRCINFO", u.baseURL, gitlabProject(pkgbase), ref)
+	for attempt := 1; ; attempt++ {
+		body, wait, err := u.requestSrcinfo(ctx, url)
+		if !errors.Is(err, errRateLimited) {
+			return body, err
+		}
+		if attempt == maxRateLimited {
+			u.trip(fmt.Sprintf("gitlab rate limited %s %d times in a row", url, maxRateLimited))
+			return "", err
+		}
+		log.Warningf("%v, holding gitlab requests for %s", err, wait)
+		u.pace.holdUntil(time.Now().Add(wait))
+	}
+}
+
+// requestSrcinfo makes one paced request for url. A 429 that says when the
+// budget resets is errRateLimited with that wait; any other refusal opens the
+// breaker.
+func (u *upstream) requestSrcinfo(ctx context.Context, url string) (string, time.Duration, error) {
 	if u.open.Load() {
-		return "", ErrUpstreamUnavailable
+		return "", 0, ErrUpstreamUnavailable
+	}
+	if err := u.pace.wait(ctx); err != nil {
+		return "", 0, err
+	}
+	// the breaker may have opened while this request waited
+	if u.open.Load() {
+		return "", 0, ErrUpstreamUnavailable
 	}
 
-	url := fmt.Sprintf("%s/%s/-/raw/%s/.SRCINFO", u.baseURL, gitlabProject(pkgbase), ref)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	req.Header.Set("User-Agent", upstreamUserAgent)
 
 	resp, err := u.client.Do(req)
 	if err != nil {
 		u.record(false)
-		return "", err
+		return "", 0, err
 	}
 	defer resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusForbidden, http.StatusTooManyRequests:
+		if wait, ok := retryAfter(resp.Header); ok && resp.StatusCode == http.StatusTooManyRequests {
+			return "", wait, fmt.Errorf("%s: %s: %w", url, resp.Status, errRateLimited)
+		}
 		u.trip(fmt.Sprintf("gitlab refused %s with %s", url, resp.Status))
-		return "", fmt.Errorf("%s: %s", url, resp.Status)
+		return "", 0, fmt.Errorf("%s: %s", url, resp.Status)
 	default:
 		u.record(resp.StatusCode == http.StatusNotFound || resp.StatusCode/100 == 3)
-		return "", fmt.Errorf("%s: %s", url, resp.Status)
+		return "", 0, fmt.Errorf("%s: %s", url, resp.Status)
 	}
 
 	// one byte over the cap, so an oversized body is an error rather than a
@@ -263,13 +345,25 @@ func (u *upstream) getSrcinfo(ctx context.Context, pkgbase, ref string) (string,
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxSrcinfoSize+1))
 	u.record(err == nil)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", url, err)
+		return "", 0, fmt.Errorf("%s: %w", url, err)
 	}
 	if len(body) > maxSrcinfoSize {
-		return "", fmt.Errorf("%s: .SRCINFO exceeds %d bytes", url, maxSrcinfoSize)
+		return "", 0, fmt.Errorf("%s: .SRCINFO exceeds %d bytes", url, maxSrcinfoSize)
 	}
 
-	return string(body), nil
+	return string(body), 0, nil
+}
+
+// retryAfter is the wait a 429 asks for in its Retry-After seconds, which
+// gitlab sends with every throttled response. ok is false without one, or for
+// one past maxRateLimitWait.
+func retryAfter(h http.Header) (time.Duration, bool) {
+	s, err := strconv.Atoi(h.Get("Retry-After"))
+	if err != nil || s < 0 || s > int(maxRateLimitWait/time.Second) {
+		return 0, false
+	}
+
+	return time.Duration(s) * time.Second, true
 }
 
 // tree returns a checkout of pkgbase at ref under the cache dir. Callers copy it

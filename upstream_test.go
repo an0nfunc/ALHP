@@ -296,6 +296,9 @@ func TestNewUpstreamStartsEmpty(t *testing.T) { //nolint:paralleltest
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Errorf("newUpstream kept a stale checkout: %v", err)
 	}
+	if u.pace.interval != srcinfoInterval {
+		t.Errorf("newUpstream paces .SRCINFO requests %s apart, want %s", u.pace.interval, srcinfoInterval)
+	}
 	if _, err := os.Stat(dir); err != nil {
 		t.Errorf("newUpstream did not create its dir: %v", err)
 	}
@@ -573,8 +576,9 @@ func TestTreeErrorContract(t *testing.T) {
 	}
 }
 
-// TestRefusalOpensBreaker covers a blocklist or rate limiter answering: one 403
-// or 429 stops all gitlab traffic, with no retry, on either path.
+// TestRefusalOpensBreaker covers a blocklist or rate limiter answering: one 403,
+// even one with a Retry-After, or a 429 without one, stops all gitlab traffic,
+// with no retry, on either path.
 func TestRefusalOpensBreaker(t *testing.T) {
 	t.Parallel()
 
@@ -582,9 +586,16 @@ func TestRefusalOpensBreaker(t *testing.T) {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			t.Parallel()
 
-			var code, requests atomic.Int64
-			code.Store(int64(status))
-			u := testUpstream(t, statusServer(t, &code, &requests).URL, nil)
+			var requests atomic.Int64
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				if status == http.StatusForbidden {
+					w.Header().Set("Retry-After", "1")
+				}
+				w.WriteHeader(status)
+			}))
+			t.Cleanup(srv.Close)
+			u := testUpstream(t, srv.URL, nil)
 
 			if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
 				t.Errorf("fetchSrcinfo = %v, want errSourceUnavailable", err)
@@ -612,6 +623,142 @@ func TestRefusalOpensBreaker(t *testing.T) {
 				t.Errorf("cloned %d times, want 1", n)
 			}
 		})
+	}
+}
+
+// rateLimitServer answers 429 with retryAfter to the first limited requests and
+// testSrcinfo after, and logs when each request came.
+func rateLimitServer(t *testing.T, limited int, retryAfter string) (srv *httptest.Server, seen func() []time.Time) {
+	t.Helper()
+
+	var (
+		mu    sync.Mutex
+		times []time.Time
+	)
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		times = append(times, time.Now())
+		n := len(times)
+		mu.Unlock()
+		if n <= limited {
+			w.Header().Set("Retry-After", retryAfter)
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write([]byte(testSrcinfo))
+	}))
+	t.Cleanup(srv.Close)
+
+	return srv, func() []time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(times)
+	}
+}
+
+// TestFetchSrcinfoWaitsOutRateLimit covers gitlab's web limit running out
+// mid-genQueue: the request waits for the reset and goes again, and the
+// breaker stays closed.
+func TestFetchSrcinfoWaitsOutRateLimit(t *testing.T) {
+	t.Parallel()
+
+	srv, seen := rateLimitServer(t, 1, "1")
+	u := testUpstream(t, srv.URL, nil)
+
+	if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, testRef); err != nil {
+		t.Fatalf("fetchSrcinfo = %v, want the retry after the wait to succeed", err)
+	}
+	if u.open.Load() {
+		t.Error("a 429 with a Retry-After opened the breaker")
+	}
+	got := seen()
+	if len(got) != 2 {
+		t.Fatalf("sent %d requests, want 2", len(got))
+	}
+	if gap := got[1].Sub(got[0]); gap < time.Second {
+		t.Errorf("retried %s after the 429, want the 1s Retry-After", gap)
+	}
+}
+
+// TestFetchSrcinfoRateLimitedTooOften covers a budget spent again right after
+// each reset: maxRateLimited 429s for one .SRCINFO open the breaker.
+func TestFetchSrcinfoRateLimitedTooOften(t *testing.T) {
+	t.Parallel()
+
+	srv, seen := rateLimitServer(t, maxRateLimited+1, "0")
+	u := testUpstream(t, srv.URL, nil)
+
+	if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, testRef); !errors.Is(err, errSourceUnavailable) {
+		t.Errorf("fetchSrcinfo = %v, want errSourceUnavailable", err)
+	}
+	if _, err := u.fetchSrcinfo(t.Context(), testPkgbase, "next"); !errors.Is(err, ErrUpstreamUnavailable) {
+		t.Errorf("fetchSrcinfo after %d 429s = %v, want ErrUpstreamUnavailable", maxRateLimited, err)
+	}
+	if n := len(seen()); n != maxRateLimited {
+		t.Errorf("sent %d requests, want %d", n, maxRateLimited)
+	}
+}
+
+func TestRetryAfter(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		header string
+		want   time.Duration
+		ok     bool
+	}{
+		{"0", 0, true},
+		{"120", 2 * time.Minute, true},
+		{"900", maxRateLimitWait, true},
+		{"901", 0, false},
+		{"", 0, false},
+		{"-1", 0, false},
+		{"Wed, 21 Oct 2026 07:28:00 GMT", 0, false},
+		{"99999999999999999999", 0, false},
+	} {
+		h := http.Header{}
+		if tc.header != "" {
+			h.Set("Retry-After", tc.header)
+		}
+		if got, ok := retryAfter(h); got != tc.want || ok != tc.ok {
+			t.Errorf("retryAfter(%q) = %s, %t, want %s, %t", tc.header, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// TestPacerSpacesAndHolds pins the slots genQueue's .SRCINFO requests take:
+// interval apart, none before a hold ends, and a wait that ends with its
+// context.
+func TestPacerSpacesAndHolds(t *testing.T) {
+	t.Parallel()
+
+	const interval = 20 * time.Millisecond
+	p := pacer{interval: interval}
+	start := time.Now()
+	for range 3 {
+		if err := p.wait(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if d := time.Since(start); d < 2*interval {
+		t.Errorf("3 slots took %s, want at least %s", d, 2*interval)
+	}
+
+	until := time.Now().Add(100 * time.Millisecond)
+	p.holdUntil(until)
+	p.holdUntil(time.Now())
+	if err := p.wait(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if now := time.Now(); now.Before(until) {
+		t.Errorf("slot given %s before the hold ended", until.Sub(now))
+	}
+
+	p.holdUntil(time.Now().Add(time.Hour))
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+	if err := p.wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("wait during a hold = %v, want the context's deadline", err)
 	}
 }
 
