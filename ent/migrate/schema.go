@@ -40,6 +40,13 @@ var (
 		Name:       "db_packages",
 		Columns:    DbPackagesColumns,
 		PrimaryKey: []*schema.Column{DbPackagesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dbpackage_pkgbase_repository_march",
+				Unique:  false,
+				Columns: []*schema.Column{DbPackagesColumns[1], DbPackagesColumns[5], DbPackagesColumns[6]},
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{

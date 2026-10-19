@@ -3,6 +3,7 @@ package schema
 import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // DBPackage holds the schema definition for the DbPackage entity.
@@ -47,6 +48,15 @@ func (DBPackage) Fields() []ent.Field {
 		field.Int64("io_out").Optional().Nillable(),
 		field.String("tag_rev").Optional().Nillable(),
 		field.Strings("sonames").Optional(),
+	}
+}
+
+// Indexes of the DBPackage. Not unique: a duplicate already in the table would
+// fail the startup migration. Leads with pkgbase for the per-package lookups
+// and matches the order alhp-web pages /packages in.
+func (DBPackage) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("pkgbase", "repository", "march"),
 	}
 }
 
