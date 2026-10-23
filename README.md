@@ -5,6 +5,7 @@
 [![](https://pkg.go.dev/badge/somegit.dev/ALHP/ALHP.GO)](https://pkg.go.dev/somegit.dev/ALHP/ALHP.GO)
 [![](https://img.shields.io/badge/license-GPL-blue?style=flat-square)](https://somegit.dev/ALHP/ALHP.GO/src/branch/main/LICENSE)
 [![](https://img.shields.io/liberapay/patrons/anonfunc.svg?logo=liberapay&style=flat-square)](https://liberapay.com/anonfunc/)
+[![](https://img.shields.io/badge/sponsored%20by-ITSH-informational?style=flat-square)](https://itsh.dev)
 
 Buildbot for Archlinux based repos with different
 [x86-64 feature levels](https://www.phoronix.com/scan.php?page=news_item&px=GCC-11-x86-64-Feature-Levels), `-O3` and
@@ -19,6 +20,7 @@ Buildbot for Archlinux based repos with different
 * [Quick Start](#quick-start)
 * [FAQ](#faq)
 * [Matrix](#matrix)
+* [Sponsors](#sponsors)
 * [Donations](#donations)
 * [License and Legal](#license-and-legal)
 <!-- TOC -->
@@ -224,10 +226,14 @@ For any non-issue questions, or if you just want to chat, ALHP has a Matrix
 room [here](https://matrix.to/#/#alhp:ofsg.eu) (`#alhp@ofsg.eu`). You can also find me (@idlegandalf)
 in `#archlinux:archlinux.org`.
 
+## Sponsors
+
+[ITSH](https://itsh.dev) hosts ALHP's git repositories, issue tracker and status page monitoring.
+
 ## Donations
 
-I appreciate any money you want to throw my way, but donations are strictly optional. Donations are primarily used to
-pay for server costs. Also consider [donating to the **Archlinux Team**](https://archlinux.org/donate/), without their
+I appreciate any money you want to throw my way, but donations are strictly optional. Donations go towards the
+build server and CDN. Also consider [donating to the **Archlinux Team**](https://archlinux.org/donate/), without their
 work ALHP would not be possible.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/anonfunc/)
