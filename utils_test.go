@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -314,5 +317,44 @@ func TestFlagSectionMissingTarget(t *testing.T) { //nolint:paralleltest
 				t.Errorf("want an error for a flag missing from the conf")
 			}
 		})
+	}
+}
+
+// TestMakepkgConfBuildDir covers PKGBUILDs that hardcode paths under /build, like
+// jxrlib's .pc fixup. BUILDDIR must not be exported, or it leaks into the
+// package's own build system. PKGDEST must stay unset because artifacts are
+// collected from the PKGBUILD's directory.
+// https://somegit.dev/ALHP/ALHP.GO/issues/305
+func TestMakepkgConfBuildDir(t *testing.T) { //nolint:paralleltest
+	if _, err := os.Stat(makepkgConf); err != nil {
+		t.Skipf("devtools not installed: %v", err)
+	}
+	withConf(t, nil)
+	conf.Basedir.Work = t.TempDir()
+
+	raw, err := os.ReadFile(flagConfig)
+	if err != nil {
+		t.Fatalf("read %s: %v", flagConfig, err)
+	}
+	var flagCfg map[string]any
+	if err := yaml.Unmarshal(raw, &flagCfg); err != nil {
+		t.Fatalf("parse %s: %v", flagConfig, err)
+	}
+	if err := setupMakepkg(testMarchV3, flagCfg); err != nil {
+		t.Fatalf("setupMakepkg: %v", err)
+	}
+
+	for _, name := range []string{makepkg, makepkgLTO} {
+		path := filepath.Join(conf.Basedir.Work, makepkgDir, fmt.Sprintf(name, testMarchV3))
+		cmd := exec.CommandContext(t.Context(), "bash", "--norc", "--noprofile", "-c",
+			`source "$1" && declare -p BUILDDIR && echo "PKGDEST=${PKGDEST-unset}"`, "bash", path)
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("source %s: %v: %s", name, err, out)
+		}
+		if got, want := string(out), "declare -- BUILDDIR=\"/build\"\nPKGDEST=unset\n"; got != want {
+			t.Errorf("%s: got %q, want %q", name, got, want)
+		}
 	}
 }

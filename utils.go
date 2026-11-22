@@ -966,6 +966,12 @@ func setupMakepkg(march string, flags map[string]any) error {
 		makepkgStrBuilder.Write(ext)
 	}
 
+	// makechrootpkg sets BUILDDIR=/build in the chroot's /etc/makepkg.conf, which
+	// --config bypasses, and some PKGBUILDs hardcode paths under /build (#305).
+	// makechrootpkg's PKGDEST is left out: artifacts are collected from the
+	// PKGBUILD's directory.
+	makepkgStrBuilder.WriteString("\nBUILDDIR=/build\n")
+
 	makepkgStr := makepkgStrBuilder.String()
 
 	makepkgStr, err = parseFlagSection(flags["common"], makepkgStr, march)
